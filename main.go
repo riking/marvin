@@ -58,6 +58,8 @@ type mcserverdata struct {
 	MapName      string
 
 	PingData mcping.PingResponse
+
+	DebugData string
 }
 
 func (m *mcserverdata) IsAServer() bool {
@@ -122,7 +124,8 @@ func (m *mcserverdata) readData(strPid string, wg *sync.WaitGroup) {
 	m.MapName = props["level-name"]
 	m.PropsComment = props["homepage-comment"]
 
-	pingResponse, err := mcping.Ping(fmt.Sprintf("localhost:%s", m.Port))
+	m.DebugData = fmt.Sprintf("localhost:%s", m.Port)
+	pingResponse, err := mcping.Ping(m.DebugData)
 	failOnError(err)
 	m.PingData = pingResponse
 
