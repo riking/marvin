@@ -76,12 +76,6 @@ func (m *mcserverdata) Name() string {
 	return m.CWD[lastSlash+1:]
 }
 
-func (m *mcserverdata) SetErrorForJSON() {
-	if m.Err != nil {
-		m.Error = m.Err.Error()
-	}
-}
-
 func (m *mcserverdata) IncludeMapName() bool {
 	return m.MapName != "world"
 }
@@ -222,7 +216,9 @@ func HTTPMCServers(w http.ResponseWriter, r *http.Request) {
 	if includeJsonDump {
 		// Include raw data as a JSON dump
 		for _, v := range serverInfo {
-			v.SetErrorForJSON()
+			if v.IsError() {
+				v.Error = v.Err.Error()
+			}
 		}
 		bytes, err := json.MarshalIndent(serverInfo, "", "\t")
 		if err != nil {
