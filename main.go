@@ -70,6 +70,10 @@ func (m *mcserverdata) IsError() bool {
 	return m.Err != nil
 }
 
+func (m *mcserverdata) HasPingError() bool {
+	return m.PingError == nil
+}
+
 // Name is the name of the server, which is the name of the directory it is run from.
 func (m *mcserverdata) Name() string {
 	lastSlash := strings.LastIndex(m.CWD, "/")
@@ -216,14 +220,14 @@ var serverStatusTemplate = template.Must(template.New("serverStatus").Parse(`
 	{{- if .PropsComment }}<p class="props-comment">{{ .PropsComment }}</p>{{ end -}}
 	{{- if .IncludeMapName }}<p><strong>Map: </strong><em>{{ .MapName }}</em></p>{{ end -}}
 	{{- if true }}<p><strong>MOTD: </strong><em>{{.MOTD}}</em></p>{{ end -}}
-	<p>{{.PingData.Version}}</p>
+	{{- if not .HasPingError }}<p>{{.PingData.Version}}</p>{{end -}}
     </td>
     <td class="online">
-        {{- if .PingError -}}
-        <p class="has-warning"><span class="control-label">{{ .PingError.Error }}</span></p>
+        {{- if .HasPingError -}}
+            <p class="has-warning"><span class="control-label">{{ .PingError.Error }}</span></p>
         {{- else -}}
-        <p><strong>{{ .PingData.Online }}</strong> players online</p>
-        <ul>{{ range .PingData.Sample }}<li>{{ .Name }}</li>{{ end }}</ul>
+            <p><strong>{{ .PingData.Online }}</strong> players online</p>
+            <ul>{{ range .PingData.Sample }}<li>{{ .Name }}</li>{{ end }}</ul>
         {{- end -}}
     </td>
 {{- end -}}
