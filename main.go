@@ -125,7 +125,7 @@ func (m *mcserverdata) readData(strPid string, wg *sync.WaitGroup) {
 	m.PropsComment = props["homepage-comment"]
 
 	pingResponse, err := mcping.Ping(fmt.Sprintf("localhost:%s", m.Port))
-	fmt.Printf("%#v", err)
+	fmt.Printf("%#v\n", err)
 	failOnError(err)
 	m.PingData = pingResponse
 
