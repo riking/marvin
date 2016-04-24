@@ -109,22 +109,23 @@ func loadMCServersData() ([]mcserverdata, error) {
 	}
 	wg.Wait()
 
+
 	// TODO
 
 	return data, nil
 }
 
 var serverStatusTemplate = template.Must(template.New("serverStatus").Parse(`
-<table><th>
-    <td>Server</td>
-    <td>Port</td>
-    <td>MOTD</td>
-</th>
+<table class="table table-bordered table-striped"><thead>
+    <th>Server</th>
+    <th>Port</th>
+    <th>MOTD</th>
+</thead>
 {{- range . -}}
 {{- if .IsAServer -}}
 <tr>
     {{- if .IsError -}}
-        <td colspan="4"><b>Error</b>: {{.Err}}
+        <td colspan="4"><b>Error</b>: {{.Err.Error}}
     {{- else -}}
         <td class="name">{{.Name}}</td><td class="port">{{.Port}}</td><td class="motd"><blockquote>{{.MOTD}}</blockquote></td>
     {{- end -}}
