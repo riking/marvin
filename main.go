@@ -216,7 +216,9 @@ var serverStatusTemplate = template.Must(template.New("serverStatus").Parse(`
 </table>
 `))
 
-var jsonTemplate = template.Must(template.New("showJson").Parse(`<pre><code>{{.}}</code></pre>`))
+var jsonTemplate = template.Must(template.New("showJson").Parse(`
+<details><summary>JSON source</summary><pre><code>{{.}}</code></pre></details>
+`))
 
 const includeJsonDump = true
 
@@ -226,6 +228,12 @@ func HTTPMCServers(w http.ResponseWriter, r *http.Request) {
 		// write info failed to load
 		w.(stringWriter).WriteString("<p>ERROR: failed to load server information")
 		return
+	}
+
+	// Print the table
+	err = serverStatusTemplate.Execute(w, serverInfo)
+	if err != nil {
+		w.(stringWriter).WriteString(fmt.Sprintf("<p>ERROR: %s", err))
 	}
 
 	if includeJsonDump {
@@ -244,11 +252,5 @@ func HTTPMCServers(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			w.(stringWriter).WriteString(fmt.Sprintf("<p>ERROR: %s", err))
 		}
-	}
-
-	// Print the table
-	err = serverStatusTemplate.Execute(w, serverInfo)
-	if err != nil {
-		w.(stringWriter).WriteString(fmt.Sprintf("<p>ERROR: %s", err))
 	}
 }
