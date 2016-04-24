@@ -236,8 +236,9 @@ var serverStatusTemplate = template.Must(template.New("serverStatus").Parse(`
         {{- if .HasPingError -}}
             <p class="has-warning"><span class="control-label">{{ .PingError.Error }}</span></p>
         {{- else -}}
-            <p><strong>{{ .PingData.Online }}</strong> players online on {{ .ServerType }}</p>
+            <p><strong>{{ .PingData.Online }}</strong> players online</p>
             <ul>{{ range .PingData.Sample }}<li>{{ .Name }}</li>{{ end }}</ul>
+            <p>{{ .ServerType }}</p>
         {{- end -}}
     </td>
 {{- end -}}
