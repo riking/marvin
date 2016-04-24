@@ -239,7 +239,7 @@ func HTTPMCServers(w http.ResponseWriter, r *http.Request) {
 	if includeJsonDump {
 		// Include raw data as a JSON dump
 		for _, v := range serverInfo {
-			if v.IsError() {
+			if v.Err != nil {
 				v.Error = v.Err.Error()
 			}
 		}
