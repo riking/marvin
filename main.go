@@ -15,6 +15,7 @@ import (
 
 	"github.com/ammario/mcping"
 	"github.com/shirou/gopsutil/process"
+	"net"
 )
 
 func main() {
@@ -43,6 +44,7 @@ func HTTPHealthCheck(w http.ResponseWriter, r *http.Request) {
 
 var ErrProcessExited = errors.New("Process exited while reading the data")
 var ErrNotAMinecraftServer = errors.New("not a Minecraft server")
+var ErrServerStarting = errors.New("Server starting up...")
 
 type mcserverdata struct {
 	Err   error `json:"-"`
@@ -56,6 +58,7 @@ type mcserverdata struct {
 	MapName      string
 
 	PingData mcping.PingResponse
+	PingError error
 }
 
 func (m *mcserverdata) IsAServer() bool {
@@ -125,9 +128,17 @@ func (m *mcserverdata) readData(strPid string, wg *sync.WaitGroup) {
 	m.PropsComment = props["homepage-comment"]
 
 	pingResponse, err := mcping.Ping(fmt.Sprintf("localhost:%s", m.Port))
-	fmt.Printf("%#v\n", err)
-	failOnError(err)
-	m.PingData = pingResponse
+	if err, ok := err.(*net.OpError); ok {
+		if _, ok := err.Err.(*os.SyscallError); ok {
+			m.PingError = ErrServerStarting
+		} else {
+			m.PingError = err
+		}
+	} else {
+		fmt.Printf("%#v\n", err)
+		m.PingError = err
+		m.PingData = pingResponse
+	}
 
 	/*
 		// Send /who command
@@ -208,8 +219,12 @@ var serverStatusTemplate = template.Must(template.New("serverStatus").Parse(`
 	<p>{{.PingData.Version}}</p>
     </td>
     <td class="online">
+        {{- if .PingError -}}
+        <p class="has-warning"><span class="control-label">{{ .PingError.Error }}</span></p>
+        {{- else -}}
         <p><strong>{{ .PingData.Online }}</strong> players online</p>
         <ul>{{ range .PingData.Sample }}<li>{{ .Name }}</li>{{ end }}</ul>
+        {{- end -}}
     </td>
 {{- end -}}
 </tr>
