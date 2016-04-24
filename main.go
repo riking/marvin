@@ -13,6 +13,10 @@ func HTTPHealthCheck(w http.ResponseWriter, r *http.Request) {
 	w.(stringWriter).WriteString("ok")
 }
 
+func HTTPMCServers(w http.ResponseWriter, r *http.Request) {
+	
+}
+
 func main() {
 
 	http.HandleFunc("/healthcheck", HTTPHealthCheck)
