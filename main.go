@@ -1,17 +1,20 @@
 package main
 
 import (
-	"net/http"
-	"log"
-	"os/exec"
-	"strings"
-	"fmt"
-	"os"
-	"sync"
-	"errors"
-	"strconv"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"html/template"
+	"log"
+	"net/http"
+	"os"
+	"os/exec"
+	"strconv"
+	"strings"
+	"sync"
+
+	"github.com/ammario/mcping"
+	"github.com/shirou/gopsutil/process"
 )
 
 func main() {
@@ -28,7 +31,7 @@ func main() {
 
 // ---
 
-type stringWriter interface{
+type stringWriter interface {
 	WriteString(s string) (n int, err error)
 }
 
@@ -44,12 +47,14 @@ var ErrNotAMinecraftServer = errors.New("not a Minecraft server")
 type mcserverdata struct {
 	Err error
 
-	PID int
-	CWD string
-	MOTD string
-	Port string
+	PID          int32
+	CWD          string
+	MOTD         string
+	Port         string
 	PropsComment string
-	MapName string
+	MapName      string
+
+	PingData mcping.PingResponse
 }
 
 func (m *mcserverdata) IsAServer() bool {
@@ -76,39 +81,77 @@ func (m *mcserverdata) IncludeMapName() bool {
 
 func (m *mcserverdata) readData(strPid string, wg *sync.WaitGroup) {
 	defer wg.Done()
-	pid, err := strconv.Atoi(strPid)
-	if err != nil {
-		m.Err = err
+	defer func() {
+		if err := recover(); err != nil {
+			m.Err = err.(error)
+		}
+	}()
+	failOnError := func(err error) {
+		if err != nil {
+			panic(err)
+		}
 	}
-	m.PID = pid
 
-	cwd, err := os.Readlink(fmt.Sprintf("/proc/%d/cwd", m.PID))
+	pid, err := strconv.Atoi(strPid)
+	failOnError(err)
+	m.PID = int32(pid)
+
+	javaProc, err := process.NewProcess(m.PID)
 	if err != nil {
-		m.Err = err
-		return
+		failOnError(ErrProcessExited)
 	}
+
+	cwd, err := javaProc.Cwd()
+	failOnError(err)
 	// XXX totally hacky
 	if cwd == "/tank/crashplan" {
-		m.Err = ErrNotAMinecraftServer
-		return
+		failOnError(ErrNotAMinecraftServer)
 	}
 	m.CWD = cwd
 
 	file, err := os.Open(fmt.Sprintf("%s/server.properties", cwd))
-	if err != nil {
-		m.Err = err
-		return
-	}
+	failOnError(err)
 	props, err := LoadServerPropsFile(file)
-	if err != nil {
-		m.Err = err
-		return
-	}
+	failOnError(err)
 
 	m.Port = props["server-port"]
 	m.MOTD = props["motd"]
 	m.MapName = props["level-name"]
 	m.PropsComment = props["homepage-comment"]
+
+	pingResponse, err := mcping.Ping(fmt.Sprintf("home.riking.org:%d", m.Port))
+	failOnError(err)
+	m.PingData = pingResponse
+
+	/*
+		// Send /who command
+		firstBashPid, err := javaProc.Parent()
+		failOnError(err)
+		firstBash, err := process.NewProcess(firstBashPid)
+		failOnError(err)
+		firstBashCmdline, err := firstBash.Cmdline()
+		failOnError(err)
+		if firstBashCmdline != "/bin/bash" {
+			failOnError(fmt.Errorf("error: first parent's [pid %d] cmdline is %s, not /bin/bash", firstBashPid, firstBashCmdline))
+		}
+
+		secondBashPid, err := firstBash.Parent()
+		failOnError(err)
+		secondBash, err := process.NewProcess(secondBashPid)
+		failOnError(err)
+		secondBashCmdline, err := secondBash.Cmdline()
+		failOnError(err)
+		if secondBashCmdline != "/bin/bash" {
+			failOnError(fmt.Errorf("error: second parent's [pid %d] cmdline is %s, not /bin/bash", secondBashPid, secondBashCmdline))
+		}
+
+		screenProcPid, err := secondBash.Parent()
+		failOnError(err)
+		screenProc, err := process.NewProcess(screenProcPid)
+		failOnError(err)
+		screenCmd, err := screenProc.CmdlineSlice()
+	*/
+
 }
 
 func loadMCServersData() ([]mcserverdata, error) {
@@ -124,7 +167,6 @@ func loadMCServersData() ([]mcserverdata, error) {
 		go data[i].readData(pid, &wg)
 	}
 	wg.Wait()
-
 
 	// TODO
 
