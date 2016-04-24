@@ -15,6 +15,8 @@ import (
 
 	"github.com/ammario/mcping"
 	"github.com/shirou/gopsutil/process"
+	"net"
+	"time"
 )
 
 func main() {
@@ -120,6 +122,9 @@ func (m *mcserverdata) readData(strPid string, wg *sync.WaitGroup) {
 	m.MapName = props["level-name"]
 	m.PropsComment = props["homepage-comment"]
 
+	conn, err := net.DialTimeout("tcp", fmt.Sprintf("localhost:%d", m.Port), time.Millisecond*1000)
+	failOnError(err)
+	conn.Close()
 	pingResponse, err := mcping.Ping(fmt.Sprintf("localhost:%d", m.Port))
 	failOnError(err)
 	m.PingData = pingResponse
