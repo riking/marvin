@@ -39,6 +39,9 @@ func HTTPHealthCheck(w http.ResponseWriter, r *http.Request) {
 
 // ---
 
+var ErrProcessExited = errors.New("Process exited while reading the data")
+var ErrNotAMinecraftServer = errors.New("not a Minecraft server")
+
 type mcserverdata struct {
 	Err error
 
@@ -46,6 +49,10 @@ type mcserverdata struct {
 	CWD string
 	MOTD string
 	Port string
+}
+
+func (m *mcserverdata) IsAServer() bool {
+	return m.Err != ErrNotAMinecraftServer
 }
 
 // IsError returns whether the Err field is filled.
@@ -59,8 +66,6 @@ func (m *mcserverdata) Name() string {
 	return m.CWD
 }
 
-var ErrProcessExited = errors.New("Process exited while reading the data")
-
 func (m *mcserverdata) readData(strPid string, wg *sync.WaitGroup) {
 	defer wg.Done()
 	pid, err := strconv.Atoi(strPid)
@@ -72,6 +77,11 @@ func (m *mcserverdata) readData(strPid string, wg *sync.WaitGroup) {
 	cwd, err := os.Readlink(fmt.Sprintf("/proc/%d/cwd", m.PID))
 	if err != nil {
 		m.Err = err
+		return
+	}
+	// XXX totally hacky
+	if cwd == "/tank/crashplan" {
+		m.Err = ErrNotAMinecraftServer
 		return
 	}
 	m.CWD = cwd
@@ -111,6 +121,7 @@ var serverStatusTemplate = template.Must(template.New("serverStatus").Parse(`
     <td>MOTD</td>
 </th>
 {{- range . -}}
+{{- if .IsAServer -}}
 <tr>
     {{- if .IsError -}}
         <td colspan="4"><b>Error</b>: {{.Err}}
@@ -118,7 +129,7 @@ var serverStatusTemplate = template.Must(template.New("serverStatus").Parse(`
         <td class="name">{{.Name}}</td><td class="port">{{.Port}}</td><td class="motd"><blockquote>{{.MOTD}}</blockquote></td>
     {{- end -}}
 </tr>
-{{- end -}}
+{{- end}}{{end -}}
 </table>
 `))
 
