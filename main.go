@@ -80,6 +80,10 @@ func (m *mcserverdata) IncludeMapName() bool {
 	return m.MapName != "world"
 }
 
+func (m *mcserverdata) FaviconURL() string {
+	return m.PingData.Favicon
+}
+
 func (m *mcserverdata) readData(strPid string, wg *sync.WaitGroup) {
 	defer wg.Done()
 	defer func() {
@@ -179,22 +183,33 @@ var serverStatusTemplate = template.Must(template.New("serverStatus").Parse(`
     <th>Server</th>
     <th>Port</th>
     <th>About</th>
+    <th>Online</th>
 </thead>
 {{- range . -}}
 {{- if .IsAServer -}}
 <tr>
 {{- if .IsError -}}
-	<td colspan="4"><b>Error</b>: {{.Err.Error}}
+	<td colspan="4"><b>Error</b>: {{ .Err.Error }}
 {{- else -}}
-	<td class="name">{{.Name}}</td>
+	<td class="name">
+        {{- if .PingData.Favicon -}}
+            <img src="{{.FaviconURL}}" width="64" height="64">
+        {{ end -}}
+        {{- .Name -}}
+    </td>
 	<td class="port">
-		<span class="connect-hostname">home.riking.org:</span><span class="connect-port">{{.Port}}</span>
+		<span class="connect-hostname">home.riking.org:</span><span class="connect-port">{{ .Port }}</span>
 	</td>
-        <td class="motd">
-		{{- if .PropsComment }}<p class="props-comment">{{.PropsComment}}</p>{{end -}}
-		{{- if .IncludeMapName }}<p><strong>Map: </strong><em>{{.MapName}}</em></p>{{end -}}
-		{{- if true }}<p><strong>MOTD: </strong><em>{{.MOTD}}</em></p>{{end -}}
-        </td>
+    <td class="motd">
+	{{- if .PropsComment }}<p class="props-comment">{{ .PropsComment }}</p>{{ end -}}
+	{{- if .IncludeMapName }}<p><strong>Map: </strong><em>{{ .MapName }}</em></p>{{ end -}}
+	{{- if true }}<p><strong>MOTD: </strong><em>{{.MOTD}}</em></p>{{ end -}}
+	<p>{{.PingData.Version}}</p>
+    </td>
+    <td class="online">
+        <p><strong>{{ .PingData.Online }}</strong> players online</p>
+        <ul>{{ range .PingData.Sample }}<li>{{ .Name }}</li>{{ end }}</ul>
+    </td>
 {{- end -}}
 </tr>
 {{- end}}{{end -}}
