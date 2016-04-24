@@ -69,18 +69,14 @@ func (m *mcserverdata) readData(strPid string, wg *sync.WaitGroup) {
 	}
 	m.PID = pid
 
-	bytes, err := ioutil.ReadFile(fmt.Sprintf("/proc/%d/cwd", m.PID))
-	if os.IsNotExist(err) {
-		m.Err = ErrProcessExited
-		return
-	} else if err != nil {
+	cwd, err := os.Readlink(fmt.Sprintf("/proc/%d/cwd", m.PID))
+	if err != nil {
 		m.Err = err
 		return
 	}
-	cwd := string(bytes)
 	m.CWD = cwd
 
-	bytes, err = ioutil.ReadFile(fmt.Sprintf("%s/server.properties", cwd))
+	bytes, err := ioutil.ReadFile(fmt.Sprintf("%s/server.properties", cwd))
 	if err != nil {
 		m.Err = err
 		return
@@ -94,7 +90,7 @@ func loadMCServersData() ([]mcserverdata, error) {
 	if err != nil {
 		return nil, err
 	}
-	pids := strings.Split(string(bytes), "\n")
+	pids := strings.Split(strings.TrimSpace(string(bytes)), "\n")
 	data := make([]mcserverdata, len(pids))
 	var wg sync.WaitGroup
 	for i, pid := range pids {
