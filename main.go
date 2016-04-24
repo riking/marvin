@@ -5,7 +5,6 @@ import (
 	"log"
 	"os/exec"
 	"strings"
-	"io/ioutil"
 	"fmt"
 	"os"
 	"sync"
