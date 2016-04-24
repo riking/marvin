@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"html/template"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"os/exec"
@@ -15,7 +16,8 @@ import (
 
 	"github.com/ammario/mcping"
 	"github.com/shirou/gopsutil/process"
-	"net"
+	"github.com/golang-commonmark/markdown"
+	"io/ioutil"
 )
 
 func main() {
@@ -48,17 +50,17 @@ var ErrServerStarting = errors.New("Server starting up... (stage 1)")
 var ErrServerStarting2 = errors.New("Server starting up... (stage 2)")
 
 type mcserverdata struct {
-	Err   error `json:"-"`
-	Error string `json:"Err"`
+	Err       error `json:"-"`
+	Error     string `json:"Err"`
 
-	PID          int32
-	CWD          string
-	MOTD         string
-	Port         string
-	PropsComment string
-	MapName      string
+	PID       int32
+	CWD       string
+	MOTD      string
+	Port      string
+	NewsFile  template.HTML
+	MapName   string
 
-	PingData mcping.PingResponse
+	PingData  mcping.PingResponse
 	PingError error
 }
 
@@ -99,6 +101,8 @@ func (m *mcserverdata) ServerType() string {
 	return fmt.Sprintf("%s %s", m.PingData.Server, m.PingData.Version)
 }
 
+var markdownRenderer = markdown.New(markdown.Breaks(true))
+
 func (m *mcserverdata) readData(strPid string, wg *sync.WaitGroup) {
 	defer wg.Done()
 	defer func() {
@@ -137,7 +141,13 @@ func (m *mcserverdata) readData(strPid string, wg *sync.WaitGroup) {
 	m.Port = props["server-port"]
 	m.MOTD = props["motd"]
 	m.MapName = props["level-name"]
-	m.PropsComment = props["homepage-comment"]
+
+	newsFile, err := ioutil.ReadFile(fmt.Sprintf("%s/NEWS.md", cwd))
+	if err != nil && !os.IsNotExist(err) {
+		failOnError(err)
+	} else if err != nil {
+		m.NewsFile = template.HTML(markdownRenderer.RenderToString(newsFile))
+	}
 
 	pingResponse, err := mcping.Ping(fmt.Sprintf("localhost:%s", m.Port))
 	if netErr, ok := err.(*net.OpError); ok {
@@ -228,7 +238,7 @@ var serverStatusTemplate = template.Must(template.New("serverStatus").Parse(`
 		<span class="connect-hostname">home.riking.org:</span><span class="connect-port">{{ .Port }}</span>
 	</td>
     <td class="motd">
-	{{- if .PropsComment }}<p class="props-comment">{{ .PropsComment }}</p>{{ end -}}
+	{{- if .NewsFile }}<p class="props-comment">{{ .NewsFile }}</p>{{ end -}}
 	{{- if .IncludeMapName }}<p><strong>Map: </strong><em>{{ .MapName }}</em></p>{{ end -}}
 	{{- if true }}<p><strong>MOTD: </strong><em>{{.MOTD}}</em></p>{{ end -}}
     </td>
