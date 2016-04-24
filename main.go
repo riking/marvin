@@ -238,10 +238,10 @@ func HTTPMCServers(w http.ResponseWriter, r *http.Request) {
 
 	if includeJsonDump {
 		// Include raw data as a JSON dump
-		for _, v := range serverInfo {
-			if v.Err != nil {
-				v.Error = v.Err.Error()
-				fmt.Println(v.Error)
+		for i, _ := range serverInfo {
+			if serverInfo[i].Err != nil {
+				serverInfo[i].Error = serverInfo[i].Err.Error()
+				fmt.Println(serverInfo[i].Error)
 			}
 		}
 		bytes, err := json.MarshalIndent(serverInfo, "", "\t")
