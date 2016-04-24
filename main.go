@@ -49,6 +49,7 @@ type mcserverdata struct {
 	CWD string
 	MOTD string
 	Port string
+	PropsComment string
 }
 
 func (m *mcserverdata) IsAServer() bool {
@@ -86,13 +87,20 @@ func (m *mcserverdata) readData(strPid string, wg *sync.WaitGroup) {
 	}
 	m.CWD = cwd
 
-	bytes, err := ioutil.ReadFile(fmt.Sprintf("%s/server.properties", cwd))
+	file, err := os.Open(fmt.Sprintf("%s/server.properties", cwd))
 	if err != nil {
 		m.Err = err
 		return
 	}
-	serverProps := string(bytes)
-	_ = serverProps
+	props, err := LoadServerPropsFile(file)
+	if err != nil {
+		m.Err = err
+		return
+	}
+
+	m.Port = props["server-port"]
+	m.MOTD = props["motd"]
+	m.PropsComment = props["homepage-comment"]
 }
 
 func loadMCServersData() ([]mcserverdata, error) {
