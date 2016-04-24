@@ -92,6 +92,13 @@ func (m *mcserverdata) FaviconURL() string {
 	return "" //m.PingData.Favicon
 }
 
+func (m *mcserverdata) ServerType() string {
+	if m.PingData.Server == "Unknown" {
+		return fmt.Sprintf("Minecraft %s", m.PingData.Version)
+	}
+	return fmt.Sprintf("%s %s", m.PingData.Server, m.PingData.Version)
+}
+
 func (m *mcserverdata) readData(strPid string, wg *sync.WaitGroup) {
 	defer wg.Done()
 	defer func() {
@@ -224,13 +231,12 @@ var serverStatusTemplate = template.Must(template.New("serverStatus").Parse(`
 	{{- if .PropsComment }}<p class="props-comment">{{ .PropsComment }}</p>{{ end -}}
 	{{- if .IncludeMapName }}<p><strong>Map: </strong><em>{{ .MapName }}</em></p>{{ end -}}
 	{{- if true }}<p><strong>MOTD: </strong><em>{{.MOTD}}</em></p>{{ end -}}
-	{{- if not .HasPingError }}<p>{{.PingData.Version}}</p>{{end -}}
     </td>
     <td class="online">
         {{- if .HasPingError -}}
             <p class="has-warning"><span class="control-label">{{ .PingError.Error }}</span></p>
         {{- else -}}
-            <p><strong>{{ .PingData.Online }}</strong> players online</p>
+            <p><strong>{{ .PingData.Online }}</strong> players online on {{ .ServerType }}</p>
             <ul>{{ range .PingData.Sample }}<li>{{ .Name }}</li>{{ end }}</ul>
         {{- end -}}
     </td>
