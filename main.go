@@ -125,6 +125,7 @@ func (m *mcserverdata) readData(strPid string, wg *sync.WaitGroup) {
 	m.PropsComment = props["homepage-comment"]
 
 	pingResponse, err := mcping.Ping(fmt.Sprintf("localhost:%s", m.Port))
+	fmt.Printf("%#v", err)
 	failOnError(err)
 	m.PingData = pingResponse
 
@@ -241,7 +242,6 @@ func HTTPMCServers(w http.ResponseWriter, r *http.Request) {
 		for i, _ := range serverInfo {
 			if serverInfo[i].Err != nil {
 				serverInfo[i].Error = serverInfo[i].Err.Error()
-				fmt.Println(serverInfo[i].Error)
 			}
 		}
 		bytes, err := json.MarshalIndent(serverInfo, "", "\t")
