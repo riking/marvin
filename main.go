@@ -11,11 +11,14 @@ import (
 	"sync"
 	"errors"
 	"strconv"
+	"encoding/json"
+	"html/template"
 )
 
 func main() {
 
 	http.HandleFunc("/healthcheck", HTTPHealthCheck)
+	http.HandleFunc("/serverstatus", HTTPMCServers)
 
 	err := http.ListenAndServe("127.0.0.1:2201", nil)
 	if err != nil {
@@ -42,6 +45,17 @@ type mcserverdata struct {
 	CWD string
 	MOTD string
 	Port string
+}
+
+// IsError returns whether the Err field is filled.
+func (m *mcserverdata) IsError() bool {
+	return m.Err != nil
+}
+
+// Name is the name of the server, which is the name of the directory it is run from.
+func (m *mcserverdata) Name() string {
+	// TODO
+	return m.CWD
 }
 
 var ErrProcessExited = errors.New("Process exited while reading the data")
@@ -93,13 +107,47 @@ func loadMCServersData() ([]mcserverdata, error) {
 	return data, nil
 }
 
-func HTTPMCServers(w http.ResponseWriter, r *http.Request) {
+var serverStatusTemplate = template.Must(template.New("serverStatus").Parse(`
+<table><th>
+    <td>Server</td>
+    <td>Port</td>
+    <td>MOTD</td>
+</th>
+{{- range . -}}
+<tr>
+    {{- if .IsError -}}
+        <td colspan="4"><b>Error</b>: {{.Err}}
+    {{- else -}}
+        <td class="name">{{.Name}}</td><td class="port">{{.Port}}</td><td class="motd"><blockquote>{{.MOTD}}</blockquote></td>
+    {{- end -}}
+</tr>
+{{- end -}}
+</table>
+`))
 
+var jsonTemplate = template.Must(template.New("showJson").Parse(`<pre><code>{{.}}</code></pre>`))
+
+func HTTPMCServers(w http.ResponseWriter, r *http.Request) {
 	serverInfo, err := loadMCServersData()
 	if err != nil {
 		// write info failed to load
-		// writeFailure(w, "Failed to load Minecraft server information")
+		w.(stringWriter).WriteString("<p>ERROR: failed to load server information")
 		return
 	}
 	_ = serverInfo
+
+	bytes, err := json.MarshalIndent(serverInfo, "", "\t")
+	if err != nil {
+		w.(stringWriter).WriteString("<p>ERROR: failed to marshal json")
+		return
+	}
+	err = jsonTemplate.Execute(w, string(bytes))
+	if err != nil {
+		w.(stringWriter).WriteString(fmt.Sprintf("<p>ERROR: %s", err))
+	}
+
+	err = serverStatusTemplate.Execute(w, serverInfo)
+	if err != nil {
+		w.(stringWriter).WriteString(fmt.Sprintf("<p>ERROR: %s", err))
+	}
 }
