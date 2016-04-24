@@ -15,8 +15,6 @@ import (
 
 	"github.com/ammario/mcping"
 	"github.com/shirou/gopsutil/process"
-	"net"
-	"time"
 )
 
 func main() {
@@ -58,8 +56,6 @@ type mcserverdata struct {
 	MapName      string
 
 	PingData mcping.PingResponse
-
-	DebugData string
 }
 
 func (m *mcserverdata) IsAServer() bool {
@@ -124,8 +120,7 @@ func (m *mcserverdata) readData(strPid string, wg *sync.WaitGroup) {
 	m.MapName = props["level-name"]
 	m.PropsComment = props["homepage-comment"]
 
-	m.DebugData = fmt.Sprintf("localhost:%s", m.Port)
-	pingResponse, err := mcping.Ping(m.DebugData)
+	pingResponse, err := mcping.Ping(fmt.Sprintf("localhost:%s", m.Port))
 	failOnError(err)
 	m.PingData = pingResponse
 
