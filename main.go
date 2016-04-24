@@ -241,6 +241,7 @@ func HTTPMCServers(w http.ResponseWriter, r *http.Request) {
 		for _, v := range serverInfo {
 			if v.Err != nil {
 				v.Error = v.Err.Error()
+				fmt.Println(v.Error)
 			}
 		}
 		bytes, err := json.MarshalIndent(serverInfo, "", "\t")
