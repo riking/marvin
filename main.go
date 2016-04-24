@@ -120,7 +120,7 @@ func (m *mcserverdata) readData(strPid string, wg *sync.WaitGroup) {
 	m.MapName = props["level-name"]
 	m.PropsComment = props["homepage-comment"]
 
-	pingResponse, err := mcping.Ping(fmt.Sprintf("home.riking.org:%d", m.Port))
+	pingResponse, err := mcping.Ping(fmt.Sprintf("localhost:%d", m.Port))
 	failOnError(err)
 	m.PingData = pingResponse
 
