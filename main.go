@@ -71,7 +71,7 @@ func (m *mcserverdata) IsError() bool {
 }
 
 func (m *mcserverdata) HasPingError() bool {
-	return m.PingError == nil
+	return m.PingError != nil
 }
 
 // Name is the name of the server, which is the name of the directory it is run from.
@@ -132,15 +132,16 @@ func (m *mcserverdata) readData(strPid string, wg *sync.WaitGroup) {
 	m.PropsComment = props["homepage-comment"]
 
 	pingResponse, err := mcping.Ping(fmt.Sprintf("localhost:%s", m.Port))
-	if err, ok := err.(*net.OpError); ok {
-		if _, ok := err.Err.(*os.SyscallError); ok {
+	if netErr, ok := err.(*net.OpError); ok {
+		if _, ok := netErr.Err.(*os.SyscallError); ok {
 			m.PingError = ErrServerStarting
 		} else {
-			m.PingError = err
+			m.PingError = netErr
 		}
-	} else {
+	} else if err != nil {
 		fmt.Printf("%#v\n", err)
 		m.PingError = err
+	} else {
 		m.PingData = pingResponse
 	}
 
