@@ -145,7 +145,7 @@ func (m *mcserverdata) readData(strPid string, wg *sync.WaitGroup) {
 	newsFile, err := ioutil.ReadFile(fmt.Sprintf("%s/NEWS.md", cwd))
 	if err != nil && !os.IsNotExist(err) {
 		failOnError(err)
-	} else if err != nil {
+	} else if err == nil {
 		m.NewsFile = template.HTML(markdownRenderer.RenderToString(newsFile))
 	}
 
