@@ -44,7 +44,8 @@ func HTTPHealthCheck(w http.ResponseWriter, r *http.Request) {
 
 var ErrProcessExited = errors.New("Process exited while reading the data")
 var ErrNotAMinecraftServer = errors.New("not a Minecraft server")
-var ErrServerStarting = errors.New("Server starting up...")
+var ErrServerStarting = errors.New("Server starting up... (stage 1)")
+var ErrServerStarting2 = errors.New("Server starting up... (stage 2)")
 
 type mcserverdata struct {
 	Err   error `json:"-"`
@@ -138,6 +139,8 @@ func (m *mcserverdata) readData(strPid string, wg *sync.WaitGroup) {
 		} else {
 			m.PingError = netErr
 		}
+	} else if err == mcping.ErrSmallPacket {
+		m.PingError = ErrServerStarting2
 	} else if err != nil {
 		fmt.Printf("%#v\n", err)
 		m.PingError = err
