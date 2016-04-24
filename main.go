@@ -67,7 +67,7 @@ func (m *mcserverdata) Name() string {
 	if lastSlash == -1 {
 		return ""
 	}
-	return m.CWD[lastSlash:]
+	return m.CWD[lastSlash+1:]
 }
 
 func (m *mcserverdata) IncludeMapName() bool {
@@ -150,7 +150,7 @@ var serverStatusTemplate = template.Must(template.New("serverStatus").Parse(`
         <td class="motd">
 		{{- if .PropsComment }}<p class="props-comment">{{.PropsComment}}</p>{{end -}}
 		{{- if .IncludeMapName }}<p><strong>Map: </strong><em>{{.MapName}}</em></p>{{end -}}
-		<blockquote>{{.MOTD}}</blockquote>
+		{{- if true }}<p><strong>MOTD: </strong><em>{{.MOTD}}</em></p>{{end -}}
         </td>
 {{- end -}}
 </tr>
