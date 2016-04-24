@@ -49,6 +49,7 @@ type mcserverdata struct {
 	MOTD string
 	Port string
 	PropsComment string
+	MapName string
 }
 
 func (m *mcserverdata) IsAServer() bool {
@@ -62,8 +63,15 @@ func (m *mcserverdata) IsError() bool {
 
 // Name is the name of the server, which is the name of the directory it is run from.
 func (m *mcserverdata) Name() string {
-	// TODO
-	return m.CWD
+	lastSlash := strings.LastIndex(m.CWD, "/")
+	if lastSlash == -1 {
+		return ""
+	}
+	return m.CWD[lastSlash:]
+}
+
+func (m *mcserverdata) IncludeMapName() bool {
+	return m.MapName != "world"
 }
 
 func (m *mcserverdata) readData(strPid string, wg *sync.WaitGroup) {
@@ -99,6 +107,7 @@ func (m *mcserverdata) readData(strPid string, wg *sync.WaitGroup) {
 
 	m.Port = props["server-port"]
 	m.MOTD = props["motd"]
+	m.MapName = props["level-name"]
 	m.PropsComment = props["homepage-comment"]
 }
 
@@ -126,16 +135,24 @@ var serverStatusTemplate = template.Must(template.New("serverStatus").Parse(`
 <table class="table table-bordered table-striped"><thead>
     <th>Server</th>
     <th>Port</th>
-    <th>MOTD</th>
+    <th>About</th>
 </thead>
 {{- range . -}}
 {{- if .IsAServer -}}
 <tr>
-    {{- if .IsError -}}
-        <td colspan="4"><b>Error</b>: {{.Err.Error}}
-    {{- else -}}
-        <td class="name">{{.Name}}</td><td class="port">{{.Port}}</td><td class="motd"><blockquote>{{.MOTD}}</blockquote></td>
-    {{- end -}}
+{{- if .IsError -}}
+	<td colspan="4"><b>Error</b>: {{.Err.Error}}
+{{- else -}}
+	<td class="name">{{.Name}}</td>
+	<td class="port">
+		<span class="connect-hostname">home.riking.org:</span><span class="connect-port">{{.Port}}</span>
+	</td>
+        <td class="motd">
+		{{- if .PropsComment }}<p class="props-comment">{{.PropsComment}}</p>{{end -}}
+		{{- if .IncludeMapName }}<p><strong>Map: </strong><em>{{.MapName}}</em></p>{{end -}}
+		<blockquote>{{.MOTD}}</blockquote>
+        </td>
+{{- end -}}
 </tr>
 {{- end}}{{end -}}
 </table>
