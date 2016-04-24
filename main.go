@@ -45,7 +45,8 @@ var ErrProcessExited = errors.New("Process exited while reading the data")
 var ErrNotAMinecraftServer = errors.New("not a Minecraft server")
 
 type mcserverdata struct {
-	Err error
+	Err   error `json:"-"`
+	Error string `json:"Err"`
 
 	PID          int32
 	CWD          string
@@ -73,6 +74,12 @@ func (m *mcserverdata) Name() string {
 		return ""
 	}
 	return m.CWD[lastSlash+1:]
+}
+
+func (m *mcserverdata) SetErrorForJSON() {
+	if m.Err != nil {
+		m.Error = m.Err.Error()
+	}
 }
 
 func (m *mcserverdata) IncludeMapName() bool {
@@ -202,6 +209,8 @@ var serverStatusTemplate = template.Must(template.New("serverStatus").Parse(`
 
 var jsonTemplate = template.Must(template.New("showJson").Parse(`<pre><code>{{.}}</code></pre>`))
 
+const includeJsonDump = true
+
 func HTTPMCServers(w http.ResponseWriter, r *http.Request) {
 	serverInfo, err := loadMCServersData()
 	if err != nil {
@@ -209,18 +218,24 @@ func HTTPMCServers(w http.ResponseWriter, r *http.Request) {
 		w.(stringWriter).WriteString("<p>ERROR: failed to load server information")
 		return
 	}
-	_ = serverInfo
 
-	bytes, err := json.MarshalIndent(serverInfo, "", "\t")
-	if err != nil {
-		w.(stringWriter).WriteString("<p>ERROR: failed to marshal json")
-		return
-	}
-	err = jsonTemplate.Execute(w, string(bytes))
-	if err != nil {
-		w.(stringWriter).WriteString(fmt.Sprintf("<p>ERROR: %s", err))
+	if includeJsonDump {
+		// Include raw data as a JSON dump
+		for _, v := range serverInfo {
+			v.SetErrorForJSON()
+		}
+		bytes, err := json.MarshalIndent(serverInfo, "", "\t")
+		if err != nil {
+			w.(stringWriter).WriteString("<p>ERROR: failed to marshal json")
+			return
+		}
+		err = jsonTemplate.Execute(w, string(bytes))
+		if err != nil {
+			w.(stringWriter).WriteString(fmt.Sprintf("<p>ERROR: %s", err))
+		}
 	}
 
+	// Print the table
 	err = serverStatusTemplate.Execute(w, serverInfo)
 	if err != nil {
 		w.(stringWriter).WriteString(fmt.Sprintf("<p>ERROR: %s", err))
