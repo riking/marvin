@@ -81,7 +81,7 @@ func (m *mcserverdata) IncludeMapName() bool {
 }
 
 func (m *mcserverdata) FaviconURL() string {
-	return m.PingData.Favicon
+	return "" //m.PingData.Favicon
 }
 
 func (m *mcserverdata) readData(strPid string, wg *sync.WaitGroup) {
