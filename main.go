@@ -10,6 +10,7 @@ import (
 	"os"
 	"sync"
 	"errors"
+	"strconv"
 )
 
 func main() {
@@ -37,7 +38,7 @@ func HTTPHealthCheck(w http.ResponseWriter, r *http.Request) {
 type mcserverdata struct {
 	Err error
 
-	PID int64
+	PID int
 	CWD string
 	MOTD string
 	Port string
@@ -45,8 +46,14 @@ type mcserverdata struct {
 
 var ErrProcessExited = errors.New("Process exited while reading the data")
 
-func (m *mcserverdata) readData(wg *sync.WaitGroup) {
+func (m *mcserverdata) readData(strPid string, wg *sync.WaitGroup) {
 	defer wg.Done()
+	pid, err := strconv.Atoi(strPid)
+	if err != nil {
+		m.Err = err
+	}
+	m.PID = pid
+
 	bytes, err := ioutil.ReadFile(fmt.Sprintf("/proc/%d/cwd", m.PID))
 	if os.IsNotExist(err) {
 		m.Err = ErrProcessExited
@@ -57,6 +64,7 @@ func (m *mcserverdata) readData(wg *sync.WaitGroup) {
 	}
 	cwd := string(bytes)
 	m.CWD = cwd
+
 	bytes, err = ioutil.ReadFile(fmt.Sprintf("%s/server.properties", cwd))
 	if err != nil {
 		m.Err = err
@@ -75,11 +83,23 @@ func loadMCServersData() ([]mcserverdata, error) {
 	data := make([]mcserverdata, len(pids))
 	var wg sync.WaitGroup
 	for i, pid := range pids {
-		data[i].PID = pid
 		wg.Add(1)
-		go data[i].readData(&wg)
+		go data[i].readData(pid, &wg)
 	}
+	wg.Wait()
+
+	// TODO
+
+	return data, nil
 }
 
 func HTTPMCServers(w http.ResponseWriter, r *http.Request) {
+
+	serverInfo, err := loadMCServersData()
+	if err != nil {
+		// write info failed to load
+		// writeFailure(w, "Failed to load Minecraft server information")
+		return
+	}
+	_ = serverInfo
 }
