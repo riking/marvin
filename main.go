@@ -10,11 +10,11 @@ type stringWriter interface{
 }
 
 func HTTPHealthCheck(w http.ResponseWriter, r *http.Request) {
-	w.(stringWriter).WriteString("ok")
+	w.(stringWriter).WriteString("ok\n")
 }
 
 func HTTPMCServers(w http.ResponseWriter, r *http.Request) {
-	
+
 }
 
 func main() {
