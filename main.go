@@ -238,7 +238,7 @@ var serverStatusTemplate = template.Must(template.New("serverStatus").Parse(`
 		<span class="connect-hostname">home.riking.org:</span><span class="connect-port">{{ .Port }}</span>
 	</td>
     <td class="motd">
-	{{- if .NewsFile }}<p class="props-comment">{{ .NewsFile }}</p>{{ end -}}
+	{{- if .NewsFile }}{{ .NewsFile }}{{ end -}}
 	{{- if .IncludeMapName }}<p><strong>Map: </strong><em>{{ .MapName }}</em></p>{{ end -}}
 	{{- if true }}<p><strong>MOTD: </strong><em>{{.MOTD}}</em></p>{{ end -}}
     </td>
