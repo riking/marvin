@@ -16,9 +16,10 @@ import (
 )
 
 func main() {
+	fmt.Println("starting")
 	mux := http.NewServeMux()
 	mux.HandleFunc("/healthcheck", HTTPHealthCheck)
-	mux.HandleFunc("/serverstatus.html", HTTPMCServers)
+	mux.HandleFunc("/minecraftstatus.html", HTTPMCServers)
 
 	err := http.ListenAndServe("127.0.0.1:2201", http.StripPrefix("/api", mux))
 	if err != nil {
