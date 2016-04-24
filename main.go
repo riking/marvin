@@ -16,11 +16,11 @@ import (
 )
 
 func main() {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/healthcheck", HTTPHealthCheck)
+	mux.HandleFunc("/serverstatus.html", HTTPMCServers)
 
-	http.HandleFunc("/healthcheck", HTTPHealthCheck)
-	http.HandleFunc("/serverstatus", HTTPMCServers)
-
-	err := http.ListenAndServe("127.0.0.1:2201", http.StripPrefix("/api", http.DefaultServeMux))
+	err := http.ListenAndServe("127.0.0.1:2201", http.StripPrefix("/api", mux))
 	if err != nil {
 		log.Fatalln(err)
 	}
