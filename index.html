@@ -1,63 +1,84 @@
 <!DOCTYPE html>
 <html>
 <head>
-	<meta charset="utf-8">
-	<meta http-equiv="X-UA-Compatible" content="IE=edge">
-	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css" integrity="sha384-1q8mTJOASx8j1Au+a5WDVnPi2lkFfwwEAa8hDDdjZlpLegxhjVME1fgjWPGmkzs7" crossorigin="anonymous">
-	<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.2.3/jquery.min.js" integrity="sha384-I6F5OKECLVtK/BL+8iSLDEHowSAfUo76ZL9+kGAgTRdiByINKJaqTPH/QVNS1VDb" crossorigin="anonymous"></script>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css"
+          integrity="sha384-1q8mTJOASx8j1Au+a5WDVnPi2lkFfwwEAa8hDDdjZlpLegxhjVME1fgjWPGmkzs7" crossorigin="anonymous">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.2.3/jquery.min.js"
+            integrity="sha384-I6F5OKECLVtK/BL+8iSLDEHowSAfUo76ZL9+kGAgTRdiByINKJaqTPH/QVNS1VDb"
+            crossorigin="anonymous"></script>
 
-	<title>Riking's Server Status</title>
+    <title>Riking's Server Status</title>
 
-<style>
-.connect-hostname {
-    color: grey;
-}
+    <style>
+        .connect-hostname {
+            color: grey;
+        }
 
-.connect-port {
-    font-weight: bold;
-}
-</style>
+        .connect-port {
+            font-weight: bold;
+        }
+    </style>
 </head>
 <body>
 <nav class="navbar navbar-inverse navbar-fixed-top">
-<div class="container">
-	<div class="navbar-header">
-		<a class="navbar-brand" href="/">home.rikng.org</a>
+    <div class="container">
+        <div class="navbar-header">
+            <a class="navbar-brand" href="/">home.rikng.org</a>
         </div>
-	<div id="navbar" class="collapse navbar-collapse">
-		<ul class="nav navbar-nav">
-		<li class="active"><a href="/">Status</a></li>
-		<li><a href="/about">About</a></li>
-		<li><a href="/contact">Contact</a></li>
-		</ul>
-        </div><!--/.nav-collapse -->
-</div>
+        <div id="navbar" class="collapse navbar-collapse">
+            <ul class="nav navbar-nav">
+                <li class="active"><a href="/">Status</a></li>
+                <li><a href="/about">About</a></li>
+                <li><a href="/contact">Contact</a></li>
+            </ul>
+        </div>
+    </div>
 </nav>
 
 <div class=container>
-	<div class=jumbotron>
-		<h1>Server Status</h1>
-		<p>Here you will see the status of the various servers currently running.</p>
-	</div>
-	<h1>Minecraft Servers</h1>
-	<div id=serverstatus>loading... (TODO)</div>
-<script async>
-(function(){
-var target = document.getElementById('serverstatus');
-$.ajax("/api/minecraftstatus.html", {
-	error: function(xhr, textStatus, errThrown) {
-		target.innerHTML = "" + 
-			"<p class=\"bg-warning\">Failed to load data: " + textStatus + " " + xhr.status + "</p>" +
-			"";
-	},
-	success: function(data) {
-		target.innerHTML = data;
-	},
-});
+    <div class=jumbotron>
+        <h1>Server Status</h1>
+        <p>Here you will see the status of the various servers currently running.</p>
+    </div>
+    <h1>Minecraft Servers</h1>
+    <div id=minecraft>loading...</div>
+    <script async>
+        (function () {
+            var target = document.getElementById('minecraft');
+            $.ajax("/api/minecraftstatus.html", {
+                error: function (xhr, textStatus, errThrown) {
+                    target.innerHTML = "" +
+                            "<p class=\"bg-warning\">Failed to load data: " + textStatus + " " + xhr.status + "</p>" +
+                            "";
+                },
+                success: function (data) {
+                    target.innerHTML = data;
+                }
+            });
 
-})();
-</script>
-	</div>
+        })();
+    </script>
+
+    <h1>Factorio Servers</h1>
+    <div id=factorio>loading...</div>
+    <script async>
+        (function () {
+            var target = document.getElementById('factorio');
+            $.ajax("/api/factoriostatus.html", {
+                error: function (xhr, textStatus, errThrown) {
+                    target.innerHTML = "" +
+                            "<p class=\"bg-warning\">Failed to load data: " + textStatus + " " + xhr.status + "</p>" +
+                            "";
+                },
+                success: function (data) {
+                    target.innerHTML = data;
+                }
+            });
+
+        })();
+    </script>
 </div>
 </body>
 </html>
