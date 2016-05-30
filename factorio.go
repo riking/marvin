@@ -4,17 +4,19 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
-	"github.com/shirou/gopsutil/process"
+	"html/template"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"os"
+	"os/exec"
 	"regexp"
+	"runtime"
 	"strings"
 	"sync"
-	"os/exec"
 	"syscall"
-	"html/template"
-	"io/ioutil"
+
+	"github.com/shirou/gopsutil/process"
 )
 
 type factorioModZipFilesystem struct {
@@ -32,8 +34,9 @@ func (fs *factorioModZipFilesystem) Open(name string) (http.File, error) {
 }
 
 type factoriodata struct {
-	PID int32
-	Err error
+	PID   int32
+	Err   error
+	Stack string
 
 	CWD      string
 	Cmdline  []string
@@ -82,7 +85,7 @@ func (m *factoriodata) loadConfigFile(r io.Reader) error {
 		case "port":
 			m.Port = v
 		default:
-		// pass
+			// pass
 		}
 	}
 	if s.Err() != nil {
@@ -117,7 +120,10 @@ func (m *factoriodata) readData(pid int32, wg *sync.WaitGroup) {
 	defer wg.Done()
 	defer func() {
 		if err := recover(); err != nil {
+			trace := make([]byte, 1024)
+			count := runtime.Stack(trace, false)
 			m.Err = err.(error)
+			m.Stack = string(trace[:count])
 		}
 	}()
 	failOnError := func(err error) {
@@ -158,7 +164,7 @@ func (m *factoriodata) readData(pid int32, wg *sync.WaitGroup) {
 func loadFactorioData() ([]factoriodata, error) {
 	pids, err := pgrep("factorio")
 	if err != nil {
-		return  nil, err
+		return nil, err
 	}
 
 	data := make([]factoriodata, len(pids))
@@ -181,7 +187,7 @@ var factorioStatusTemplate = template.Must(template.New("factorioStatus").Parse(
 {{- range . -}}
 <tr>
 {{- if .IsError -}}
-    <td colspan="4"><b>Error</b>: {{ .Err.Error }}
+    <td colspan="4"><b>Error</b>: {{ .Err.Error }}<br>{{.Stack}}
 {{- else -}}
     <td class="name">
         {{- .Name -}}
