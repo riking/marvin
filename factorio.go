@@ -28,6 +28,7 @@ var errBadFilename = errors.New("Unacceptable filename")
 
 func (fs *factorioModZipFilesystem) Open(name string) (http.File, error) {
 	if !mustMatchRegex.Match([]byte(name)) {
+		fmt.Println(name)
 		return nil, errBadFilename
 	}
 	return os.Open(fmt.Sprintf("%s/%s", fs.BaseDir, name))
@@ -63,7 +64,7 @@ func (m *factoriodata) Name() string {
 }
 
 func (m *factoriodata) ModsPath() string {
-	return fmt.Sprintf("https://home.riking.org/factoriomods/%s/mods.zip", m.Name())
+	return fmt.Sprintf("https://home.riking.org/api/factoriomods/%s/mods.zip", m.Name())
 }
 
 func (m *factoriodata) MapName() string {
