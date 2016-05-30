@@ -48,6 +48,7 @@ var ErrProcessExited = errors.New("Process exited while reading the data")
 var ErrNotAMinecraftServer = errors.New("not a Minecraft server")
 var ErrServerStarting = errors.New("Server starting up... (stage 1)")
 var ErrServerStarting2 = errors.New("Server starting up... (stage 2)")
+var ErrNoServersRunning = errors.New("No Minecraft servers running")
 
 type mcserverdata struct {
 	Err   error  `json:"-"`
@@ -198,7 +199,11 @@ func (m *mcserverdata) readData(strPid string, wg *sync.WaitGroup) {
 
 func loadMCServersData() ([]mcserverdata, error) {
 	bytes, err := exec.Command("pgrep", "java").Output()
-	if err != nil {
+	if exErr, ok := err.(*exec.ExitError); ok {
+		if exErr.ProcessState != nil && exErr.ProcessState.Success() == false {
+			return nil, ErrNoServersRunning
+		}
+	} else if err != nil {
 		return nil, err
 	}
 	pids := strings.Split(strings.TrimSpace(string(bytes)), "\n")
