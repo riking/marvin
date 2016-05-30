@@ -197,7 +197,7 @@ var factorioStatusTemplate = template.Must(template.New("factorioStatus").Parse(
     </td>
     <td class="port">
         {{- if .DefaultPort -}}
-        <span class="connect-hostname">home.riking.org</span>
+        <span class="connect-hostname connect-port">home.riking.org</span>
         {{- else -}}
         <span class="connect-hostname">home.riking.org:</span><span class="connect-port">{{ .Port }}</span>
         {{- end -}}
