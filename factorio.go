@@ -79,6 +79,9 @@ func (m *factoriodata) loadConfigFile(r io.Reader) error {
 	for s.Scan() {
 		t := s.Text()
 		split := strings.SplitN(t, "=", 2)
+		if len(split) == 1 {
+			continue // don't care about ini headings
+		}
 		k := split[0]
 		v := split[1]
 		switch k {
