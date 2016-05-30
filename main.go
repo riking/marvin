@@ -16,7 +16,7 @@ func main() {
 	mux.HandleFunc("/minecraftstatus.html", HTTPMCServers)
 	mux.HandleFunc("/factoriostatus.html", HTTPFactorio)
 
-	mux.Handle("/factoriomods/", http.StripPrefix("/factoriomods/", http.FileServer(factorioModZipFilesystem{BaseDir: "/tank/home/mcserver/Factorio"})))
+	mux.Handle("/factoriomods/", http.StripPrefix("/factoriomods/", http.FileServer(&factorioModZipFilesystem{BaseDir: "/tank/home/mcserver/Factorio"})))
 
 	err := http.ListenAndServe("127.0.0.1:2201", http.StripPrefix("/api", mux))
 	if err != nil {
