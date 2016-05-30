@@ -15,8 +15,8 @@ import (
 	"sync"
 
 	"github.com/ammario/mcping"
-	"github.com/shirou/gopsutil/process"
 	"github.com/golang-commonmark/markdown"
+	"github.com/shirou/gopsutil/process"
 	"io/ioutil"
 )
 
@@ -50,15 +50,15 @@ var ErrServerStarting = errors.New("Server starting up... (stage 1)")
 var ErrServerStarting2 = errors.New("Server starting up... (stage 2)")
 
 type mcserverdata struct {
-	Err       error `json:"-"`
-	Error     string `json:"Err"`
+	Err   error  `json:"-"`
+	Error string `json:"Err"`
 
-	PID       int32
-	CWD       string
-	MOTD      string
-	Port      string
-	NewsFile  template.HTML
-	MapName   string
+	PID      int32
+	CWD      string
+	MOTD     string
+	Port     string
+	NewsFile template.HTML
+	MapName  string
 
 	PingData  mcping.PingResponse
 	PingError error
@@ -267,7 +267,8 @@ func HTTPMCServers(w http.ResponseWriter, r *http.Request) {
 	serverInfo, err := loadMCServersData()
 	if err != nil {
 		// write info failed to load
-		w.(stringWriter).WriteString("<p>ERROR: failed to load server information")
+		w.(stringWriter).WriteString("<p>ERROR: failed to load server information<br>")
+		w.(stringWriter).WriteString(err.Error())
 		return
 	}
 
