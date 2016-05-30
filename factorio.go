@@ -23,15 +23,14 @@ type factorioModZipFilesystem struct {
 	BaseDir string
 }
 
-var mustMatchRegex = regexp.MustCompile(`\Afactorio-\d+-\d+-\d+/mods\.zip\z`)
+var mustMatchRegex = regexp.MustCompile(`\A/factorio-\d+-\d+-\d+/mods\.zip\z`)
 var errBadFilename = errors.New("Unacceptable filename")
 
 func (fs *factorioModZipFilesystem) Open(name string) (http.File, error) {
 	if !mustMatchRegex.Match([]byte(name)) {
-		fmt.Println(name)
 		return nil, errBadFilename
 	}
-	return os.Open(fmt.Sprintf("%s/%s", fs.BaseDir, name))
+	return os.Open(fmt.Sprintf("%s%s", fs.BaseDir, name))
 }
 
 type factoriodata struct {
