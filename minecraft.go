@@ -213,7 +213,7 @@ func loadMCServersData(ctx context.Context) ([]mcserverdata, error) {
 	}
 	data := make([]mcserverdata, len(pids))
 
-	ctx, cancel := context.WithTimeout(ctx, 1250*time.Millisecond)
+	ctx, cancel := context.WithTimeout(ctx, 2250*time.Millisecond)
 	defer cancel()
 
 	var wg sync.WaitGroup
