@@ -298,7 +298,7 @@ func HTTPMCServers(w http.ResponseWriter, r *http.Request) {
 		}
 		bytes, err := json.MarshalIndent(serverInfo, "", "\t")
 		if err != nil {
-			w.(stringWriter).WriteString("<p>ERROR: failed to marshal json")
+			w.(stringWriter).WriteString(fmt.Sprintf("<p>ERROR: failed to marshal json: %s", err))
 			return
 		}
 		err = jsonTemplate.Execute(w, string(bytes))
