@@ -82,7 +82,7 @@ func ping(ctx context.Context, addr string) (PingResponse, error) {
 	defer conn.Close()
 
 	// If read/write (on a slow network?) takes longer than expected, abort
-	conn.SetDeadline(deadline)
+	conn.SetDeadline(deadline.Add(-15*time.Millisecond))
 	connReader := bufio.NewReader(conn)
 
 	var dataBuf bytes.Buffer
@@ -147,12 +147,16 @@ func ping(ctx context.Context, addr string) (PingResponse, error) {
 	bytesRecieved := uint64(0)
 	recBytes := make([]byte, length)
 	for bytesRecieved < length {
-		n, _ := connReader.Read(recBytes[bytesRecieved:length])
+		n, err := connReader.Read(recBytes[bytesRecieved:length])
+		if err != nil {
+			return resp, err
+		}
 		bytesRecieved = bytesRecieved + uint64(n)
 	}
 
 	//Stop Timer, collect latency
 	latency := timer.End()
+	conn.Close() // no more reads/writes
 
 	pingString := string(recBytes)
 
