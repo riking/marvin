@@ -46,19 +46,27 @@ var ErrServerStarting = errors.New("Server starting up... (stage 1)")
 var ErrServerStarting2 = errors.New("Server starting up... (stage 2)")
 var ErrNoServersRunning = errors.New("No Minecraft servers running")
 
-type mcserverdata struct {
-	Err   error  `json:"-"`
-	Error string `json:"Err"`
+type ErrAsString struct {
+	Inner error
+}
 
-	PID      int32
-	CWD      string
-	MOTD     string
-	Port     string
-	NewsFile template.HTML
-	MapName  string
+func (e ErrAsString) MarshalJSON() ([]byte, error) {
+	return []byte(e.Inner.Error()), nil
+}
+
+type mcserverdata struct {
+	Err       error  `json:"-"`
+	Error     string `json:"Err"`
+
+	PID       int32
+	CWD       string
+	MOTD      string
+	Port      string
+	NewsFile  template.HTML
+	MapName   string
 
 	PingData  mcping.PingResponse
-	PingError error
+	PingError ErrAsString
 }
 
 func (m *mcserverdata) IsAServer() bool {
@@ -71,7 +79,7 @@ func (m *mcserverdata) IsError() bool {
 }
 
 func (m *mcserverdata) HasPingError() bool {
-	return m.PingError != nil
+	return m.PingError.Inner != nil
 }
 
 // Name is the name of the server, which is the name of the directory it is run from.
@@ -147,15 +155,15 @@ func (m *mcserverdata) readData(ctx context.Context, pid int32, wg *sync.WaitGro
 	pingResponse, err := mcping.PingContext(ctx, fmt.Sprintf("localhost:%s", m.Port))
 	if netErr, ok := err.(*net.OpError); ok {
 		if _, ok := netErr.Err.(*os.SyscallError); ok {
-			m.PingError = ErrServerStarting
+			m.PingError = ErrAsString{ErrServerStarting}
 		} else {
-			m.PingError = netErr
+			m.PingError = ErrAsString{netErr}
 		}
 	} else if _, ok := err.(mcping.ErrSmallPacket); ok {
-		m.PingError = ErrServerStarting2
+		m.PingError = ErrAsString{ErrServerStarting2}
 	} else if err != nil {
 		fmt.Printf("%#v\n", err)
-		m.PingError = err
+		m.PingError = ErrAsString{err}
 	} else {
 		m.PingData = pingResponse
 	}
