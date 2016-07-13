@@ -14,6 +14,7 @@ import (
 	"strings"
 	"sync"
 
+	"golang.org/x/net/context"
 	"github.com/ammario/mcping"
 	"github.com/golang-commonmark/markdown"
 	"github.com/shirou/gopsutil/process"
@@ -142,7 +143,7 @@ func (m *mcserverdata) readData(pid int32, wg *sync.WaitGroup) {
 		m.NewsFile = template.HTML(markdownRenderer.RenderToString(newsFile))
 	}
 
-	pingResponse, err := mcping.Ping(fmt.Sprintf("localhost:%s", m.Port))
+	pingResponse, err := mcping.PingTimeout(fmt.Sprintf("localhost:%s", m.Port), 1000)
 	if netErr, ok := err.(*net.OpError); ok {
 		if _, ok := netErr.Err.(*os.SyscallError); ok {
 			m.PingError = ErrServerStarting

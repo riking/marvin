@@ -11,24 +11,49 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"golang.org/x/net/context"
+	"github.com/pkg/errors"
 )
 
 const (
-	//DEFAULT_TIMEOUT stores default ping timeout
-	DEFAULT_TIMEOUT = 1000
+	// DEFAULT_TIMEOUT stores default ping timeout
+	DEFAULT_TIMEOUT = 1500
 )
 
-//Ping Pings with default timeout
+// Ping pings the specified server with the default timeout.
 func Ping(addr string) (PingResponse, error) {
-	return ping(addr, DEFAULT_TIMEOUT)
+	return PingTimeout(addr, DEFAULT_TIMEOUT)
 }
 
-//PingTimeout Pings with custom timeout
+// PingTimeout pings the server with the provided timeout.
 func PingTimeout(addr string, timeout int) (PingResponse, error) {
-	return ping(addr, timeout)
+	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(ctx, timeout*time.Millisecond)
+	defer cancel()
+	return PingContext(ctx, addr)
 }
 
-func ping(addr string, timeout int) (PingResponse, error) {
+// PingContext pings the server, returning early if the context expires.
+func PingContext(ctx context.Context, addr string) (PingResponse, error) {
+	type respOrError struct {
+		r PingResponse
+		e error
+	}
+	ch := make(chan respOrError)
+	go func() {
+		r, e := ping(ctx, addr)
+		ch <- respOrError{r: r, e: e}
+	}()
+
+	select {
+	case re := <- ch:
+		return re.r, re.e
+	case <-ctx.Done():
+		return PingResponse{}, ErrTimeout{inner: ctx.Err()}
+	}
+}
+
+func ping(ctx context.Context, addr string) (PingResponse, error) {
 	var host string
 	var port uint16
 	var resp PingResponse
@@ -38,13 +63,20 @@ func ping(addr string, timeout int) (PingResponse, error) {
 	timer.Start()
 
 	//Connect
-	conn, err := net.DialTimeout("tcp", addr, time.Millisecond*time.Duration(timeout))
+
+	deadline, ok := ctx.Deadline()
+	if !ok {
+		deadline = time.Now() + time.Millisecond*DEFAULT_TIMEOUT
+	}
+	conn, err := net.DialTimeout("tcp", addr, deadline.Sub(time.Now()) / 2)
 	if err != nil {
-		return resp, ErrConnect
+		return resp, ErrConnect(err)
 	}
 	defer conn.Close()
 
 
+	// If read/write (on a slow network?) takes longer than expected, abort
+	conn.SetDeadline(deadline)
 	connReader := bufio.NewReader(conn)
 
 	var dataBuf bytes.Buffer
@@ -62,7 +94,7 @@ func ping(addr string, timeout int) (PingResponse, error) {
 			return resp, err
 		}
 	} else {
-		return resp, ErrAddress
+		return resp, ErrAddress(addr)
 	}
 
 	//Write host string length + host
@@ -91,18 +123,18 @@ func ping(addr string, timeout int) (PingResponse, error) {
 	//Packet type 0 means we're good to receive ping
 	packetType, _ := connReader.ReadByte()
 	if bytes.Compare([]byte{packetType}, []byte("\x00")) != 0 {
-		return resp, ErrPacketType
+		return resp, ErrPacketType(packetType)
 	}
 
 	//Get data length via Varint
 	length, err := binary.ReadUvarint(connReader)
 	if err != nil {
-		return resp, ErrVarint
+		return resp, ErrVarint(err)
 	}
 	if length < 10 {
-		return resp, ErrSmallPacket
+		return resp, ErrSmallPacket(length)
 	} else if length > 700000 {
-		return resp, ErrBigPacket
+		return resp, ErrBigPacket(length)
 	}
 
 	//Recieve json buffer

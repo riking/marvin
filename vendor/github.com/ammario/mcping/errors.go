@@ -2,28 +2,72 @@ package mcping
 
 import (
 	"errors"
+	"fmt"
 )
 
-//ErrAddress -> Could not parse address
-var ErrAddress = errors.New("mcping: could not parse address")
+// ErrAddress indicates that the address format was bad.
+type ErrAddress string
 
-//ErrResolve -. Could not resolve address
-var ErrResolve = errors.New("mcping: Could not resolve address")
+func (e ErrAddress) Error() string {
+	return fmt.Sprintf("mcping: Could not parse address: got %s", string(e))
+}
 
-//ErrConnect -> Could not connect to host
-var ErrConnect = errors.New("mcping: Could not connect to host")
+// ErrConnect indicates that the ping timed out.
+type ErrConnect struct {
+	inner error
+}
 
-//ErrVarint -> Could not decode varint
-var ErrVarint = errors.New("mcping: Could not decode varint")
+func (e ErrConnect) Cause() error {
+	return e.inner
+}
 
-//ErrSmallPacket -> Response is too small
-var ErrSmallPacket = errors.New("mcping: Response too small")
+func (e ErrConnect) Error() string {
+	return fmt.Sprintf("mcping: Could not connect: %s", e.inner.Error())
+}
 
-//ErrBigPacket -> Response is too large
-var ErrBigPacket = errors.New("mcping: Response too large")
+// ErrVarint -> Could not decode varint
+type ErrVarint struct {
+	inner error
+}
 
-//ErrPacketType -> Response packet incorrect
-var ErrPacketType = errors.New("mcping: Response packet type incorrect")
+func (e ErrVarint) Cause() error {
+	return e.inner
+}
 
-//ErrTimeout -> Timeout error
-var ErrTimeout = errors.New("mcping: Timeout occured")
+func (e ErrVarint) Error() string {
+	return fmt.Sprintf("mcping: Could not decode varint: %s", e.inner.Error())
+}
+
+// ErrSmallPacket -> Response is too small
+type ErrSmallPacket int
+
+func (e ErrSmallPacket) Error() string {
+	return fmt.Sprintf("mcping: Response too small (got %d bytes)", int(e))
+}
+
+// ErrBigPacket -> Response is too large
+type ErrBigPacket int
+
+func (e ErrBigPacket) Error() string {
+	return fmt.Sprintf("mcping: Response too large (got %d bytes)", int(e))
+}
+
+// ErrPacketType -> Response packet incorrect
+type ErrPacketType byte
+
+func (e ErrPacketType) Error() string {
+	return fmt.Sprintf("mcping: Response packet type incorrect (first byte was %X)", byte(e))
+}
+
+// ErrTimeout indicates that the ping timed out.
+type ErrTimeout struct {
+	inner error
+}
+
+func (e ErrTimeout) Cause() error {
+	return e.inner
+}
+
+func (e ErrTimeout) Error() string {
+	return fmt.Sprintf("mcping: Ping timed out: %s", e.inner.Error())
+}
