@@ -1,9 +1,6 @@
 package mcping
 
-import (
-	"errors"
-	"fmt"
-)
+import "fmt"
 
 // ErrAddress indicates that the address format was bad.
 type ErrAddress string

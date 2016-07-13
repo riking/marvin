@@ -13,11 +13,12 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"time"
 
-	"golang.org/x/net/context"
 	"github.com/ammario/mcping"
 	"github.com/golang-commonmark/markdown"
 	"github.com/shirou/gopsutil/process"
+	"golang.org/x/net/context"
 )
 
 type propertiesFile map[string]string
@@ -99,7 +100,7 @@ func (m *mcserverdata) ServerType() string {
 
 var markdownRenderer = markdown.New(markdown.Breaks(true))
 
-func (m *mcserverdata) readData(pid int32, wg *sync.WaitGroup) {
+func (m *mcserverdata) readData(ctx context.Context, pid int32, wg *sync.WaitGroup) {
 	defer wg.Done()
 	defer func() {
 		if err := recover(); err != nil {
@@ -143,14 +144,14 @@ func (m *mcserverdata) readData(pid int32, wg *sync.WaitGroup) {
 		m.NewsFile = template.HTML(markdownRenderer.RenderToString(newsFile))
 	}
 
-	pingResponse, err := mcping.PingTimeout(fmt.Sprintf("localhost:%s", m.Port), 1000)
+	pingResponse, err := mcping.PingContext(ctx, fmt.Sprintf("localhost:%s", m.Port))
 	if netErr, ok := err.(*net.OpError); ok {
 		if _, ok := netErr.Err.(*os.SyscallError); ok {
 			m.PingError = ErrServerStarting
 		} else {
 			m.PingError = netErr
 		}
-	} else if err == mcping.ErrSmallPacket {
+	} else if _, ok := err.(mcping.ErrSmallPacket); ok {
 		m.PingError = ErrServerStarting2
 	} else if err != nil {
 		fmt.Printf("%#v\n", err)
@@ -190,16 +191,20 @@ func (m *mcserverdata) readData(pid int32, wg *sync.WaitGroup) {
 
 }
 
-func loadMCServersData() ([]mcserverdata, error) {
+func loadMCServersData(ctx context.Context) ([]mcserverdata, error) {
 	pids, err := pgrep("java")
 	if err != nil {
 		return nil, err
 	}
 	data := make([]mcserverdata, len(pids))
+
+	ctx, cancel := context.WithTimeout(ctx, 1250*time.Millisecond)
+	defer cancel()
+
 	var wg sync.WaitGroup
 	wg.Add(len(pids))
 	for i, pid := range pids {
-		go data[i].readData(pid, &wg)
+		go data[i].readData(ctx, pid, &wg)
 	}
 	wg.Wait()
 
@@ -257,7 +262,8 @@ var jsonTemplate = template.Must(template.New("showJson").Parse(`
 const includeJsonDump = true
 
 func HTTPMCServers(w http.ResponseWriter, r *http.Request) {
-	serverInfo, err := loadMCServersData()
+	ctx := context.Background()
+	serverInfo, err := loadMCServersData(ctx)
 	if err != nil {
 		// write info failed to load
 		w.(stringWriter).WriteString("<p>ERROR: failed to load server information<br>")

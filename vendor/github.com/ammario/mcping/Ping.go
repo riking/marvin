@@ -6,13 +6,13 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/json"
-	"github.com/jmoiron/jsonq"
 	"net"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/jmoiron/jsonq"
 	"golang.org/x/net/context"
-	"github.com/pkg/errors"
 )
 
 const (
@@ -28,7 +28,14 @@ func Ping(addr string) (PingResponse, error) {
 // PingTimeout pings the server with the provided timeout.
 func PingTimeout(addr string, timeout int) (PingResponse, error) {
 	ctx := context.Background()
-	ctx, cancel := context.WithTimeout(ctx, timeout*time.Millisecond)
+	ctx, cancel := context.WithTimeout(ctx, time.Duration(timeout)*time.Millisecond)
+	defer cancel()
+	return PingContext(ctx, addr)
+}
+
+func PingWithTimeout(addr string, timeout time.Duration) (PingResponse, error) {
+	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	return PingContext(ctx, addr)
 }
@@ -46,7 +53,7 @@ func PingContext(ctx context.Context, addr string) (PingResponse, error) {
 	}()
 
 	select {
-	case re := <- ch:
+	case re := <-ch:
 		return re.r, re.e
 	case <-ctx.Done():
 		return PingResponse{}, ErrTimeout{inner: ctx.Err()}
@@ -66,14 +73,13 @@ func ping(ctx context.Context, addr string) (PingResponse, error) {
 
 	deadline, ok := ctx.Deadline()
 	if !ok {
-		deadline = time.Now() + time.Millisecond*DEFAULT_TIMEOUT
+		deadline = time.Now().Add(time.Millisecond * DEFAULT_TIMEOUT)
 	}
-	conn, err := net.DialTimeout("tcp", addr, deadline.Sub(time.Now()) / 2)
+	conn, err := net.DialTimeout("tcp", addr, deadline.Sub(time.Now())/2)
 	if err != nil {
-		return resp, ErrConnect(err)
+		return resp, ErrConnect{err}
 	}
 	defer conn.Close()
-
 
 	// If read/write (on a slow network?) takes longer than expected, abort
 	conn.SetDeadline(deadline)
@@ -91,7 +97,7 @@ func ping(ctx context.Context, addr string) (PingResponse, error) {
 		if intport, err := strconv.Atoi(addrTokens[1]); err == nil {
 			port = uint16(intport)
 		} else {
-			return resp, err
+			return resp, ErrAddress(addr)
 		}
 	} else {
 		return resp, ErrAddress(addr)
@@ -129,7 +135,7 @@ func ping(ctx context.Context, addr string) (PingResponse, error) {
 	//Get data length via Varint
 	length, err := binary.ReadUvarint(connReader)
 	if err != nil {
-		return resp, ErrVarint(err)
+		return resp, ErrVarint{err}
 	}
 	if length < 10 {
 		return resp, ErrSmallPacket(length)
@@ -174,7 +180,7 @@ func ping(ctx context.Context, addr string) (PingResponse, error) {
 
 	favicon, _ := jq.String("favicon")
 	resp.Favicon = []byte(favicon)
-	
+
 	resp.Motd, _ = jq.String("description")
 	versionStr, _ := jq.String("version", "name")
 	arr := strings.Split(versionStr, " ")
