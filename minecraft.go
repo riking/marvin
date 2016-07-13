@@ -54,6 +54,10 @@ func (e ErrAsString) MarshalJSON() ([]byte, error) {
 	return []byte(e.Inner.Error()), nil
 }
 
+func (e ErrAsString) Error() string {
+	return e.Inner.Error()
+}
+
 type mcserverdata struct {
 	Err       error  `json:"-"`
 	Error     string `json:"Err"`
