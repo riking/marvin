@@ -51,7 +51,7 @@ type ErrAsString struct {
 }
 
 func (e ErrAsString) MarshalJSON() ([]byte, error) {
-	return []byte(e.Inner.Error()), nil
+	return json.Marshal(e.Inner.Error())
 }
 
 func (e ErrAsString) Error() string {
