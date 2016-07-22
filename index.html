@@ -38,6 +38,36 @@
     </div>
 </nav>
 
+<script>
+function loadMinecraft() {
+    var target = document.getElementById('minecraft');
+    $.ajax("/api/minecraftstatus.html", {
+        error: function (xhr, textStatus) {
+            target.innerHTML = "" +
+                    "<p class=\"bg-warning\">Failed to load data: " + textStatus + " " + xhr.status + "</p>" +
+                    "";
+        },
+        success: function (data) {
+            target.innerHTML = data;
+        }
+    });
+}
+function loadFactorio() {
+    var target = document.getElementById('factorio');
+    $.ajax("/api/factoriostatus.html", {
+        error: function (xhr, textStatus, errThrown) {
+            target.innerHTML = "" +
+                    "<p class=\"bg-warning\">Failed to load data: " + textStatus + " " + xhr.status + "</p>" +
+                    "";
+        },
+        success: function (data) {
+            target.innerHTML = data;
+        }
+    });
+
+}
+</script>
+
 <div class=container>
     <div class=jumbotron>
         <h1>Server Status</h1>
@@ -45,41 +75,43 @@
     </div>
     <h1>Minecraft Servers</h1>
     <div id=minecraft>loading...</div>
-    <script async>
-        (function () {
-            var target = document.getElementById('minecraft');
-            $.ajax("/api/minecraftstatus.html", {
-                error: function (xhr, textStatus, errThrown) {
-                    target.innerHTML = "" +
-                            "<p class=\"bg-warning\">Failed to load data: " + textStatus + " " + xhr.status + "</p>" +
-                            "";
-                },
-                success: function (data) {
-                    target.innerHTML = data;
-                }
-            });
-
-        })();
-    </script>
 
     <h1>Factorio Servers</h1>
     <div id=factorio>loading...</div>
-    <script async>
-        (function () {
-            var target = document.getElementById('factorio');
-            $.ajax("/api/factoriostatus.html", {
-                error: function (xhr, textStatus, errThrown) {
-                    target.innerHTML = "" +
-                            "<p class=\"bg-warning\">Failed to load data: " + textStatus + " " + xhr.status + "</p>" +
-                            "";
-                },
-                success: function (data) {
-                    target.innerHTML = data;
-                }
-            });
-
-        })();
-    </script>
 </div>
+
+<script async>
+    var lastRefresh;
+    const refocusRefreshDelay = 1000*30;
+    const visibleRefreshDelay = 1000*60*5;
+    const hiddenRefreshDelay = visibleRefreshDelay * 4;
+
+    function refresh() {
+        loadMinecraft();
+        loadFactorio();
+        lastRefresh = new Date().getTime();
+    }
+    function visChange() {
+        if (!document[hidden]) {
+            if (new Date().getTime() - refocusRefreshDelay > lastRefresh) {
+                refresh();
+            }
+        }
+    }
+    function timerExpire() {
+        if (document[hidden]) {
+            if (new Date().getTime() - hiddenRefreshDelay > lastRefresh) {
+                refresh();
+            }
+        } else {
+            if (new Date().getTime() - visibleRefreshDelay > lastRefresh) {
+                refresh();
+            }
+        }
+    }
+    document.addEventListener("visibilityChange", visChange, false);
+    setInterval(timerExpire, 1000*60*5);
+    refresh();
+</script>
 </body>
 </html>
