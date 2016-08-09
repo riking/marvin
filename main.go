@@ -11,14 +11,20 @@ import (
 
 func main() {
 	fmt.Println("starting")
-	mux := http.NewServeMux()
-	mux.HandleFunc("/healthcheck", HTTPHealthCheck)
-	mux.HandleFunc("/minecraftstatus.html", HTTPMCServers)
-	mux.HandleFunc("/factoriostatus.html", HTTPFactorio)
+	rootMux := http.NewServeMux()
+	apiMux := http.NewServeMux()
+	apiMux.HandleFunc("/healthcheck", HTTPHealthCheck)
+	apiMux.HandleFunc("/minecraftstatus.html", HTTPMCServers)
+	apiMux.HandleFunc("/factoriostatus.html", HTTPFactorio)
 
-	mux.Handle("/factoriomods/", http.StripPrefix("/factoriomods/", http.FileServer(&factorioModZipFilesystem{BaseDir: "/tank/home/mcserver/Factorio"})))
+	apiMux.Handle("/factoriomods/", http.StripPrefix("/factoriomods/", http.FileServer(&factorioModZipFilesystem{BaseDir: "/tank/home/mcserver/Factorio"})))
 
-	err := http.ListenAndServe("127.0.0.1:2201", http.StripPrefix("/api", mux))
+	api := http.StripPrefix("/api", apiMux)
+	rootMux.HandleFunc("/api/", api)
+
+	rootMux.HandleFunc("/42/", curlKiller(http.StripPrefix("/42/", http.FileServer(http.Dir("/tank/www/home.riking.org/42")))))
+
+	err := http.ListenAndServe("127.0.0.1:2201", rootMux)
 	if err != nil {
 		log.Fatalln(err)
 	}
