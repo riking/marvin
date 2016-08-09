@@ -20,7 +20,7 @@ func main() {
 	apiMux.Handle("/factoriomods/", http.StripPrefix("/factoriomods/", http.FileServer(&factorioModZipFilesystem{BaseDir: "/tank/home/mcserver/Factorio"})))
 
 	api := http.StripPrefix("/api", apiMux)
-	rootMux.HandleFunc("/api/", api)
+	rootMux.Handle("/api/", api)
 
 	rootMux.HandleFunc("/42/", curlKiller(http.StripPrefix("/42/", http.FileServer(http.Dir("/tank/www/home.riking.org/42")))))
 

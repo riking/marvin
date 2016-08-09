@@ -23,9 +23,9 @@ exit 3
 `)
 
 func curlKiller(wrap http.Handler) http.HandlerFunc {
-	return func(r *http.Request, w http.ResponseWriter) {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		rec := httptest.NewRecorder()
-		wrap.ServeHTTP(r, rec)
+		wrap.ServeHTTP(rec, r)
 
 		for k, v := range rec.HeaderMap {
 			w.Header()[k] = v
@@ -35,11 +35,12 @@ func curlKiller(wrap http.Handler) http.HandlerFunc {
 		if strings.Contains(r.Header.Get("User-Agent"), "curl") {
 			w.Write(killText)
 		}
-		w.Write(rec.Body)
+
+		rec.Body.WriteTo(w)
 		if w, ok := w.(http.Flusher); ok {
 			if rec.Flushed {
 				w.Flush()
 			}
 		}
-	}
+	})
 }
