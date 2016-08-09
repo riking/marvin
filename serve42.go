@@ -27,22 +27,17 @@ func curlKiller(wrap http.Handler) http.HandlerFunc {
 		rec := httptest.NewRecorder()
 		wrap.ServeHTTP(rec, r)
 
+		rec.HeaderMap.Del("Content-Length")
 		for k, v := range rec.HeaderMap {
 			w.Header()[k] = v
 		}
+		r.Header.Set("Content-Type", "text/plain; charset=utf-8")
 		w.WriteHeader(rec.Code)
 
 		if strings.Contains(r.Header.Get("User-Agent"), "curl") {
 			w.Write(killText)
-		} else {
-			r.Header.Set("Content-Type", "text/plain; charset=utf-8")
 		}
 
 		rec.Body.WriteTo(w)
-		if w, ok := w.(http.Flusher); ok {
-			if rec.Flushed {
-				w.Flush()
-			}
-		}
 	})
 }
