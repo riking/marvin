@@ -34,6 +34,8 @@ func curlKiller(wrap http.Handler) http.HandlerFunc {
 
 		if strings.Contains(r.Header.Get("User-Agent"), "curl") {
 			w.Write(killText)
+		} else {
+			r.Header.Set("Content-Type", "text/plain; charset=utf-8")
 		}
 
 		rec.Body.WriteTo(w)
