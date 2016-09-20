@@ -16,7 +16,7 @@ SHELL_NAME=${0:-sh}
 echo "Don't pipe curl into $SHELL_NAME. Someone could run naughty commands."
 echo "Always save the script to a file and inspect it before running."
 
-osascript -e 'say "Don't pipe curl into sh"'
+osascript -e 'say "Don\'t pipe curl into sh"'
 exit 3
 
 `)
