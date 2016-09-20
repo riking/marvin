@@ -196,7 +196,7 @@ func (m *factoriodata) readData(pid int32, wg *sync.WaitGroup) {
 const RCON_PORT_OFFSET = -1000
 
 func (m *factoriodata) pingServer() error {
-	c, err := rcon.Dial("localhost", m.PortNumber()+RCON_PORT_OFFSET, RconPassword())
+	c, err := rcon.Dial("127.0.0.1", m.PortNumber()+RCON_PORT_OFFSET, RconPassword())
 	if err != nil {
 		return errors.Wrap(err, "connecting to rcon")
 	}
