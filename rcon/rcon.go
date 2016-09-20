@@ -41,7 +41,7 @@ func Dial(host string, port int, pass string) (Client, error) {
 		return Client{}, err
 	}
 	c := Client{connection: conn}
-	if pass != nil {
+	if pass != "" {
 		err = c.authenticate(pass)
 		if err != nil {
 			c.Close()

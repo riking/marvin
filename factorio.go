@@ -48,7 +48,8 @@ func RconPassword() string {
 	if err != nil {
 		panic(errors.Wrap(err, "fetching rcon password"))
 	}
-	_rcon_password = content
+	_rcon_password = string(content)
+	return _rcon_password
 }
 
 type factoriodata struct {
