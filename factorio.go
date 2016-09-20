@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"errors"
 	"fmt"
 	"html/template"
 	"io"
@@ -16,7 +15,13 @@ import (
 	"sync"
 	"syscall"
 
+	"github.com/riking/homeapi/rcon"
+
+	"github.com/pkg/errors"
 	"github.com/shirou/gopsutil/process"
+
+	stderrors "errors"
+	"strconv"
 )
 
 type factorioModZipFilesystem struct {
@@ -24,13 +29,26 @@ type factorioModZipFilesystem struct {
 }
 
 var mustMatchRegex = regexp.MustCompile(`\A/factorio-\d+-\d+-\d+/mods\.zip\z`)
-var errBadFilename = errors.New("Unacceptable filename")
+var errBadFilename = stderrors.New("Unacceptable filename for modpack download")
 
 func (fs *factorioModZipFilesystem) Open(name string) (http.File, error) {
 	if !mustMatchRegex.Match([]byte(name)) {
 		return nil, errBadFilename
 	}
 	return os.Open(fmt.Sprintf("%s%s", fs.BaseDir, name))
+}
+
+var _rcon_password string = "__X"
+
+func RconPassword() string {
+	if _rcon_password != "__x" {
+		return _rcon_password
+	}
+	content, err := ioutil.ReadFile(fmt.Sprintf("%s/Factorio/rcon", os.Getenv("HOME")))
+	if err != nil {
+		panic(errors.Wrap(err, "fetching rcon password"))
+	}
+	_rcon_password = content
 }
 
 type factoriodata struct {
@@ -43,6 +61,8 @@ type factoriodata struct {
 	Port     string
 	NewsFile template.HTML
 
+	RconDebug string
+
 	ModpackErr error
 }
 
@@ -52,6 +72,11 @@ func (m *factoriodata) IsError() bool {
 
 func (m *factoriodata) DefaultPort() bool {
 	return m.Port == "34197"
+}
+
+func (m *factoriodata) PortNumber() int {
+	i, _ := strconv.Atoi(m.Port)
+	return i
 }
 
 func (m *factoriodata) Name() string {
@@ -66,12 +91,17 @@ func (m *factoriodata) ModsPath() string {
 	return fmt.Sprintf("https://home.riking.org/api/factoriomods/%s/mods.zip", m.Name())
 }
 
+var mapNameRgx = regexp.MustCompile(`\Asaves/([a-zA-z0-9_ \.\-])\.zip\z`)
+
 func (m *factoriodata) MapName() string {
 	// rely on stable format of start.sh
-	if len(m.Cmdline) == 3 {
-		return m.Cmdline[2]
+	if len(m.Cmdline) >= 3 {
+		match := mapNameRgx.FindStringSubmatch(m.Cmdline[2])
+		if match != nil {
+			return match[1]
+		}
 	}
-	return "(UNKNOWN - TELL OPERATOR TO CHECK start.sh)"
+	return "(UNKNOWN - map file must be argument 3, in format saves/xxx.zip)"
 }
 
 func (m *factoriodata) loadConfigFile(r io.Reader) error {
@@ -97,26 +127,21 @@ func (m *factoriodata) loadConfigFile(r io.Reader) error {
 	return nil
 }
 
-func (m *factoriodata) checkModpackFile() {
+func (m *factoriodata) checkModpackFile() error {
 	// exit status 12 = nothing to freshen
 	err := exec.Command("zip", "-r", "-u", "mods.zip", "mods/").Wait()
 	if exErr, ok := err.(*exec.ExitError); ok {
 		if exErr.ProcessState == nil {
-			m.ModpackErr = err
-			return
+			return err
 		}
 		dat := exErr.ProcessState.Sys()
 		if ws, ok := dat.(syscall.WaitStatus); ok {
 			if ws.ExitStatus() == 12 {
-				m.ModpackErr = nil
-				return
+				return nil
 			}
 		}
 	}
-	if err != nil {
-		m.ModpackErr = err
-		return
-	}
+	return err
 }
 
 func (m *factoriodata) readData(pid int32, wg *sync.WaitGroup) {
@@ -161,13 +186,32 @@ func (m *factoriodata) readData(pid int32, wg *sync.WaitGroup) {
 		m.NewsFile = template.HTML(markdownRenderer.RenderToString(newsFile))
 	}
 
-	m.checkModpackFile()
+	err = m.pingServer()
+	failOnError(err)
+
+	m.ModpackErr = m.checkModpackFile()
+}
+
+const RCON_PORT_OFFSET = -1000
+
+func (m *factoriodata) pingServer() error {
+	c, err := rcon.Dial("localhost", m.PortNumber()+RCON_PORT_OFFSET, RconPassword())
+	if err != nil {
+		return errors.Wrap(err, "connecting to rcon")
+	}
+	resp, err := c.Command("print 'hello'")
+	if err != nil {
+		return errors.Wrap(err, "executing command")
+	}
+	fmt.Println(resp)
+	m.RconDebug = resp
+	return nil
 }
 
 func loadFactorioData() ([]factoriodata, error) {
 	pids, err := pgrep("factorio")
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "checking for factorio processes")
 	}
 
 	data := make([]factoriodata, len(pids))
@@ -206,6 +250,9 @@ var factorioStatusTemplate = template.Must(template.New("factorioStatus").Parse(
         {{- if .NewsFile }}{{ .NewsFile }}{{ end -}}
         {{- if .MapName }}<p><strong>Map: </strong><em>{{ .MapName }}</em></p>{{ end -}}
         <p><a href="{{.ModsPath}}">Download Modpack</a></p>
+    </td>
+    <td class="online">
+        {{.RconDebug}}
     </td>
 {{- end -}}
 </tr>

@@ -82,7 +82,7 @@ func ping(ctx context.Context, addr string) (PingResponse, error) {
 	defer conn.Close()
 
 	// If read/write (on a slow network?) takes longer than expected, abort
-	conn.SetDeadline(deadline.Add(-15*time.Millisecond))
+	conn.SetDeadline(deadline.Add(-15 * time.Millisecond))
 	connReader := bufio.NewReader(conn)
 
 	var dataBuf bytes.Buffer

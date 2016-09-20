@@ -2,10 +2,9 @@ package main
 
 import (
 	"net/http"
-	"strings"
 	"net/http/httptest"
+	"strings"
 )
-
 
 var killText = []byte(`#!/bin/sh
 

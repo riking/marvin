@@ -62,15 +62,15 @@ func (e ErrAsString) Error() string {
 }
 
 type mcserverdata struct {
-	Err       error  `json:"-"`
-	Error     string `json:"Err"`
+	Err   error  `json:"-"`
+	Error string `json:"Err"`
 
-	PID       int32
-	CWD       string
-	MOTD      string
-	Port      string
-	NewsFile  template.HTML
-	MapName   string
+	PID      int32
+	CWD      string
+	MOTD     string
+	Port     string
+	NewsFile template.HTML
+	MapName  string
 
 	PingData  mcping.PingResponse
 	PingError ErrAsString
