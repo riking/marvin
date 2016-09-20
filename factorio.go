@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"html/template"
 	"io"
@@ -107,6 +108,7 @@ var mapNameRgx = regexp.MustCompile(`\Asaves/([a-zA-z0-9_ \.\-])\.zip\z`)
 func (m *factoriodata) MapName() string {
 	// rely on stable format of start.sh
 	if len(m.Cmdline) >= 3 {
+		fmt.Println(m.Cmdline[2])
 		match := mapNameRgx.FindStringSubmatch(m.Cmdline[2])
 		if match != nil {
 			return match[1]
@@ -291,5 +293,15 @@ func HTTPFactorio(w http.ResponseWriter, r *http.Request) {
 		w.(stringWriter).WriteString("<p>ERROR: failed to print server information<br>")
 		w.(stringWriter).WriteString(err.Error())
 		return
+	}
+
+	bytes, err := json.MarshalIndent(serverInfo, "", "\t")
+	if err != nil {
+		w.(stringWriter).WriteString(fmt.Sprintf("<p>ERROR: failed to marshal json: %s", err))
+		return
+	}
+	err = jsonTemplate.Execute(w, string(bytes))
+	if err != nil {
+		w.(stringWriter).WriteString(fmt.Sprintf("<p>ERROR: %s", err))
 	}
 }
