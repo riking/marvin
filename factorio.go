@@ -294,7 +294,7 @@ func HTTPFactorio(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if includeJsonDump {
+	if false {
 		bytes, err := json.MarshalIndent(serverInfo, "", "\t")
 		if err != nil {
 			w.(stringWriter).WriteString(fmt.Sprintf("<p>ERROR: failed to marshal json: %s", err))
