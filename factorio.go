@@ -103,7 +103,7 @@ func (m *factoriodata) ModsPath() string {
 	return fmt.Sprintf("https://home.riking.org/api/factoriomods/%s/mods.zip", m.Name())
 }
 
-var mapNameRgx = regexp.MustCompile(`saves/([a-zA-z0-9_ \.\-])\.zip`)
+var mapNameRgx = regexp.MustCompile(`saves/([a-zA-z0-9_ \.\-]+)\.zip`)
 
 func (m *factoriodata) MapName() string {
 	// rely on stable format of start.sh
