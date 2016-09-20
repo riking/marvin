@@ -103,12 +103,11 @@ func (m *factoriodata) ModsPath() string {
 	return fmt.Sprintf("https://home.riking.org/api/factoriomods/%s/mods.zip", m.Name())
 }
 
-var mapNameRgx = regexp.MustCompile(`\Asaves/([a-zA-z0-9_ \.\-])\.zip\z`)
+var mapNameRgx = regexp.MustCompile(`saves/([a-zA-z0-9_ \.\-])\.zip`)
 
 func (m *factoriodata) MapName() string {
 	// rely on stable format of start.sh
 	if len(m.Cmdline) >= 3 {
-		fmt.Println(m.Cmdline[2])
 		match := mapNameRgx.FindStringSubmatch(m.Cmdline[2])
 		if match != nil {
 			return match[1]
@@ -295,13 +294,15 @@ func HTTPFactorio(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	bytes, err := json.MarshalIndent(serverInfo, "", "\t")
-	if err != nil {
-		w.(stringWriter).WriteString(fmt.Sprintf("<p>ERROR: failed to marshal json: %s", err))
-		return
-	}
-	err = jsonTemplate.Execute(w, string(bytes))
-	if err != nil {
-		w.(stringWriter).WriteString(fmt.Sprintf("<p>ERROR: %s", err))
+	if includeJsonDump {
+		bytes, err := json.MarshalIndent(serverInfo, "", "\t")
+		if err != nil {
+			w.(stringWriter).WriteString(fmt.Sprintf("<p>ERROR: failed to marshal json: %s", err))
+			return
+		}
+		err = jsonTemplate.Execute(w, string(bytes))
+		if err != nil {
+			w.(stringWriter).WriteString(fmt.Sprintf("<p>ERROR: %s", err))
+		}
 	}
 }
