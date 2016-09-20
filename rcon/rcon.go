@@ -35,8 +35,12 @@ const requestIDBadLogin int32 = -1
 
 // Dial connects to a RCON server and attempts to authenticate if 'pass' is not the empty string.
 func Dial(host string, port int, pass string) (Client, error) {
+	return DialTimeout(host, port, pass, 10*time.Second)
+}
+
+func DialTimeout(host string, port int, pass string, timeout time.Duration) (Client, error) {
 	address := fmt.Sprintf("%s:%d", host, port)
-	conn, err := net.DialTimeout("tcp", address, 10*time.Second)
+	conn, err := net.DialTimeout("tcp", address, timeout)
 	if err != nil {
 		return Client{}, err
 	}

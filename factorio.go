@@ -11,9 +11,11 @@ import (
 	"os/exec"
 	"regexp"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/riking/homeapi/rcon"
 
@@ -21,7 +23,6 @@ import (
 	"github.com/shirou/gopsutil/process"
 
 	stderrors "errors"
-	"strconv"
 )
 
 type factorioModZipFilesystem struct {
@@ -62,6 +63,11 @@ type factoriodata struct {
 	Port     string
 	NewsFile template.HTML
 
+	PingError error
+	PingData  struct {
+		Online  int
+		Players []string
+	}
 	RconDebug string
 
 	ModpackErr error
@@ -69,6 +75,10 @@ type factoriodata struct {
 
 func (m *factoriodata) IsError() bool {
 	return m.Err != nil
+}
+
+func (m *factoriodata) HasPingError() bool {
+	return m.PingError != nil
 }
 
 func (m *factoriodata) DefaultPort() bool {
@@ -187,8 +197,7 @@ func (m *factoriodata) readData(pid int32, wg *sync.WaitGroup) {
 		m.NewsFile = template.HTML(markdownRenderer.RenderToString(newsFile))
 	}
 
-	err = m.pingServer()
-	failOnError(err)
+	m.PingError = m.pingServer()
 
 	m.ModpackErr = m.checkModpackFile()
 }
@@ -196,7 +205,7 @@ func (m *factoriodata) readData(pid int32, wg *sync.WaitGroup) {
 const RCON_PORT_OFFSET = -1000
 
 func (m *factoriodata) pingServer() error {
-	c, err := rcon.Dial("127.0.0.1", m.PortNumber()+RCON_PORT_OFFSET, RconPassword())
+	c, err := rcon.DialTimeout("127.0.0.1", m.PortNumber()+RCON_PORT_OFFSET, RconPassword(), 1*time.Second)
 	if err != nil {
 		return errors.Wrap(err, "connecting to rcon")
 	}
@@ -253,7 +262,13 @@ var factorioStatusTemplate = template.Must(template.New("factorioStatus").Parse(
         <p><a href="{{.ModsPath}}">Download Modpack</a></p>
     </td>
     <td class="online">
-        {{.RconDebug}}
+	{{- if .HasPingError -}}
+            <p class="has-warning"><span class="control-label">{{ .PingError.Error }}</span></p>
+        {{- else -}}
+            <p><strong>{{ .PingData.Online }}</strong> players online</p>
+            <ul>{{ range .PingData.Players }}<li>{{ . }}</li>{{ end }}</ul>
+        {{- end -}}
+        {{ .RconDebug }}
     </td>
 {{- end -}}
 </tr>
