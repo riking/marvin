@@ -331,7 +331,8 @@ func HTTPMCServers(w http.ResponseWriter, r *http.Request) {
 	if false {
 		// TODO load cached info - 1sec max
 	} else {
-		serverInfo, err := loadMCServersData(ctx)
+		var err error
+		serverInfo, err = loadMCServersData(ctx)
 		if err != nil {
 			// write info failed to load
 			w.(stringWriter).WriteString("<p>ERROR: failed to load server information<br>")
