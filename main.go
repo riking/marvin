@@ -20,7 +20,7 @@ func main() {
 
 	factorioModFS := &ModZipFilesystem{
 		BaseDir: "/tank/home/mcserver/Factorio",
-		MatchRegex: regexp.MustCompile(`\A/(factorio-\d+-\d+-\d+)/mods\.zip\z`),
+		MatchRegex: regexp.MustCompile(`\A/([a-zA-Z0-9-]+)/mods\.zip\z`),
 	}
 	apiMux.Handle("/factoriomods/", http.StripPrefix("/factoriomods/", factorioModFS.Setup()))
 	minecraftModFS.BaseDir = "/tank/home/mcserver"
