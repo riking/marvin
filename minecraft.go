@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"regexp"
 	"sync"
 	"time"
 
@@ -20,6 +21,40 @@ import (
 	"github.com/shirou/gopsutil/process"
 	"golang.org/x/net/context"
 )
+
+type mcModZipFilesystem struct {
+	ModZipFilesystem
+	lock sync.Mutex
+	serverList []string
+}
+
+var minecraftModFS = &mcModZipFilesystem{
+	ModZipFilesystem: ModZipFilesystem{
+		MatchRegex: regexp.MustCompile(`\A/([a-zA-Z0-9-]+)/mods\.zip\z`),
+	},
+}
+
+func (fs *mcModZipFilesystem) Open(name string) (http.File, error) {
+	match := fs.MatchRegex.FindStringSubmatch(name)
+	if match == nil {
+		return nil, os.ErrNotExist
+	}
+	valid := false
+	fs.lock.Lock()
+	for _, v := range fs.serverList {
+		m := &mcserverdata{CWD: v}
+		if match[1] == m.Name() {
+			valid = true
+			break
+		}
+	}
+	fs.lock.Unlock()
+
+	if !valid {
+		return nil, os.ErrPermission
+	}
+	return os.Open(fmt.Sprintf("%s%s", fs.BaseDir, name))
+}
 
 type propertiesFile map[string]string
 
@@ -44,7 +79,6 @@ var ErrProcessExited = errors.New("Process exited while reading the data")
 var ErrNotAMinecraftServer = errors.New("not a Minecraft server")
 var ErrServerStarting = errors.New("Server starting up... (stage 1)")
 var ErrServerStarting2 = errors.New("Server starting up... (stage 2)")
-var ErrNoServersRunning = errors.New("No Minecraft servers running")
 
 type ErrAsString struct {
 	Inner error
@@ -71,6 +105,7 @@ type mcserverdata struct {
 	Port     string
 	NewsFile template.HTML
 	MapName  string
+	HasPack  bool
 
 	PingData  mcping.PingResponse
 	PingError ErrAsString
@@ -104,6 +139,10 @@ func (m *mcserverdata) IncludeMapName() bool {
 
 func (m *mcserverdata) FaviconURL() string {
 	return "" //m.PingData.Favicon
+}
+
+func (m *mcserverdata) ModsPath() string {
+	return fmt.Sprintf("https://home.riking.org/api/minecraftmods/%s/mods.zip", m.Name())
 }
 
 func (m *mcserverdata) ServerType() string {
@@ -147,6 +186,14 @@ func (m *mcserverdata) readData(ctx context.Context, pid int32, wg *sync.WaitGro
 	failOnError(err)
 	props, err := LoadServerPropsFile(file)
 	failOnError(err)
+	_, err = os.Stat(fmt.Sprintf("%s/mods.zip", cwd))
+	if err != nil && !os.IsNotExist(err) {
+		failOnError(err)
+	} else if os.IsNotExist(err) {
+		m.HasPack = false
+	} else {
+		m.HasPack = true
+	}
 
 	m.Port = props["server-port"]
 	m.MOTD = props["motd"]
@@ -254,6 +301,7 @@ var minecraftStatusTemplate = template.Must(template.New("minecraftStatus").Pars
 	{{- if .NewsFile }}{{ .NewsFile }}{{ end -}}
 	{{- if .IncludeMapName }}<p><strong>Map: </strong><em>{{ .MapName }}</em></p>{{ end -}}
 	{{- if true }}<p><strong>MOTD: </strong><em>{{.MOTD}}</em></p>{{ end -}}
+	{{- if .HasPack }}<p><a href="{{ .ModsPath }}">Download Modpack</a></p>{{ end -}}
     </td>
     <td class="online">
         {{- if .HasPingError -}}
@@ -278,23 +326,37 @@ const includeJsonDump = true
 
 func HTTPMCServers(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
-	serverInfo, err := loadMCServersData(ctx)
-	if err != nil {
-		// write info failed to load
-		w.(stringWriter).WriteString("<p>ERROR: failed to load server information<br>")
-		w.(stringWriter).WriteString(err.Error())
-		return
+
+	var serverInfo []mcserverdata
+	if false {
+		// TODO load cached info - 1sec max
+	} else {
+		serverInfo, err := loadMCServersData(ctx)
+		if err != nil {
+			// write info failed to load
+			w.(stringWriter).WriteString("<p>ERROR: failed to load server information<br>")
+			w.(stringWriter).WriteString(err.Error())
+			return
+		} else {
+			cwds := make([]string, len(serverInfo))
+			for i := range serverInfo {
+				cwds[i] = serverInfo[i].CWD
+			}
+			minecraftModFS.lock.Lock()
+			minecraftModFS.serverList = cwds
+			minecraftModFS.lock.Unlock()
+		}
 	}
 
 	// Print the table
-	err = minecraftStatusTemplate.Execute(w, serverInfo)
+	err := minecraftStatusTemplate.Execute(w, serverInfo)
 	if err != nil {
 		w.(stringWriter).WriteString(fmt.Sprintf("<p>ERROR: %s", err))
 	}
 
 	if includeJsonDump {
 		// Include raw data as a JSON dump
-		for i, _ := range serverInfo {
+		for i := range serverInfo {
 			if serverInfo[i].Err != nil {
 				serverInfo[i].Error = serverInfo[i].Err.Error()
 			}

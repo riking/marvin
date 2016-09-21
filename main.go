@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"regexp"
 )
 
 func main() {
@@ -17,7 +18,12 @@ func main() {
 	apiMux.HandleFunc("/minecraftstatus.html", HTTPMCServers)
 	apiMux.HandleFunc("/factoriostatus.html", HTTPFactorio)
 
-	apiMux.Handle("/factoriomods/", http.StripPrefix("/factoriomods/", http.FileServer(&factorioModZipFilesystem{BaseDir: "/tank/home/mcserver/Factorio"})))
+	apiMux.Handle("/factoriomods/", http.StripPrefix("/factoriomods/", http.FileServer(&ModZipFilesystem{
+		BaseDir: "/tank/home/mcserver/Factorio",
+		MatchRegex: regexp.MustCompile(`\A/factorio-\d+-\d+-\d+/mods\.zip\z`),
+	})))
+	minecraftModFS.BaseDir = "/tank/home/mcserver"
+	apiMux.Handle("/minecraftmods/", http.StripPrefix("/minecraftmods/", http.FileServer(minecraftModFS)))
 
 	api := http.StripPrefix("/api", apiMux)
 	rootMux.Handle("/api/", api)

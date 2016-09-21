@@ -26,16 +26,16 @@ import (
 	stderrors "errors"
 )
 
-type factorioModZipFilesystem struct {
-	BaseDir string
+type ModZipFilesystem struct {
+	BaseDir    string
+	MatchRegex *regexp.Regexp
 }
 
-var mustMatchRegex = regexp.MustCompile(`\A/factorio-\d+-\d+-\d+/mods\.zip\z`)
 var errBadFilename = stderrors.New("Unacceptable filename for modpack download")
 
-func (fs *factorioModZipFilesystem) Open(name string) (http.File, error) {
-	if !mustMatchRegex.Match([]byte(name)) {
-		return nil, errBadFilename
+func (fs *ModZipFilesystem) Open(name string) (http.File, error) {
+	if !fs.MatchRegex.MatchString(name) {
+		return nil, os.ErrNotExist
 	}
 	return os.Open(fmt.Sprintf("%s%s", fs.BaseDir, name))
 }
@@ -210,7 +210,7 @@ func (m *factoriodata) pingServer() error {
 	if err != nil {
 		return errors.Wrap(err, "connecting to rcon")
 	}
-	resp, err := c.Command("print 'hello'")
+	resp, err := c.Command("/c print 'hello'")
 	if err != nil {
 		return errors.Wrap(err, "executing command")
 	}
