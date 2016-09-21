@@ -22,22 +22,41 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/shirou/gopsutil/process"
-
-	stderrors "errors"
 )
 
 type ModZipFilesystem struct {
 	BaseDir    string
 	MatchRegex *regexp.Regexp
+	httpSrv http.Handler
 }
 
-var errBadFilename = stderrors.New("Unacceptable filename for modpack download")
+func (fs *ModZipFilesystem) Setup() *ModZipFilesystem {
+	fs.httpSrv = http.FileServer(fs)
+	return fs
+}
 
 func (fs *ModZipFilesystem) Open(name string) (http.File, error) {
 	if !fs.MatchRegex.MatchString(name) {
 		return nil, os.ErrNotExist
 	}
 	return os.Open(fmt.Sprintf("%s%s", fs.BaseDir, name))
+}
+
+func (fs *ModZipFilesystem) Name(path string) (string) {
+	m := fs.MatchRegex.FindStringSubmatch(path)
+	if m == nil {
+		return "x"
+	}
+	return m[1]
+}
+
+func (fs *ModZipFilesystem) Filename(path string) (string) {
+	return fmt.Sprintf("%s-mods.zip", fs.Name("/" + path))
+}
+
+func (fs *ModZipFilesystem) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", fs.Filename(r.URL.Path)))
+	fs.httpSrv.ServeHTTP(w, r)
 }
 
 var _rcon_password string = "__X"

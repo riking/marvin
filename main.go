@@ -18,12 +18,13 @@ func main() {
 	apiMux.HandleFunc("/minecraftstatus.html", HTTPMCServers)
 	apiMux.HandleFunc("/factoriostatus.html", HTTPFactorio)
 
-	apiMux.Handle("/factoriomods/", http.StripPrefix("/factoriomods/", http.FileServer(&ModZipFilesystem{
+	factorioModFS := &ModZipFilesystem{
 		BaseDir: "/tank/home/mcserver/Factorio",
-		MatchRegex: regexp.MustCompile(`\A/factorio-\d+-\d+-\d+/mods\.zip\z`),
-	})))
+		MatchRegex: regexp.MustCompile(`\A/(factorio-\d+-\d+-\d+)/mods\.zip\z`),
+	}
+	apiMux.Handle("/factoriomods/", http.StripPrefix("/factoriomods/", factorioModFS.Setup()))
 	minecraftModFS.BaseDir = "/tank/home/mcserver"
-	apiMux.Handle("/minecraftmods/", http.StripPrefix("/minecraftmods/", http.FileServer(minecraftModFS)))
+	apiMux.Handle("/minecraftmods/", http.StripPrefix("/minecraftmods/", minecraftModFS.Setup()))
 
 	api := http.StripPrefix("/api", apiMux)
 	rootMux.Handle("/api/", api)
