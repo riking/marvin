@@ -1,0 +1,21 @@
+syntax = "proto2";
+
+package wrapfactorio;
+option go_package = "proto";
+
+service FactorioConsole {
+	rpc LuaCommand(LuaCommandRequest) returns (CommandResponse) {}
+	rpc OtherCommand(CommandRequest) returns (CommandResponse) {}
+}
+
+message LuaCommandRequest {
+	optional string code = 1;
+}
+
+message CommandRequest {
+	optional string cmdline = 1;
+}
+
+message CommandResponse {
+	optional string response = 1;
+}
