@@ -27,7 +27,7 @@ import (
 type ModZipFilesystem struct {
 	BaseDir    string
 	MatchRegex *regexp.Regexp
-	httpSrv http.Handler
+	httpSrv    http.Handler
 }
 
 func (fs *ModZipFilesystem) Setup() *ModZipFilesystem {
@@ -42,7 +42,7 @@ func (fs *ModZipFilesystem) Open(name string) (http.File, error) {
 	return os.Open(fmt.Sprintf("%s%s", fs.BaseDir, name))
 }
 
-func (fs *ModZipFilesystem) Name(path string) (string) {
+func (fs *ModZipFilesystem) Name(path string) string {
 	m := fs.MatchRegex.FindStringSubmatch(path)
 	if m == nil {
 		return "x"
@@ -50,8 +50,8 @@ func (fs *ModZipFilesystem) Name(path string) (string) {
 	return m[1]
 }
 
-func (fs *ModZipFilesystem) Filename(path string) (string) {
-	return fmt.Sprintf("%s-mods.zip", fs.Name("/" + path))
+func (fs *ModZipFilesystem) Filename(path string) string {
+	return fmt.Sprintf("%s-mods.zip", fs.Name("/"+path))
 }
 
 func (fs *ModZipFilesystem) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -225,6 +225,8 @@ func (m *factoriodata) readData(pid int32, wg *sync.WaitGroup) {
 const RCON_PORT_OFFSET = -1000
 
 func (m *factoriodata) pingServer() error {
+	return nil
+	// TODO
 	c, err := rcon.DialTimeout("127.0.0.1", m.PortNumber()+RCON_PORT_OFFSET, RconPassword(), 1*time.Second)
 	if err != nil {
 		return errors.Wrap(err, "connecting to rcon")
@@ -281,15 +283,18 @@ var factorioStatusTemplate = template.Must(template.New("factorioStatus").Parse(
         {{- if .MapName }}<p><strong>Map: </strong><em>{{ .MapName }}</em></p>{{ end -}}
         <p><a href="{{.ModsPath}}">Download Modpack</a></p>
     </td>
-    <td class="online">
-	{{- if .HasPingError -}}
-            <p class="has-warning"><span class="control-label">{{ .PingError.Error }}</span></p>
-        {{- else -}}
-            <p><strong>{{ .PingData.Online }}</strong> players online</p>
-            <ul>{{ range .PingData.Players }}<li>{{ . }}</li>{{ end }}</ul>
-        {{- end -}}
-        {{ .RconDebug }}
-    </td>
+	` +
+	/*
+		    <td class="online">
+			{{- if .HasPingError -}}
+		            <p class="has-warning"><span class="control-label">{{ .PingError.Error }}</span></p>
+		        {{- else -}}
+		            <p><strong>{{ .PingData.Online }}</strong> players online</p>
+		            <ul>{{ range .PingData.Players }}<li>{{ . }}</li>{{ end }}</ul>
+		        {{- end -}}
+		        {{ .RconDebug }}
+		    </td>
+	*/`
 {{- end -}}
 </tr>
 {{- end -}}

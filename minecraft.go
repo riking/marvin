@@ -11,8 +11,8 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"strings"
 	"regexp"
+	"strings"
 	"sync"
 	"time"
 
@@ -24,7 +24,7 @@ import (
 
 type mcModZipFilesystem struct {
 	ModZipFilesystem
-	lock sync.Mutex
+	lock       sync.Mutex
 	serverList []string
 }
 

@@ -5,9 +5,9 @@ import (
 	"log"
 	"net/http"
 	"os/exec"
+	"regexp"
 	"strconv"
 	"strings"
-	"regexp"
 )
 
 func main() {
@@ -19,7 +19,7 @@ func main() {
 	apiMux.HandleFunc("/factoriostatus.html", HTTPFactorio)
 
 	factorioModFS := &ModZipFilesystem{
-		BaseDir: "/tank/home/mcserver/Factorio",
+		BaseDir:    "/tank/home/mcserver/Factorio",
 		MatchRegex: regexp.MustCompile(`\A/([a-zA-Z0-9-]+)/mods\.zip\z`),
 	}
 	apiMux.Handle("/factoriomods/", http.StripPrefix("/factoriomods/", factorioModFS.Setup()))
