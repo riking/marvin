@@ -225,7 +225,7 @@ func (m *factoriodata) readData(pid int32, wg *sync.WaitGroup) {
 const RCON_PORT_OFFSET = -1000
 
 func (m *factoriodata) pingServer() error {
-	return nil
+	//return nil
 	// TODO
 	c, err := rcon.DialTimeout("127.0.0.1", m.PortNumber()+RCON_PORT_OFFSET, RconPassword(), 1*time.Second)
 	if err != nil {
