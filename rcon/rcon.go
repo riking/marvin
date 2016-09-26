@@ -39,8 +39,8 @@ func Dial(host string, port int, pass string) (Client, error) {
 }
 
 func DialTimeout(host string, port int, pass string, timeout time.Duration) (Client, error) {
-	address := fmt.Sprintf("%s:%d", host, port)
-	conn, err := net.DialTimeout("tcp", address, timeout)
+	address := net.JoinHostPort(host, fmt.Sprint(port))
+	conn, err := net.DialTimeout("tcp4", address, timeout)
 	if err != nil {
 		return Client{}, err
 	}
