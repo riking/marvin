@@ -293,7 +293,6 @@ var factorioStatusTemplate = template.Must(template.New("factorioStatus").Parse(
 		{{- end -}}
 		{{ .RconDebug }}
 	</td>
-`
 {{- end -}}
 </tr>
 {{- end -}}
