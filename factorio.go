@@ -207,7 +207,7 @@ func (m *factoriodata) readData(pid int32, wg *sync.WaitGroup) {
 
 	cmdline, err := proc.CmdlineSlice()
 	failOnError(err)
-	if strings.HasSuffix(cmdline, "factorioc") {
+	if strings.HasSuffix(cmdline[0], "factorioc") {
 		m.Err = ErrNotAMinecraftServer
 		return
 	}
