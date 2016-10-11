@@ -93,6 +93,10 @@ type factoriodata struct {
 	ModpackErr error
 }
 
+func (m *factoriodata) IsServer() bool {
+	return m.Err != ErrNotAMinecraftServer
+}
+
 func (m *factoriodata) IsError() bool {
 	return m.Err != nil
 }
@@ -203,6 +207,10 @@ func (m *factoriodata) readData(pid int32, wg *sync.WaitGroup) {
 
 	cmdline, err := proc.CmdlineSlice()
 	failOnError(err)
+	if strings.HasSuffix(cmdline, "factorioc") {
+		m.Err = ErrNotAMinecraftServer
+		return
+	}
 	m.Cmdline = cmdline
 
 	file, err := os.Open(fmt.Sprintf("%s/config/config.ini", m.CWD))
@@ -225,8 +233,6 @@ func (m *factoriodata) readData(pid int32, wg *sync.WaitGroup) {
 const RCON_PORT_OFFSET = -1000
 
 func (m *factoriodata) pingServer() error {
-	// return nil
-	// TODO
 	c, err := rcon.DialTimeout("127.0.0.1", m.PortNumber()+RCON_PORT_OFFSET, RconPassword(), 1*time.Second)
 	if err != nil {
 		return errors.Wrap(err, "connecting to rcon")
@@ -265,6 +271,7 @@ var factorioStatusTemplate = template.Must(template.New("factorioStatus").Parse(
 	<th>Online</th>
 </thead>
 {{- range . -}}
+{{- if .IsServer -}}
 <tr>
 {{- if .IsError -}}
     <td colspan="4"><b>Error</b>: {{ .Err.Error }}<br>{{.Stack}}
@@ -295,6 +302,7 @@ var factorioStatusTemplate = template.Must(template.New("factorioStatus").Parse(
 	</td>
 {{- end -}}
 </tr>
+{{- end -}}
 {{- end -}}
 </table>
 `))
