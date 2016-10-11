@@ -233,6 +233,7 @@ func (m *factoriodata) readData(pid int32, wg *sync.WaitGroup) {
 const RCON_PORT_OFFSET = -1000
 
 var rgxPlayerCount = regexp.MustCompile(`^Players \((\d+)\):$`)
+var rgxPlayerName = regexp.MustCompile(`^(\w+)( \(online\))?$`)
 
 func (m *factoriodata) pingServer() error {
 	c, err := rcon.DialTimeout("127.0.0.1", m.PortNumber()+RCON_PORT_OFFSET, RconPassword(), 1*time.Second)
@@ -252,8 +253,15 @@ func (m *factoriodata) pingServer() error {
 	if err != nil {
 		return errors.Wrap(err, "parsing /p reply")
 	}
-	m.PingData.Online = count
-	m.PingData.Players = lines[1:]
+	onlinePlayers := make([]string)
+	for _, v := range lines[1:] {
+		match = rgxPlayerName.FindStringSubmatch(v)
+		if match != nil && match[2] != "" {
+			onlinePlayers = append(onlinePlayers, match[1])
+		}
+	}
+	m.PingData.Players = onlinePlayers
+	m.PingData.Online = len(onlinePlayers)
 	return nil
 }
 
