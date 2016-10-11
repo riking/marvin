@@ -65,7 +65,7 @@ func RconPassword() string {
 	if _rcon_password != "__x" {
 		return _rcon_password
 	}
-	content, err := ioutil.ReadFile(fmt.Sprintf("%s/Factorio/rcon", os.Getenv("HOME")))
+	content, err := ioutil.ReadFile(fmt.Sprintf("%s/Factorio/rcon", "/tank/home/mcserver"))
 	if err != nil {
 		panic(errors.Wrap(err, "fetching rcon password"))
 	}
