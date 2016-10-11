@@ -59,7 +59,7 @@ func (fs *ModZipFilesystem) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	fs.httpSrv.ServeHTTP(w, r)
 }
 
-var _rcon_password string = "__X"
+var _rcon_password string = "__x"
 
 func RconPassword() string {
 	if _rcon_password != "__x" {
