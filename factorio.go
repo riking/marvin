@@ -237,12 +237,11 @@ func (m *factoriodata) pingServer() error {
 	if err != nil {
 		return errors.Wrap(err, "connecting to rcon")
 	}
-	resp, err := c.Command("/c print 'hello'")
+	resp, err := c.Command("/p")
 	if err != nil {
 		return errors.Wrap(err, "executing command")
 	}
-	fmt.Println(resp)
-	m.RconDebug = resp
+	m.PingData.Players = strings.Split(resp, "\n")
 	return nil
 }
 
