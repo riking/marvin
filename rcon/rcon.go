@@ -101,6 +101,7 @@ func (c *Client) sendPacket(t packetType, p []byte) (header, []byte, error) {
 	}
 
 	// Send the packet over the wire.
+	fmt.Println("rcon", "sending", packet)
 	_, err = c.connection.Write(packet)
 	if err != nil {
 		return header{}, nil, err
@@ -111,6 +112,7 @@ func (c *Client) sendPacket(t packetType, p []byte) (header, []byte, error) {
 		return header{}, nil, err
 	}
 
+	fmt.Println("rcon", "receive", head, payload)
 	return head, payload, nil
 }
 
