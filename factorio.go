@@ -85,8 +85,9 @@ type factoriodata struct {
 
 	PingError error
 	PingData  struct {
-		Online  int
-		Players []string
+		PlayerTotal int
+		Online      int
+		Players     []string
 	}
 	RconDebug string
 
@@ -249,17 +250,18 @@ func (m *factoriodata) pingServer() error {
 	if match == nil {
 		return errors.Errorf("Bad reply to /p: %s", resp)
 	}
-	count, err := strconv.Atoi(match[1])
+	loggedInEverCount, err := strconv.Atoi(match[1])
 	if err != nil {
 		return errors.Wrap(err, "parsing /p reply")
 	}
-	onlinePlayers := make([]string)
+	onlinePlayers := make([]string, 0)
 	for _, v := range lines[1:] {
 		match = rgxPlayerName.FindStringSubmatch(v)
 		if match != nil && match[2] != "" {
 			onlinePlayers = append(onlinePlayers, match[1])
 		}
 	}
+	m.PingData.PlayerTotal = loggedInEverCount
 	m.PingData.Players = onlinePlayers
 	m.PingData.Online = len(onlinePlayers)
 	return nil
