@@ -1,0 +1,5 @@
+package shocky
+
+func init() {
+
+}
