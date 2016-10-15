@@ -48,7 +48,7 @@ func SSORequest(r *http.Request) (*SSOHelper, error) {
 	}
 	h.Nonce = payload.Get("nonce")
 	if h.Nonce == "" {
-		return nil, errors.Wrap(err, "nonce missing")
+		return nil, errors.Errorf("nonce missing from request")
 	}
 	return h, nil
 }
