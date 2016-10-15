@@ -27,7 +27,7 @@ func SSORequest(r *http.Request) (*SSOHelper, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "invalid POST form")
 	}
-	h.PayloadB64 = r.Form.Get("payload")
+	h.PayloadB64 = r.Form.Get("sso")
 	enc := base64.URLEncoding
 	payloadForm, err := enc.DecodeString(strings.TrimSpace(r.Form.Get("payload")))
 	if err != nil {
@@ -43,7 +43,7 @@ func SSORequest(r *http.Request) (*SSOHelper, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "invalid hex encoding")
 	}
-	if !h.IsValid([]byte(r.Form.Get("payload")), sigBytes) {
+	if !h.IsValid([]byte(r.Form.Get("sso")), sigBytes) {
 		return nil, errors.Errorf("invalid signature")
 	}
 	h.Nonce = payload.Get("nonce")
