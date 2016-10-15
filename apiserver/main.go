@@ -8,11 +8,12 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/riking/homeapi/intra"
 )
 
 func main() {
 	fmt.Println("starting")
-	rootMux := http.NewServeMux()
 	apiMux := http.NewServeMux()
 	apiMux.HandleFunc("/healthcheck", HTTPHealthCheck)
 	apiMux.HandleFunc("/minecraftstatus.html", HTTPMCServers)
@@ -26,9 +27,12 @@ func main() {
 	minecraftModFS.BaseDir = "/tank/home/mcserver"
 	apiMux.Handle("/minecraftmods/", http.StripPrefix("/minecraftmods/", minecraftModFS.Setup()))
 
-	api := http.StripPrefix("/api", apiMux)
-	rootMux.Handle("/api/", api)
+	oauthMux := http.NewServeMux()
+	oauthMux.HandleFunc("/discourse", intra.HTTPDiscourseSSO)
 
+	rootMux := http.NewServeMux()
+	rootMux.Handle("/api/", http.StripPrefix("/api", apiMux))
+	rootMux.Handle("/oauth/", http.StripPrefix("/oauth", oauthMux))
 	rootMux.HandleFunc("/42/", curlKiller(http.StripPrefix("/42/", http.FileServer(http.Dir("/tank/www/home.riking.org/42")))))
 
 	err := http.ListenAndServe("127.0.0.1:2201", rootMux)
