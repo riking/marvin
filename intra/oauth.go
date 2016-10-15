@@ -218,6 +218,7 @@ func HTTPOauthCallback(w http.ResponseWriter, r *http.Request) {
 	sso.Set("nonce", nonce)
 	delete(session.Values, "nonce")
 	sso.Set("name", user.DisplayName)
+	sso.Set("username", user.Login)
 	sso.Set("email", user.Email)
 	sso.Set("external_id", strconv.Itoa(user.ID))
 	sso.Set("avatar_url", user.ImageURL)
