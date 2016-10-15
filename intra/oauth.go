@@ -3,7 +3,6 @@ package intra
 import (
 	"context"
 	"crypto/hmac"
-	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
@@ -46,7 +45,6 @@ func SSORequest(r *http.Request) (*SSOHelper, error) {
 		return nil, errors.Wrap(err, "invalid b64 payload")
 	}
 	h.Payload = payload
-	fmt.Println(string(payloadForm), "->", h.Payload)
 	sigBytes, err := hex.DecodeString(r.Form.Get("sig"))
 	if err != nil {
 		return nil, errors.Wrap(err, "invalid hex encoding")
@@ -107,25 +105,13 @@ var cookieStore = sessions.NewCookieStore([]byte(cookieSecret.Get()))
 const cookieKey = `intra-oauth`
 
 func HTTPDiscourseSSO(w http.ResponseWriter, r *http.Request) {
-	session, err := cookieStore.Get(r, cookieKey)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
 	sso, err := SSORequest(r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	session.Values["nonce"] = sso.Nonce
-	var randBytes [16]byte
-	rand.Read(randBytes[:])
-	oauthNonce := hex.EncodeToString(randBytes[:])
-	session.Values["oauth-nonce"] = oauthNonce
-	session.Save(r, w)
-	redirURL := oauthConfig.AuthCodeURL(oauthNonce, oauth2.SetAuthURLParam("response_type", "code"))
+	redirURL := oauthConfig.AuthCodeURL(sso.Nonce, oauth2.SetAuthURLParam("response_type", "code"))
 	http.Redirect(w, r, redirURL, http.StatusFound)
 }
 
@@ -164,32 +150,13 @@ const discourseBase = "http://42.riking.org"
 func HTTPOauthCallback(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	session, err := cookieStore.Get(r, cookieKey)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
 
-	nonce, ok := session.Values["nonce"].(string)
-	if !ok || nonce == "" {
-		http.Redirect(w, r, fmt.Sprintf("%s/session/sso", discourseBase), http.StatusSeeOther)
-		return
-	}
-	oauthNonce, ok := session.Values["oauth-nonce"].(string)
-	if !ok {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	err = r.ParseForm()
+	err := r.ParseForm()
 	if err != nil {
 		err = errors.Wrap(err, "bad form parameters")
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	fmt.Println("oauth form", r.Form)
-	_ = oauthNonce
-	// TODO check nonce
 
 	token, err := oauthConfig.Exchange(ctx, r.Form.Get("code"))
 	if err != nil {
@@ -215,8 +182,7 @@ func HTTPOauthCallback(w http.ResponseWriter, r *http.Request) {
 	}
 	resp.Body.Close()
 	sso := make(url.Values)
-	sso.Set("nonce", nonce)
-	delete(session.Values, "nonce")
+	sso.Set("nonce", r.Form.Get("state"))
 	sso.Set("name", user.DisplayName)
 	sso.Set("username", user.Login)
 	sso.Set("email", user.Email)
