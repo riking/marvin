@@ -33,12 +33,12 @@ func SSORequest(r *http.Request) (*SSOHelper, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "invalid b64 encoding")
 	}
-	fmt.Println(payloadForm)
 	payload, err := url.ParseQuery(string(payloadForm))
 	if err != nil {
 		return nil, errors.Wrap(err, "invalid b64 payload")
 	}
 	h.Payload = payload
+	fmt.Println(string(payloadForm), "->", h.Payload)
 	sigBytes, err := hex.DecodeString(r.Form.Get("sig"))
 	if err != nil {
 		return nil, errors.Wrap(err, "invalid hex encoding")
@@ -55,10 +55,8 @@ func SSORequest(r *http.Request) (*SSOHelper, error) {
 
 func (h *SSOHelper) IsValid(payload, sig []byte) bool {
 	mac := hmac.New(sha256.New, []byte(getSSOSecret()))
-	fmt.Println("isvalid:", sig, getSSOSecret(), payload)
 	mac.Write(payload)
 	expectedSig := mac.Sum(nil)
-	fmt.Println("sig:", expectedSig)
 	return hmac.Equal(expectedSig, sig)
 }
 
