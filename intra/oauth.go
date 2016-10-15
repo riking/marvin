@@ -12,7 +12,9 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/gorilla/sessions"
 	"github.com/pkg/errors"
+	"golang.org/x/oauth2"
 )
 
 type SSOHelper struct {
@@ -54,48 +56,120 @@ func SSORequest(r *http.Request) (*SSOHelper, error) {
 }
 
 func (h *SSOHelper) IsValid(payload, sig []byte) bool {
-	mac := hmac.New(sha256.New, []byte(getSSOSecret()))
+	mac := hmac.New(sha256.New, []byte(ssoSecret.Get()))
 	mac.Write(payload)
 	expectedSig := mac.Sum(nil)
 	return hmac.Equal(expectedSig, sig)
 }
 
-//func (h SSOHelper) Build(params url.Values) (url.Values, error) {
-//}
+type secretFile struct {
+	Filename string
+	content  string
+	lock     sync.Mutex
+}
 
-var ssoSecret string
-var ssoSecretLock sync.Mutex
-
-func getSSOSecret() string {
-	ssoSecretLock.Lock()
-	defer ssoSecretLock.Unlock()
-	if ssoSecret != "" {
-		return ssoSecret
+func (f *secretFile) Get() string {
+	f.lock.Lock()
+	defer f.lock.Unlock()
+	if f.content != "" {
+		return f.content
 	}
-	content, err := ioutil.ReadFile(`/tank/www/discourse_sso_secret`)
+	content, err := ioutil.ReadFile(f.Filename)
 	if err != nil {
 		fmt.Println("Unable to read SSO secret:", err)
 		return "XXX"
 	}
-	ssoSecret = strings.TrimSpace(string(content))
-	return ssoSecret
+	f.content = strings.TrimSpace(string(content))
+	return f.content
 }
 
-type stringWriter interface {
-	WriteString(string) (int, error)
-}
+var (
+	ssoSecret = secretFile{
+		Filename: `/tank/www/keys/discourse_sso_secret`,
+	}
+	intraSecret = secretFile{
+		Filename: `/tank/www/keys/intra_oauth`,
+	}
+	cookieSecret = secretFile{
+		Filename: `/tank/www/keys/oauth_cookies`,
+	}
+)
+
+var cookieStore = sessions.NewCookieStore([]byte(cookieSecret.Get()))
+
+const cookieKey = `intra-oauth`
 
 func HTTPDiscourseSSO(w http.ResponseWriter, r *http.Request) {
-	sso, err := SSORequest(r)
+	session, err := cookieStore.Get(r, cookieKey)
 	if err != nil {
-		w.WriteHeader(400)
-		w.Write([]byte(err.Error()))
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	if sso != nil {
-		w.Write([]byte("nonce: "))
-		w.Write([]byte(sso.Nonce))
-	} else {
-		w.Write([]byte("??? sso object was nil"))
+
+	sso, err := SSORequest(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	}
+
+	session.Values["nonce"] = sso.Nonce
+	session.Save(w, r)
+	w.Write([]byte("nonce: "))
+	w.Write([]byte(sso.Nonce))
+}
+
+func HTTPStartOauth(w http.ResponseWriter, r *http.Request) {
+
+}
+
+type intraCredentials struct {
+	AccessToken string  `json:"access_token"`
+	TokenType   string  `json:"token_type"`
+	ExpiresIn   float64 `json:"expires_in"`
+	Scope       string  `json:"scope"`
+	CreatedAt   float64 `json:"created_at"`
+}
+
+var oauthConfig = oauth2.Config{
+	ClientID:     "00d2a4918d470c47c08448c37fdd170793c2a94320f7971981d461be028f2a35",
+	ClientSecret: intraSecret.Get(),
+	Endpoint: oauth2.Endpoint{
+		AuthURL:  "https://api.intra.42.fr/oauth/authorize",
+		TokenURL: "https://api.intra.42.fr/oauth/token",
+	},
+	RedirectURL: "https://home.riking.org/oauth/callback",
+	Scopes:      []string{"public"},
+}
+
+func HTTPOauthCallback(w http.ResponseWriter, r *http.Request) {
+	session, err := cookieStore.Get(r, cookieKey)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	err := r.ParseForm()
+	if err != nil {
+		err = errors.Wrap(err, "bad form parameters")
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	req, err := http.NewRequest("POST", "https://api.intra.42.fr/oauth/token", nil)
+	if err != nil {
+		panic(err)
+	}
+	req.PostForm = make(url.Values)
+	req.PostForm.Set("grant_type", "client_credentials")
+	req.PostForm.Set("client_id")
+	req.PostForm.Set("client_secret", intraSecret.Get())
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		errStr := fmt.Sprintf("Could not contact Intra\n%s", errors.Wrap(err, "post /oauth/token"))
+		http.Error(w, err.Error(), http.StatusServiceUnavailable)
+		return
+	}
+
+	body, err := ioutil.ReadAll(resp.Body)
+	resp.Body.Close()
+	fmt.Println(body, err)
 }
