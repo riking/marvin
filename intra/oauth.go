@@ -55,8 +55,10 @@ func SSORequest(r *http.Request) (*SSOHelper, error) {
 
 func (h SSOHelper) IsValid(sig []byte) bool {
 	mac := hmac.New(sha256.New, []byte(getSSOSecret()))
+	fmt.Println("isvalid:", sig, getSSOSecret(), h.PayloadB64)
 	mac.Write([]byte(h.PayloadB64))
 	expectedSig := mac.Sum(nil)
+	fmt.Println("sig:", expectedSig)
 	return hmac.Equal(expectedSig, sig)
 }
 
