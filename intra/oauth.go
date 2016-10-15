@@ -82,7 +82,7 @@ func getSSOSecret() string {
 }
 
 type stringWriter interface {
-	WriteString(string) error
+	WriteString(string) (int, error)
 }
 
 func HTTPDiscourseSSO(w http.ResponseWriter, r *http.Request) {
