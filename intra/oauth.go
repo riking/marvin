@@ -44,7 +44,7 @@ func SSORequest(r *http.Request) (*SSOHelper, error) {
 		return nil, errors.Wrap(err, "invalid hex encoding")
 	}
 	if !h.IsValid(sigBytes) {
-		return nil, errors.Wrap(err, "invalid signature")
+		return nil, errors.Errorf("invalid signature")
 	}
 	h.Nonce = payload.Get("nonce")
 	if h.Nonce == "" {
