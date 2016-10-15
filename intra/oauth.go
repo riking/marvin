@@ -25,6 +25,7 @@ type SSOHelper struct {
 	PayloadB64 string
 	Payload    url.Values
 	Nonce      string
+	ReturnURL  string
 }
 
 func SSORequest(r *http.Request) (*SSOHelper, error) {
@@ -56,6 +57,7 @@ func SSORequest(r *http.Request) (*SSOHelper, error) {
 	if h.Nonce == "" {
 		return nil, errors.Errorf("nonce missing from request")
 	}
+	h.ReturnURL = payload.Get("return_sso_url")
 	return h, nil
 }
 
@@ -119,9 +121,10 @@ func HTTPDiscourseSSO(w http.ResponseWriter, r *http.Request) {
 	session.Values["nonce"] = sso.Nonce
 	var rand [16]byte
 	random.Read(rand[:])
-	session.Values["oauth-nonce"] = hex.EncodeToString(rand[:])
+	oauthNonce := hex.EncodeToString(rand[:])
+	session.Values["oauth-nonce"] = oauthNonce
 	session.Save(r, w)
-	redirURL := oauthConfig.AuthCodeURL(session.Values["oauth-nonce"], oauth2.SetAuthURLParam("response_type", "code"))
+	redirURL := oauthConfig.AuthCodeURL(oauthNonce, oauth2.SetAuthURLParam("response_type", "code"))
 	http.Redirect(w, r, redirURL, http.StatusFound)
 }
 
@@ -167,8 +170,13 @@ func HTTPOauthCallback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	nonce, ok := session.Values["nonce"].(string)
-	if !ok {
+	if !ok || nonce == "" {
 		http.Redirect(w, r, fmt.Sprintf("%s/session/sso", discourseBase), http.StatusSeeOther)
+		return
+	}
+	oauthNonce, ok := session.Values["oauth-nonce"].(string)
+	if !ok {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	err = r.ParseForm()
@@ -177,6 +185,7 @@ func HTTPOauthCallback(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	fmt.Println("oauth form", r.Form)
 	token, err := oauthConfig.Exchange(ctx, r.Form.Get("code"))
 	if err != nil {
 		http.Error(w, errors.Wrap(err, "exchanging token").Error(), http.StatusServiceUnavailable)
