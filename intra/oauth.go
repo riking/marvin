@@ -1,16 +1,19 @@
 package intra
 
 import (
+	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/gorilla/sessions"
 	"github.com/pkg/errors"
@@ -113,21 +116,11 @@ func HTTPDiscourseSSO(w http.ResponseWriter, r *http.Request) {
 	}
 
 	session.Values["nonce"] = sso.Nonce
-	session.Save(w, r)
-	w.Write([]byte("nonce: "))
-	w.Write([]byte(sso.Nonce))
+	session.Save(r, w)
 }
 
 func HTTPStartOauth(w http.ResponseWriter, r *http.Request) {
 
-}
-
-type intraCredentials struct {
-	AccessToken string  `json:"access_token"`
-	TokenType   string  `json:"token_type"`
-	ExpiresIn   float64 `json:"expires_in"`
-	Scope       string  `json:"scope"`
-	CreatedAt   float64 `json:"created_at"`
 }
 
 var oauthConfig = oauth2.Config{
@@ -141,35 +134,61 @@ var oauthConfig = oauth2.Config{
 	Scopes:      []string{"public"},
 }
 
+type IntraUser struct {
+	ID          int    `json:"id"`
+	Email       string `json:"email"`
+	Login       string `json:"login"`
+	ImageURL    string `json:"image_url"`
+	IsStaff     bool   `json:"staff?"`
+	Location    string `json:"location"`
+	CursusUsers []struct {
+		Cursus struct {
+			ID int `json:"id"`
+		} `json:"cursus"`
+	} `json:"cursus_users"`
+	Campus []struct {
+		ID int `json:"id"`
+	}
+}
+
 func HTTPOauthCallback(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
 	session, err := cookieStore.Get(r, cookieKey)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	err := r.ParseForm()
+	err = r.ParseForm()
 	if err != nil {
 		err = errors.Wrap(err, "bad form parameters")
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	req, err := http.NewRequest("POST", "https://api.intra.42.fr/oauth/token", nil)
+	token, err := oauthConfig.Exchange(ctx, r.Form.Get("code"))
+	if err != nil {
+		http.Error(w, errors.Wrap(err, "exchanging token").Error(), http.StatusServiceUnavailable)
+		return
+	}
+	client := oauthConfig.Client(ctx, token)
+	req, err := http.NewRequest("GET", "https://api.intra.42.fr/v2/me", nil)
 	if err != nil {
 		panic(err)
 	}
-	req.PostForm = make(url.Values)
-	req.PostForm.Set("grant_type", "client_credentials")
-	req.PostForm.Set("client_id")
-	req.PostForm.Set("client_secret", intraSecret.Get())
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := client.Do(req)
 	if err != nil {
-		errStr := fmt.Sprintf("Could not contact Intra\n%s", errors.Wrap(err, "post /oauth/token"))
-		http.Error(w, err.Error(), http.StatusServiceUnavailable)
+		http.Error(w, errors.Wrap(err, "contacting Intra").Error(), http.StatusServiceUnavailable)
 		return
 	}
 
-	body, err := ioutil.ReadAll(resp.Body)
+	var user IntraUser
+	err = json.NewDecoder(resp.Body).Decode(&user)
+	if err != nil {
+		http.Error(w, errors.Wrap(err, "could not read JSON").Error(), http.StatusInternalServerError)
+		return
+	}
 	resp.Body.Close()
-	fmt.Println(body, err)
+	fmt.Println(user)
+	fmt.Println(session.Values["nonce"])
 }
