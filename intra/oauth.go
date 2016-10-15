@@ -131,7 +131,7 @@ type IntraUser struct {
 	ID          int    `json:"id"`
 	Email       string `json:"email"`
 	Login       string `json:"login"`
-	DisplayName string `json:"display_name"`
+	DisplayName string `json:"displayname"`
 	ImageURL    string `json:"image_url"`
 	IsStaff     bool   `json:"staff?"`
 	// Which computer you're on right now
@@ -181,7 +181,6 @@ func HTTPOauthCallback(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, errors.Wrap(err, "could not read from Intra").Error(), http.StatusInternalServerError)
 		return
 	}
-	fmt.Println(string(respBody))
 
 	var user IntraUser
 	err = json.NewDecoder(bytes.NewReader(respBody)).Decode(&user)
