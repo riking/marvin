@@ -11,6 +11,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -138,9 +139,11 @@ type IntraUser struct {
 	ID          int    `json:"id"`
 	Email       string `json:"email"`
 	Login       string `json:"login"`
+	DisplayName string `json:"display_name"`
 	ImageURL    string `json:"image_url"`
 	IsStaff     bool   `json:"staff?"`
-	Location    string `json:"location"`
+	// Which computer you're on right now
+	//Location    string `json:"location"`
 	CursusUsers []struct {
 		Cursus struct {
 			ID int `json:"id"`
@@ -151,6 +154,8 @@ type IntraUser struct {
 	}
 }
 
+const discourseBase = "http://42.riking.org"
+
 func HTTPOauthCallback(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -160,6 +165,11 @@ func HTTPOauthCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	nonce, ok := session.Values["nonce"].(string)
+	if !ok {
+		http.Redirect(w, r, fmt.Sprintf("%s/session/sso", discourseBase), http.StatusSeeOther)
+		return
+	}
 	err = r.ParseForm()
 	if err != nil {
 		err = errors.Wrap(err, "bad form parameters")
@@ -189,6 +199,34 @@ func HTTPOauthCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	resp.Body.Close()
-	fmt.Println(user)
-	fmt.Println(session.Values["nonce"])
+	sso := make(url.Values)
+	sso.Set("nonce", nonce)
+	delete(session.Values, "nonce")
+	sso.Set("name", user.DisplayName)
+	sso.Set("email", user.Email)
+	sso.Set("external_id", strconv.Itoa(user.ID))
+	sso.Set("avatar_url", user.ImageURL)
+	if user.IsStaff {
+		sso.Set("moderator", "true")
+	} else {
+		sso.Set("moderator", "false")
+	}
+
+	payload := sso.Encode()
+	b64Payload := base64.URLEncoding.EncodeToString([]byte(payload))
+
+	mac := hmac.New(sha256.New, []byte(ssoSecret.Get()))
+	mac.Write([]byte(b64Payload))
+	sig := mac.Sum(nil)
+	hexSig := hex.EncodeToString(sig)
+
+	ssoValues := make(url.Values)
+	ssoValues.Set("sso", b64Payload)
+	ssoValues.Set("sig", hexSig)
+	url, err := url.Parse(fmt.Sprintf("%s/session/sso_login", discourseBase))
+	if err != nil {
+		panic(err)
+	}
+	url.RawQuery = ssoValues.Encode()
+	http.Redirect(w, r, url.String(), http.StatusFound)
 }
