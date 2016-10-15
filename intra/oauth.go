@@ -1,6 +1,7 @@
 package intra
 
 import (
+	"bytes"
 	"context"
 	"crypto/hmac"
 	"crypto/sha256"
@@ -174,13 +175,20 @@ func HTTPOauthCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	respBody, err := ioutil.ReadAll(resp.Body)
+	resp.Body.Close()
+	if err != nil {
+		http.Error(w, errors.Wrap(err, "could not read from Intra").Error(), http.StatusInternalServerError)
+		return
+	}
+	fmt.Println(string(respBody))
+
 	var user IntraUser
-	err = json.NewDecoder(resp.Body).Decode(&user)
+	err = json.NewDecoder(bytes.NewReader(respBody)).Decode(&user)
 	if err != nil {
 		http.Error(w, errors.Wrap(err, "could not read JSON").Error(), http.StatusInternalServerError)
 		return
 	}
-	resp.Body.Close()
 	sso := make(url.Values)
 	sso.Set("nonce", r.Form.Get("state"))
 	sso.Set("name", user.DisplayName)
