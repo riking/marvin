@@ -92,6 +92,10 @@ func HTTPDiscourseSSO(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(err.Error()))
 		return
 	}
-	w.Write([]byte("nonce: "))
-	w.Write([]byte(sso.Nonce))
+	if sso != nil {
+		w.Write([]byte("nonce: "))
+		w.Write([]byte(sso.Nonce))
+	} else {
+		w.Write([]byte("??? sso object was nil"))
+	}
 }
