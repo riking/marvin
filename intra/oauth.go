@@ -29,7 +29,7 @@ func SSORequest(r *http.Request) (*SSOHelper, error) {
 	}
 	h.PayloadB64 = r.Form.Get("sso")
 	enc := base64.URLEncoding
-	payloadForm, err := enc.DecodeString(strings.TrimSpace(r.Form.Get("payload")))
+	payloadForm, err := enc.DecodeString(strings.TrimSpace(h.PayloadB64))
 	if err != nil {
 		return nil, errors.Wrap(err, "invalid b64 encoding")
 	}
