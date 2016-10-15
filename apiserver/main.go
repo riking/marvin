@@ -29,6 +29,7 @@ func main() {
 
 	oauthMux := http.NewServeMux()
 	oauthMux.HandleFunc("/discourse", intra.HTTPDiscourseSSO)
+	oauthMux.HandleFunc("/callback", intra.HTTPOauthCallback)
 
 	rootMux := http.NewServeMux()
 	rootMux.Handle("/api/", http.StripPrefix("/api", apiMux))
