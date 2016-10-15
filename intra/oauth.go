@@ -117,11 +117,12 @@ func HTTPDiscourseSSO(w http.ResponseWriter, r *http.Request) {
 	}
 
 	session.Values["nonce"] = sso.Nonce
+	var rand [16]byte
+	random.Read(rand[:])
+	session.Values["oauth-nonce"] = hex.EncodeToString(rand[:])
 	session.Save(r, w)
-}
-
-func HTTPStartOauth(w http.ResponseWriter, r *http.Request) {
-
+	redirURL := oauthConfig.AuthCodeURL(session.Values["oauth-nonce"], oauth2.SetAuthURLParam("response_type", "code"))
+	http.Redirect(w, r, redirURL, http.StatusFound)
 }
 
 var oauthConfig = oauth2.Config{
