@@ -3,6 +3,7 @@ package intra
 import (
 	"context"
 	"crypto/hmac"
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
@@ -119,9 +120,9 @@ func HTTPDiscourseSSO(w http.ResponseWriter, r *http.Request) {
 	}
 
 	session.Values["nonce"] = sso.Nonce
-	var rand [16]byte
-	random.Read(rand[:])
-	oauthNonce := hex.EncodeToString(rand[:])
+	var randBytes [16]byte
+	rand.Read(randBytes[:])
+	oauthNonce := hex.EncodeToString(randBytes[:])
 	session.Values["oauth-nonce"] = oauthNonce
 	session.Save(r, w)
 	redirURL := oauthConfig.AuthCodeURL(oauthNonce, oauth2.SetAuthURLParam("response_type", "code"))
@@ -179,6 +180,7 @@ func HTTPOauthCallback(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
 	err = r.ParseForm()
 	if err != nil {
 		err = errors.Wrap(err, "bad form parameters")
@@ -186,6 +188,9 @@ func HTTPOauthCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	fmt.Println("oauth form", r.Form)
+	_ = oauthNonce
+	// TODO check nonce
+
 	token, err := oauthConfig.Exchange(ctx, r.Form.Get("code"))
 	if err != nil {
 		http.Error(w, errors.Wrap(err, "exchanging token").Error(), http.StatusServiceUnavailable)
