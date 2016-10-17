@@ -241,6 +241,7 @@ func (m *factoriodata) pingServer() error {
 	if err != nil {
 		return errors.Wrap(err, "connecting to rcon")
 	}
+	defer c.Close()
 	resp, err := c.Command("/p")
 	if err != nil {
 		return errors.Wrap(err, "executing command")
