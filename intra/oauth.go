@@ -194,7 +194,7 @@ func HTTPOauthCallback(w http.ResponseWriter, r *http.Request) {
 	sso.Set("username", user.Login)
 	sso.Set("email", user.Email)
 	sso.Set("external_id", strconv.Itoa(user.ID))
-	sso.Set("avatar_url", user.ImageURL)
+	sso.Set("avatar_url", fmt.Sprintf("https://cdn.intra.42.fr/users/medium_%s.jpg", user.Login))
 	if user.IsStaff {
 		sso.Set("moderator", "true")
 	} else {
