@@ -13,20 +13,32 @@ import (
 	"github.com/riking/homeapi/marvin"
 	"github.com/riking/homeapi/marvin/slack"
 	"github.com/riking/homeapi/marvin/slack/rtm"
+	"github.com/riking/homeapi/marvin/database"
 )
 
 type Team struct {
 	teamConfig *marvin.TeamConfig
 	client     *rtm.Client
+	db         *database.Conn
 
 	commands marvin.ParentCommand
 }
 
-func NewTeam(cfg *marvin.TeamConfig) *Team {
+func NewTeam(cfg *marvin.TeamConfig) (*Team, error) {
+	db, err := database.Dial(cfg.DatabaseURL)
+	if err != nil {
+		return nil, err
+	}
+	err = marvin.MigrateModuleConfig(db)
+	if err != nil {
+		return nil, err
+	}
+
 	return &Team{
 		teamConfig: cfg,
+		db:         db,
 		commands:   marvin.NewParentCommand(),
-	}
+	}, nil
 }
 
 func (t *Team) Connect(c *rtm.Client) {
@@ -45,7 +57,7 @@ func (t *Team) TeamConfig() *marvin.TeamConfig {
 	return t.teamConfig
 }
 
-func (t *Team) DB() *sql.DB {
+func (t *Team) DB() *database.Conn {
 	panic("Not implemented")
 	return nil // TODO
 }

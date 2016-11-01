@@ -192,7 +192,6 @@ func (c *Client) UnregisterAllMatching(unregisterID string) {
 	return
 }
 
-
 // SendMessage sends a simple message over the RTM api.
 // When the Slack API returns an error, the error will be of type slack.CodedError.
 func (c *Client) SendMessage(channelID slack.ChannelID, message string) (slack.RTMRawMessage, error) {

@@ -15,21 +15,30 @@ import (
 
 	_ "github.com/riking/homeapi/marvin/modules/at_command"
 	_ "github.com/riking/homeapi/marvin/modules/autoinvite"
+	"flag"
 )
 
 func main() {
-	cfg, err := ini.LooseLoad("testdata/config.ini", "config.ini", "/tank/www/apiserver/config.ini")
+	teamName := flag.String("team", "Test", "which team to use")
+	configFile := flag.String("conf", "", "override config file")
+	flag.Parse()
+
+	var cfg ini.File
+	var err error
+	if *configFile != "" {
+		cfg, err = ini.Load(*configFile)
+	} else {
+		cfg, err = ini.LooseLoad("testdata/config.ini", "config.ini", "/tank/www/apiserver/config.ini")
+	}
 	if err != nil {
 		log.Fatalln(errors.Wrap(err, "loading config"))
 	}
-	//mainSect := cfg.Section("marvin")
-	//teamListK, err := mainSect.GetKey("Teams")
-	//if err != nil {
-	//	log.Fatalln(errors.Wrap(err, "no key marvin.Teams"))
-	//}
-	//teamList := teamListK.Strings(",")
-	teamConfig := marvin.LoadTeamConfig(cfg.Section("ShockyTest"))
-	team := controller.NewTeam(teamConfig)
+
+	teamConfig := marvin.LoadTeamConfig(cfg.Section(*teamName))
+	team, err := controller.NewTeam(teamConfig)
+	if err != nil {
+		log.Fatalln(errors.Wrap(err, "NewTeam"))
+	}
 	client, err := rtm.Dial(team)
 	if err != nil {
 		log.Fatalln(errors.Wrap(err, "rtm.Dial"))
@@ -41,6 +50,6 @@ func main() {
 	client.Start()
 
 	fmt.Println("started")
-	time.Sleep(3*time.Second)
+	time.Sleep(3 * time.Second)
 	time.Sleep(60 * time.Second)
 }

@@ -8,6 +8,7 @@ import (
 	"gopkg.in/ini.v1"
 
 	"github.com/riking/homeapi/marvin/slack"
+	"github.com/riking/homeapi/marvin/database"
 )
 
 type SendMessage interface {
@@ -18,7 +19,7 @@ type SendMessage interface {
 type ModuleConfig interface {
 	Get(key string) (string, error)
 	Set(key, value string) error
-	Add(key, defaultValue string) error
+	Add(key, defaultValue string)
 }
 
 type TeamConfig struct {
@@ -26,7 +27,7 @@ type TeamConfig struct {
 	ClientID     string
 	ClientSecret string
 	VerifyToken  string
-	DBName       string
+	DatabaseURL  string
 	UserToken    string
 }
 
@@ -36,7 +37,7 @@ func LoadTeamConfig(sec *ini.Section) *TeamConfig {
 	c.ClientID = sec.Key("ClientID").String()
 	c.ClientSecret = sec.Key("ClientSecret").String()
 	c.VerifyToken = sec.Key("VerifyToken").String()
-	c.DBName = sec.Key("DBName").String()
+	c.DatabaseURL = sec.Key("DatabaseURL").String()
 	c.UserToken = sec.Key("UserToken").String()
 	return c
 }
@@ -66,7 +67,7 @@ type HTTPDoer interface {
 
 type Team interface {
 	Domain() string
-	DB() *sql.DB
+	DB() *database.Conn
 	TeamConfig() *TeamConfig
 	ModuleConfig() ModuleConfig
 
@@ -91,7 +92,7 @@ type Team interface {
 type ShockyInstance interface {
 	TeamConfig(teamDomain string) TeamConfig
 	ModuleConfig(team TeamConfig) ModuleConfig
-	DB(team TeamConfig) *sql.DB
+	DB(team TeamConfig) *database.Conn
 
 	SendChannelSlack(team Team, channel string, message slack.OutgoingSlackMessage)
 	SendPrivateSlack(team Team, user string, message slack.OutgoingSlackMessage)

@@ -2,11 +2,11 @@ package at_command
 
 import (
 	"bytes"
-	"strings"
+	"fmt"
 	"github.com/riking/homeapi/marvin"
 	"github.com/riking/homeapi/marvin/slack"
 	"regexp"
-	"fmt"
+	"strings"
 )
 
 func init() {
@@ -16,8 +16,8 @@ func init() {
 const Identifier = "autoinvite"
 
 type AtCommandModule struct {
-	team marvin.Team
-	BotUser slack.UserID
+	team       marvin.Team
+	BotUser    slack.UserID
 	mentionRgx *regexp.Regexp
 }
 
