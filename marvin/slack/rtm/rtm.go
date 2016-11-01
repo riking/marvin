@@ -12,8 +12,8 @@ import (
 	"github.com/pkg/errors"
 	"golang.org/x/net/websocket"
 
-	"github.com/riking/homeapi/shocky"
-	"github.com/riking/homeapi/shocky/slack"
+	"github.com/riking/homeapi/marvin"
+	"github.com/riking/homeapi/marvin/slack"
 )
 
 type uniqueID struct {
@@ -32,7 +32,7 @@ func (c *uniqueID) Get() int32 {
 type Client struct {
 	conn  *websocket.Conn
 	codec websocket.Codec
-	team  shocky.Team
+	team  marvin.Team
 
 	reconnectURL string
 
@@ -85,7 +85,7 @@ const startAPIURL = "https://slack.com/api/rtm.start"
 
 // Dial tries to connect to the Slack RTM API. The caller should register
 // message handlers then call Start() to start the message pump.
-func Dial(team shocky.Team) (*Client, error) {
+func Dial(team marvin.Team) (*Client, error) {
 	data := url.Values{}
 	data.Set("token", team.TeamConfig().UserToken)
 	data.Set("no-unreads", "true")

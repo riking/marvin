@@ -1,7 +1,7 @@
 package rtm
 
 import (
-	"github.com/riking/homeapi/shocky/slack"
+	"github.com/riking/homeapi/marvin/slack"
 )
 
 func (c *Client) onChannelCreate(msg slack.RTMRawMessage) {

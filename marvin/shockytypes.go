@@ -1,4 +1,4 @@
-package shocky
+package marvin
 
 import (
 	"fmt"
@@ -7,7 +7,7 @@ import (
 	"sync"
 
 	"github.com/pkg/errors"
-	"github.com/riking/homeapi/shocky/slack"
+	"github.com/riking/homeapi/marvin/slack"
 )
 
 type ActionSource interface {

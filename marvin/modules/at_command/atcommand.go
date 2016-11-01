@@ -3,25 +3,25 @@ package at_command
 import (
 	"bytes"
 	"strings"
-	"github.com/riking/homeapi/shocky"
-	"github.com/riking/homeapi/shocky/slack"
+	"github.com/riking/homeapi/marvin"
+	"github.com/riking/homeapi/marvin/slack"
 	"regexp"
 	"fmt"
 )
 
 func init() {
-	shocky.RegisterModule(NewAtCommandModule)
+	marvin.RegisterModule(NewAtCommandModule)
 }
 
 const Identifier = "autoinvite"
 
 type AtCommandModule struct {
-	team shocky.Team
+	team marvin.Team
 	BotUser slack.UserID
 	mentionRgx regexp.Regexp
 }
 
-func NewAtCommandModule(t shocky.Team) shocky.Module {
+func NewAtCommandModule(t marvin.Team) shocky.Module {
 	mod := &AtCommandModule{team: t}
 	return mod
 }
@@ -30,11 +30,11 @@ func (mod *AtCommandModule) Identifier() string {
 	return Identifier
 }
 
-func (mod *AtCommandModule) Unregister(t shocky.Team) {
+func (mod *AtCommandModule) Unregister(t marvin.Team) {
 	t.OffAllEvents(Identifier)
 }
 
-func (mod *AtCommandModule) RegisterRTMEvents(t shocky.Team) {
+func (mod *AtCommandModule) RegisterRTMEvents(t marvin.Team) {
 	t.OnEvent(Identifier, "hello", mod.HandleHello)
 	t.OnNormalMessage(Identifier, mod.HandleMessage)
 }
@@ -60,7 +60,7 @@ func (mod *AtCommandModule) HandleMessage(rtm slack.RTMRawMessage) {
 	if len(matches) == 0 {
 		return
 	}
-	
+
 }
 
 func shellSplit(s string) []string {

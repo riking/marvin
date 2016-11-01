@@ -7,7 +7,7 @@ import (
 	"github.com/pkg/errors"
 	"golang.org/x/net/websocket"
 
-	"github.com/riking/homeapi/shocky/slack"
+	"github.com/riking/homeapi/marvin/slack"
 )
 
 const MsgTypeAll = "_all"

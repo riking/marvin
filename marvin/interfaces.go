@@ -1,4 +1,4 @@
-package shocky
+package marvin
 
 import (
 	"database/sql"
@@ -7,7 +7,7 @@ import (
 
 	"gopkg.in/ini.v1"
 
-	"github.com/riking/homeapi/shocky/slack"
+	"github.com/riking/homeapi/marvin/slack"
 )
 
 type SendMessage interface {

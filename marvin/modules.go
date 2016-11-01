@@ -1,4 +1,4 @@
-package shocky
+package marvin
 
 var allModules []ModuleConstructor
 var allSetupFuncs []ModuleSetupGlobal

@@ -10,22 +10,22 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/riking/homeapi/shocky"
-	"github.com/riking/homeapi/shocky/slack"
-	"github.com/riking/homeapi/shocky/slack/rtm"
+	"github.com/riking/homeapi/marvin"
+	"github.com/riking/homeapi/marvin/slack"
+	"github.com/riking/homeapi/marvin/slack/rtm"
 )
 
 type Team struct {
-	teamConfig *shocky.TeamConfig
+	teamConfig *marvin.TeamConfig
 	client     *rtm.Client
 
-	commands shocky.ParentCommand
+	commands marvin.ParentCommand
 }
 
-func NewTeam(cfg *shocky.TeamConfig) *Team {
+func NewTeam(cfg *marvin.TeamConfig) *Team {
 	return &Team{
 		teamConfig: cfg,
-		commands:   shocky.NewParentCommand(),
+		commands:   marvin.NewParentCommand(),
 	}
 }
 
@@ -41,7 +41,7 @@ func (t *Team) Domain() string {
 	return t.teamConfig.TeamDomain
 }
 
-func (t *Team) TeamConfig() *shocky.TeamConfig {
+func (t *Team) TeamConfig() *marvin.TeamConfig {
 	return t.teamConfig
 }
 
@@ -50,7 +50,7 @@ func (t *Team) DB() *sql.DB {
 	return nil // TODO
 }
 
-func (t *Team) ModuleConfig() shocky.ModuleConfig {
+func (t *Team) ModuleConfig() marvin.ModuleConfig {
 	panic("Not implemented")
 	// TODO - needs DB()
 	return nil
@@ -62,20 +62,20 @@ func (t *Team) BotUser() slack.UserID {
 
 // ---
 
-func (t *Team) RegisterCommand(name string, c shocky.SubCommand) {
+func (t *Team) RegisterCommand(name string, c marvin.SubCommand) {
 	t.commands.RegisterCommand(name, c)
 }
 
-func (t *Team) UnregisterCommand(name string, c shocky.SubCommand) {
+func (t *Team) UnregisterCommand(name string, c marvin.SubCommand) {
 	t.commands.UnregisterCommand(name, c)
 }
 
-func (t *Team) DispatchCommand(args *shocky.CommandArguments) error {
+func (t *Team) DispatchCommand(args *marvin.CommandArguments) error {
 	return t.commands.DispatchCommand(t, args)
 }
 
-func (t *Team) Help(args *shocky.CommandArguments) error {
-	return t.commands.Help(shocky.Team(t), args)
+func (t *Team) Help(args *marvin.CommandArguments) error {
+	return t.commands.Help(marvin.Team(t), args)
 }
 
 // ---
@@ -129,7 +129,7 @@ func (t *Team) SlackAPIPost(method string, form url.Values) (*http.Response, err
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Set("User-Agent", "shocky-slackbot (+https://github.com/riking/homeapi/tree/shocky)")
+	req.Header.Set("User-Agent", "marvin-slackbot (+https://github.com/riking/homeapi/tree/shocky)")
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return resp, errors.Wrapf(err, "Error calling slack.%s", method)

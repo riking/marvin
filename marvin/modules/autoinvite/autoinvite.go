@@ -8,12 +8,12 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/riking/homeapi/shocky"
-	"github.com/riking/homeapi/shocky/slack"
+	"github.com/riking/homeapi/marvin"
+	"github.com/riking/homeapi/marvin/slack"
 )
 
 func init() {
-	shocky.RegisterModule(NewAutoInviteModule)
+	marvin.RegisterModule(NewAutoInviteModule)
 }
 
 const Identifier = "autoinvite"
@@ -21,9 +21,9 @@ const Identifier = "autoinvite"
 type AutoInviteModule struct {
 }
 
-func NewAutoInviteModule(t shocky.Team) shocky.Module {
+func NewAutoInviteModule(t marvin.Team) shocky.Module {
 	aim := &AutoInviteModule{}
-	t.RegisterCommand("make-invite", shocky.SubCommandFunc(aim.PostInvite))
+	t.RegisterCommand("make-invite", marvin.SubCommandFunc(aim.PostInvite))
 	return aim
 }
 
@@ -31,32 +31,32 @@ func (aim *AutoInviteModule) Identifier() string {
 	return Identifier
 }
 
-func (aim *AutoInviteModule) Unregister(t shocky.Team) {
-	t.UnregisterCommand("make-invite", shocky.SubCommandFunc(aim.PostInvite))
+func (aim *AutoInviteModule) Unregister(t marvin.Team) {
+	t.UnregisterCommand("make-invite", marvin.SubCommandFunc(aim.PostInvite))
 }
 
-func (aim *AutoInviteModule) RegisterRTMEvents(t shocky.Team) {
+func (aim *AutoInviteModule) RegisterRTMEvents(t marvin.Team) {
 }
 
 const defaultInviteText = `Click here to be added to the %s channel!`
 const defaultEmoji = `white_check_mark`
 
-func (aim *AutoInviteModule) PostInvite(t shocky.Team, args *shocky.CommandArguments) error {
+func (aim *AutoInviteModule) PostInvite(t marvin.Team, args *shocky.CommandArguments) error {
 	inviteTarget := args.Source.ChannelID()
 	if inviteTarget == "" || inviteTarget[0] != 'G' {
-		return shocky.CmdErrorf(args, "Command must be used from a private channel.")
+		return marvin.CmdErrorf(args, "Command must be used from a private channel.")
 	}
 	channel, err := t.PrivateChannelInfo(inviteTarget)
 	if err != nil {
 		return errors.Wrap(err, "Could not retrieve information about the channel")
 	}
 	if channel.IsMultiIM() {
-		return shocky.CmdErrorf(args, "You cannnot invite users to a multi-party IM.")
+		return marvin.CmdErrorf(args, "You cannnot invite users to a multi-party IM.")
 	}
 
 	if len(args.Arguments) < 2 {
 		// TODO - allow choice of emoji
-		return shocky.CmdErrorf(args, "Usage: `@shocky make-invite <send_to = #boardgame> [message = %s]",
+		return marvin.CmdErrorf(args, "Usage: `@shocky make-invite <send_to = #boardgame> [message = %s]",
 			fmt.Sprintf(defaultInviteText, channel.Name))
 	}
 

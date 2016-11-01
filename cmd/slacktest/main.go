@@ -8,13 +8,13 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/ini.v1"
 
-	"github.com/riking/homeapi/shocky"
-	"github.com/riking/homeapi/shocky/slack"
-	"github.com/riking/homeapi/shocky/slack/controller"
-	"github.com/riking/homeapi/shocky/slack/rtm"
+	"github.com/riking/homeapi/marvin"
+	"github.com/riking/homeapi/marvin/slack"
+	"github.com/riking/homeapi/marvin/slack/controller"
+	"github.com/riking/homeapi/marvin/slack/rtm"
 
-	_ "github.com/riking/homeapi/shocky/modules/at_command"
-	_ "github.com/riking/homeapi/shocky/modules/autoinvite"
+	_ "github.com/riking/homeapi/marvin/modules/at_command"
+	_ "github.com/riking/homeapi/marvin/modules/autoinvite"
 )
 
 func main() {
@@ -22,13 +22,13 @@ func main() {
 	if err != nil {
 		log.Fatalln(errors.Wrap(err, "loading config"))
 	}
-	//mainSect := cfg.Section("Shocky")
+	//mainSect := cfg.Section("marvin")
 	//teamListK, err := mainSect.GetKey("Teams")
 	//if err != nil {
-	//	log.Fatalln(errors.Wrap(err, "no key Shocky.Teams"))
+	//	log.Fatalln(errors.Wrap(err, "no key marvin.Teams"))
 	//}
 	//teamList := teamListK.Strings(",")
-	teamConfig := shocky.LoadTeamConfig(cfg.Section("ShockyTest"))
+	teamConfig := marvin.LoadTeamConfig(cfg.Section("ShockyTest"))
 	team := controller.NewTeam(teamConfig)
 	client, err := rtm.Dial(team)
 	if err != nil {
