@@ -18,10 +18,10 @@ const Identifier = "autoinvite"
 type AtCommandModule struct {
 	team marvin.Team
 	BotUser slack.UserID
-	mentionRgx regexp.Regexp
+	mentionRgx *regexp.Regexp
 }
 
-func NewAtCommandModule(t marvin.Team) shocky.Module {
+func NewAtCommandModule(t marvin.Team) marvin.Module {
 	mod := &AtCommandModule{team: t}
 	return mod
 }

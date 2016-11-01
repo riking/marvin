@@ -21,7 +21,7 @@ const Identifier = "autoinvite"
 type AutoInviteModule struct {
 }
 
-func NewAutoInviteModule(t marvin.Team) shocky.Module {
+func NewAutoInviteModule(t marvin.Team) marvin.Module {
 	aim := &AutoInviteModule{}
 	t.RegisterCommand("make-invite", marvin.SubCommandFunc(aim.PostInvite))
 	return aim
@@ -41,7 +41,7 @@ func (aim *AutoInviteModule) RegisterRTMEvents(t marvin.Team) {
 const defaultInviteText = `Click here to be added to the %s channel!`
 const defaultEmoji = `white_check_mark`
 
-func (aim *AutoInviteModule) PostInvite(t marvin.Team, args *shocky.CommandArguments) error {
+func (aim *AutoInviteModule) PostInvite(t marvin.Team, args *marvin.CommandArguments) error {
 	inviteTarget := args.Source.ChannelID()
 	if inviteTarget == "" || inviteTarget[0] != 'G' {
 		return marvin.CmdErrorf(args, "Command must be used from a private channel.")
