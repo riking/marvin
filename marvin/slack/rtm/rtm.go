@@ -36,7 +36,7 @@ type Client struct {
 
 	reconnectURL string
 
-	metadataLock sync.RWMutex
+	MetadataLock sync.RWMutex
 	Self         struct {
 		ID             slack.UserID
 		Name           string
@@ -45,11 +45,11 @@ type Client struct {
 		ManualPresence string `json:"manual_presence"`
 	}
 	Users     []slack.User
-	AboutTeam slack.TeamInfo  `json:"team"`
-	Channels  []slack.Channel // C
-	Groups    []slack.Channel // G
-	Mpims     []slack.Channel // G
-	Ims       []slack.Channel // D
+	AboutTeam slack.TeamInfo    `json:"team"`
+	Channels  []slack.Channel   // C
+	Groups    []slack.Channel   // G
+	Mpims     []slack.Channel   // G
+	Ims       []slack.ChannelDM // D
 	Bots      []struct {
 		ID      string `json:"id"`
 		Deleted bool   `json:"deleted"`

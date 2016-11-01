@@ -13,7 +13,7 @@ func (m RTMRawMessage) Subtype() string      { q, _ := m["subtype"].(string); re
 func (m RTMRawMessage) ChannelID() ChannelID { q, _ := m["channel"].(string); return ChannelID(q) }
 func (m RTMRawMessage) UserID() UserID       { q, _ := m["user"].(string); return UserID(q) }
 func (m RTMRawMessage) Text() string         { q, _ := m["text"].(string); return q }
-func (m RTMRawMessage) Timestamp() MessageTS { q, _ := m["ts"].(string); return MessageTS(q) }
+func (m RTMRawMessage) MessageTS() MessageTS { q, _ := m["ts"].(string); return MessageTS(q) }
 func (m RTMRawMessage) IsHidden() bool       { q, _ := m["hidden"].(bool); return q }
 
 func (m RTMRawMessage) StringField(field string) string {

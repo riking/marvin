@@ -47,9 +47,14 @@ func main() {
 		return
 	}
 	client.RegisterRawHandler("debug", func(msg slack.RTMRawMessage) {
+		switch msg.Type() {
+		case "user_typing", "reconnect_url":
+			return
+		}
 		fmt.Println("[DEBUG]", "main.go rtm message:", msg)
 	}, rtm.MsgTypeAll, nil)
 	team.Connect(client)
+	team.EnableModules()
 	client.Start()
 
 	fmt.Println("started")

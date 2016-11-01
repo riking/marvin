@@ -104,7 +104,7 @@ func (c *Client) dispatchMessage(msg slack.RTMRawMessage) {
 func dispatchOne(handler messageHandler, msg slack.RTMRawMessage) {
 	defer func() {
 		if err := recover(); err != nil {
-			fmt.Println("[ERR] A message handler callback panicked:", err)
+			fmt.Printf("[ERR] %+v\n", errors.Errorf("A message handler callback panicked:", err))
 		}
 	}()
 

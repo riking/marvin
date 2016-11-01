@@ -102,7 +102,6 @@ type Channel struct {
 	IsChannel  bool        `json:"is_channel"`
 	IsGroup    interface{} `json:"is_group"`
 	IsMPIM     interface{} `json:"is_mpim"`
-	IsIM       bool        `json:"is_im"`
 	Created    int         // unix millis
 	Creator    UserID
 	IsArchived bool `json:"is_archived"`
@@ -128,6 +127,13 @@ type Channel struct {
 		Creator UserID
 		LastSet float64 `json:"last_set"`
 	}
+}
+
+type ChannelDM struct {
+	ID            ChannelID `json:"id"`
+	User          UserID    `json:"user"`
+	Created       int       `json:"created"`
+	IsUserDeleted bool      `json:"is_user_deleted"`
 }
 
 func (c *Channel) IsPublicChannel() bool {
@@ -156,10 +162,6 @@ func (c *Channel) IsMultiIM() bool {
 		return b
 	}
 	return false
-}
-
-func (c *Channel) IsPrivateMessage() bool {
-	return c.IsIM
 }
 
 type SelfPrefs struct {

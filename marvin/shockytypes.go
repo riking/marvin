@@ -2,8 +2,6 @@ package marvin
 
 import (
 	"fmt"
-	"strings"
-
 	"sync"
 
 	"github.com/pkg/errors"
@@ -13,6 +11,7 @@ import (
 type ActionSource interface {
 	UserID() slack.UserID
 	ChannelID() slack.ChannelID
+	MessageTS() slack.MessageTS
 }
 
 type ActionSourceUserMessage struct {
@@ -21,6 +20,7 @@ type ActionSourceUserMessage struct {
 
 func (um ActionSourceUserMessage) UserID() slack.UserID       { return um.Msg.UserID() }
 func (um ActionSourceUserMessage) ChannelID() slack.ChannelID { return um.Msg.ChannelID() }
+func (um ActionSourceUserMessage) MessageTS() slack.MessageTS { return um.Msg.MessageTS() }
 
 type CommandArguments struct {
 	//Msg       slack.RTMRawMessage
@@ -30,9 +30,21 @@ type CommandArguments struct {
 	OriginalArguments []string
 }
 
+func (ca *CommandArguments) Pop() string {
+	str := ca.Arguments[0]
+	ca.Arguments = ca.Arguments[1:]
+	return str
+}
+
+const (
+	CmdErrGeneric = iota
+	CmdErrNoSuchCommand
+)
+
 type CommandError struct {
 	Args    *CommandArguments
 	Message string
+	Code    int
 	Success bool
 }
 
@@ -49,15 +61,27 @@ func (e CommandError) Error() string {
 }
 
 func (e CommandError) SendReply(t Team) error {
+	if e.Success && e.Message == "" {
+		return nil
+	}
+	if e.Code == CmdErrNoSuchCommand {
+		_, _, err := t.SendMessage(e.Args.Source.ChannelID(), "I'm not quite sure what you meant by that.")
+		return err
+	}
+
 	imChannel, err := t.GetIM(e.Args.Source.UserID())
 	if err != nil {
 		return err
 	}
-	_, err = t.SendMessage(imChannel,
-		fmt.Sprintf("Your command `%s` failed.\n%s",
-			strings.Join(e.Args.Arguments, " "),
-			e.Message,
-		))
+	if !e.Success {
+		_, _, err = t.SendMessage(imChannel,
+			fmt.Sprintf("Your command failed. %s\n%s",
+				t.ArchiveURL(e.Args.Source.ChannelID(), e.Args.Source.MessageTS()),
+				e.Message,
+			))
+	} else if e.Message != "" {
+		_, _, err = t.SendMessage(imChannel, e.Message)
+	}
 	return err
 }
 
@@ -93,7 +117,7 @@ func (pc *ParentCommand) Help(t Team, args *CommandArguments) error {
 	return nil
 }
 
-func (pc *ParentCommand) DispatchCommand(t Team, args *CommandArguments) error {
+func (pc *ParentCommand) Handle(t Team, args *CommandArguments) error {
 	if len(args.Arguments) == 0 {
 		return pc.Help(t, args)
 	}
@@ -105,12 +129,18 @@ func (pc *ParentCommand) DispatchCommand(t Team, args *CommandArguments) error {
 	pc.lock.Unlock()
 
 	if !ok {
-		return CmdErrorf(args, "no such command %s", args.Command)
+		cmdErr := CmdErrorf(args, "No such subcommand '%s'", args.Command)
+		cmdErr.Code = CmdErrNoSuchCommand
+		return cmdErr
 	}
 
 	err := subC.Handle(t, args)
-	if err, ok := err.(CommandError); ok && err.Success {
-		return err
+	if err, ok := err.(CommandError); ok {
+		if err.Success {
+			return err
+		} else if err.Code == CmdErrNoSuchCommand {
+			err.Code = CmdErrGeneric
+		}
 	}
 	return errors.Wrap(err, args.Command)
 }

@@ -11,7 +11,7 @@ import (
 )
 
 type SendMessage interface {
-	SendMessage(channelID slack.ChannelID, message string) (slack.MessageTS, error)
+	SendMessage(channelID slack.ChannelID, message string) (slack.MessageTS, slack.RTMRawMessage, error)
 	SendComplexMessage(channelID slack.ChannelID, message url.Values) (slack.MessageTS, error)
 }
 
@@ -72,9 +72,13 @@ type Team interface {
 
 	BotUser() slack.UserID
 
+	EnableModules() error
+
 	SendMessage
+	ReactMessage(channel slack.ChannelID, msg slack.MessageTS, emojiName string) error
 	SlackAPIPost(method string, form url.Values) (*http.Response, error)
-	SubmitLateSlashCommand(responseURL string, resp slack.SlashCommandResponse)
+
+	ArchiveURL(channel slack.ChannelID, msg slack.MessageTS) string
 
 	OnEveryEvent(unregisterID string, f func(slack.RTMRawMessage))
 	OnEvent(unregisterID string, event string, f func(slack.RTMRawMessage))

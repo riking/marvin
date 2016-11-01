@@ -19,6 +19,7 @@ type Team struct {
 	teamConfig *marvin.TeamConfig
 	client     *rtm.Client
 	db         *database.Conn
+	modules    []marvin.Module
 
 	commands marvin.ParentCommand
 }
@@ -42,10 +43,6 @@ func NewTeam(cfg *marvin.TeamConfig) (*Team, error) {
 
 func (t *Team) Connect(c *rtm.Client) {
 	t.client = c
-
-	//for _, v := range c.Ims {
-	//
-	//}
 }
 
 func (t *Team) Domain() string {
@@ -82,21 +79,39 @@ func (t *Team) UnregisterCommand(name string, c marvin.SubCommand) {
 }
 
 func (t *Team) DispatchCommand(args *marvin.CommandArguments) error {
-	return t.commands.DispatchCommand(t, args)
+	result := t.panicDispatch(args)
+	return result
+}
+
+func (t *Team) panicDispatch(args *marvin.CommandArguments) (err error) {
+	defer func() {
+		rec := recover()
+		if rec != nil {
+			if recErr, ok := rec.(error); ok {
+				err = recErr
+			} else if recStr, ok := rec.(string); ok {
+				err = errors.Errorf(recStr)
+			} else {
+				panic(errors.Errorf("Unrecognized panic object type=[%T] val=[%#v]", rec, rec))
+			}
+		}
+	}()
+	err = t.commands.Handle(t, args)
+	return err
 }
 
 func (t *Team) Help(args *marvin.CommandArguments) error {
-	return t.commands.Help(marvin.Team(t), args)
+	return t.commands.Help(t, args)
 }
 
 // ---
 
-func (t *Team) SendMessage(channel slack.ChannelID, message string) (slack.MessageTS, error) {
+func (t *Team) SendMessage(channel slack.ChannelID, message string) (slack.MessageTS, slack.RTMRawMessage, error) {
 	msg, err := t.client.SendMessage(channel, message)
 	if err != nil {
-		return "", err
+		return "", msg, err
 	}
-	return msg.Timestamp(), err
+	return msg.MessageTS(), msg, err
 }
 
 func (t *Team) SendComplexMessage(channelID slack.ChannelID, message url.Values) (slack.MessageTS, error) {
@@ -124,6 +139,26 @@ func (t *Team) SendComplexMessage(channelID slack.ChannelID, message url.Values)
 	return response.TS, nil
 }
 
+func (t *Team) ReactMessage(channel slack.ChannelID, msgID slack.MessageTS, emojiName string) error {
+	form := url.Values{
+		"name":      []string{emojiName},
+		"channel":   []string{string(channel)},
+		"timestamp": []string{string(msgID)},
+	}
+	resp, err := t.SlackAPIPost("reactions.add", form)
+	var response struct {
+		slack.APIResponse
+	}
+	err = json.NewDecoder(resp.Body).Decode(&response)
+	if err != nil {
+		return errors.Wrap(err, "failed to decode json from reactions.add")
+	}
+	if !response.OK {
+		return errors.Wrap(response.APIResponse, "Error calling reactions.add")
+	}
+	return nil
+}
+
 func (t *Team) SlackAPIPost(method string, form url.Values) (*http.Response, error) {
 	fmt.Println("[DEBUG]", "Slack API request", method, form)
 
@@ -148,9 +183,7 @@ func (t *Team) SlackAPIPost(method string, form url.Values) (*http.Response, err
 	return resp, nil
 }
 
-func (t *Team) SubmitLateSlashCommand(responseURL string, resp slack.SlashCommandResponse) {
-
-}
+// ---
 
 func (t *Team) OnEveryEvent(unregisterID string, f func(slack.RTMRawMessage)) {
 	t.client.RegisterRawHandler(unregisterID, f, rtm.MsgTypeAll, nil)
@@ -170,48 +203,48 @@ func (t *Team) OffAllEvents(unregisterID string) {
 	t.client.UnregisterAllMatching(unregisterID)
 }
 
-func (t *Team) PrivateChannelInfo(channel slack.ChannelID) (*slack.Channel, error) {
-	// TODO caching
-	form := url.Values{"channel": []string{string(channel)}}
-	resp, err := t.SlackAPIPost("groups.info", form)
-	if err != nil {
-		return nil, err
+// ---
+
+func (t *Team) ArchiveURL(channel slack.ChannelID, msg slack.MessageTS) string {
+	splitTS := strings.Split(string(msg), ".")
+	stripTS := "p" + splitTS[0] + splitTS[1]
+	if channel[0] == 'D' {
+		return fmt.Sprintf("https://%s.slack.com/archives/%s/%s",
+			t.teamConfig.TeamDomain, channel, stripTS)
 	}
-	var response struct {
-		slack.APIResponse
-		Group slack.Channel `json:"group"`
+	if channel[0] == 'G' {
+		info, err := t.PrivateChannelInfo(channel)
+		if err != nil || info.IsMultiIM() {
+			return fmt.Sprintf("https://%s.slack.com/archives/%s/%s",
+				t.teamConfig.TeamDomain, channel, stripTS)
+		} else {
+			return fmt.Sprintf("https://%s.slack.com/archives/%s/%s",
+				t.teamConfig.TeamDomain, info.Name, stripTS)
+		}
 	}
-	err = json.NewDecoder(resp.Body).Decode(&response)
-	if err != nil {
-		return nil, errors.Wrap(err, "decode json")
+	if channel[0] == 'C' {
+		info, err := t.PublicChannelInfo(channel)
+		if err != nil {
+			panic(errors.Wrap(err, "could not get info about public channel"))
+		}
+		return fmt.Sprintf("https://%s.slack.com/archives/%s/%s",
+			t.teamConfig.TeamDomain, info.Name, stripTS)
 	}
-	resp.Body.Close()
-	if !response.OK {
-		return nil, response.APIResponse
-	}
-	return &response.Group, nil
+	panic(errors.Errorf("Invalid channel id '%s' passed to ArchiveURL", channel))
 }
 
-func (t *Team) GetIM(user slack.UserID) (slack.ChannelID, error) {
-	// TODO caching
-	form := url.Values{"user": []string{string(user)}}
-	resp, err := t.SlackAPIPost("im.open", form)
-	if err != nil {
-		return "", err
+// ---
+
+func (t *Team) EnableModules() error {
+	var modList []marvin.Module
+
+	for _, constructor := range marvin.AllModules() {
+		mod := constructor(t)
+		modList = append(modList, mod)
 	}
-	var response struct {
-		slack.APIResponse
-		Channel struct {
-			ID slack.ChannelID `json:"id"`
-		} `json:"channel"`
+	for _, v := range modList {
+		v.RegisterRTMEvents(t)
 	}
-	err = json.NewDecoder(resp.Body).Decode(&response)
-	if err != nil {
-		return "", errors.Wrap(err, "decode json")
-	}
-	resp.Body.Close()
-	if !response.OK {
-		return "", response.APIResponse
-	}
-	return response.Channel.ID, nil
+	t.modules = modList
+	return nil
 }
