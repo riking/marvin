@@ -1,0 +1,8 @@
+
+[Test]
+TeamDomain=kanetestingslack
+ClientID=xxx1234xxx.xxx1234xxx
+ClientSecret=xxxxxde4db33fxxxx
+VerifyToken=XXxxXxXXXXX
+DatabaseURL = dbname=marvin_test user=marvin_test password=marvin_test
+UserToken=xoxp-xxxxx-xxxxx-xxxxx-xxxxxxxxxxxxxx
