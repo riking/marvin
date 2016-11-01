@@ -1,35 +1,40 @@
 package slack
 
-type MessageSubtype string
-
-const (
-	MessageSubtypeBotMessage     MessageSubtype = "bot_message"
-	MessageSubtypeChannelJoin                   = "channel_join"
-	MessageSubtypeChannelLeave                  = "channel_leave"
-	MessageSubtypeMeMessage                     = "me_message"
-	MessageSubtypeMessageChanged                = "message_changed"
-	MessageSubtypeMessageDeleted                = "message_deleted"
-)
+import "encoding/json"
 
 type RTMRawMessage map[string]interface{}
 
+const MsgFieldRawBytes = "_rawBytes"
+
 func (m RTMRawMessage) Type() string         { return m["type"].(string) }
+func (m RTMRawMessage) Okay() bool           { q, _ := m["ok"].(bool); return q }
+func (m RTMRawMessage) Original() []byte     { q, _ := m[MsgFieldRawBytes].([]byte); return q }
 func (m RTMRawMessage) Subtype() string      { q, _ := m["subtype"].(string); return q }
 func (m RTMRawMessage) ChannelID() ChannelID { q, _ := m["channel"].(string); return ChannelID(q) }
 func (m RTMRawMessage) UserID() UserID       { q, _ := m["user"].(string); return UserID(q) }
 func (m RTMRawMessage) Text() string         { q, _ := m["text"].(string); return q }
-func (m RTMRawMessage) Timestamp() string    { q, _ := m["ts"].(string); return q }
+func (m RTMRawMessage) Timestamp() MessageTS { q, _ := m["ts"].(string); return MessageTS(q) }
 func (m RTMRawMessage) IsHidden() bool       { q, _ := m["hidden"].(bool); return q }
+
+func (m RTMRawMessage) ReplyTo() int {
+	q, _ := m["reply_to"].(float64)
+	return int(q)
+}
+
 func (m RTMRawMessage) Attachments() []Attachment {
 	panic("NotImplemented")
 }
 
-type IncomingMessage struct {
-	ChannelID  ChannelID
-	UserID     UserID
-	Text       string
-	Subtype    string
-	RawMessage RTMRawMessage
+func (m RTMRawMessage) ReMarshal(v interface{}) error {
+	return json.Unmarshal(m.Original(), v)
+}
+
+func (m RTMRawMessage) String() string {
+	bytes, err := json.MarshalIndent(m, "", "\t")
+	if err != nil {
+		panic(err)
+	}
+	return string(bytes)
 }
 
 type IncomingReaction struct {
@@ -42,7 +47,7 @@ type IncomingReaction struct {
 		Type string
 		// type = message
 		MsgChannelID ChannelID
-		MsgTS        string
+		MsgTS        MessageTS
 		// type = file
 		FileID FileID
 		// type = file_comment
@@ -57,8 +62,8 @@ const (
 	ParseStyleNone = ParseStyle("none")
 )
 
-type Message struct {
-	Domain      string       `json:"domain"`
+type OutgoingSlackMessage struct {
+	Domain      string       `json:"domain,omitempty"`
 	ChannelID   ChannelID    `json:"channel"`
 	Username    UserID       `json:"username"`
 	Text        string       `json:"text"`
@@ -81,8 +86,8 @@ type SlashCommandRequest struct {
 	UserName    string    `schema:"user_name"`
 	Command     string
 	Text        string
-	Msg         IncomingMessage `schema:"-"`
-	ResponseURL string          `schema:"response_url"`
+	Msg         RTMRawMessage `schema:"-"`
+	ResponseURL string        `schema:"response_url"`
 }
 
 type ResponseType string
@@ -94,7 +99,7 @@ const (
 )
 
 type SlashCommandResponse struct {
-	Message
+	OutgoingSlackMessage
 	ResponseType ResponseType `json:"response_type,omitempty"`
 }
 

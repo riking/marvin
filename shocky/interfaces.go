@@ -3,21 +3,22 @@ package shocky
 import (
 	"database/sql"
 	"net/http"
+	"net/url"
+
+	"gopkg.in/ini.v1"
 
 	"github.com/riking/homeapi/shocky/slack"
 )
 
 type SendMessage interface {
-	SendChannel(channelID, message string)
-	SendPrivate(userID, message string)
-	SendChannelSlack(channelID string, message slack.Message)
-	SendPrivateSlack(userID string, message slack.Message)
+	SendMessage(channelID slack.ChannelID, message string) (slack.MessageTS, error)
+	SendComplexMessage(channelID slack.ChannelID, message url.Values) (slack.MessageTS, error)
 }
 
 type ModuleConfig interface {
-	Get(key string)
-	Set(key, value string)
-	Add(key, defaultValue string)
+	Get(key string) (string, error)
+	Set(key, value string) error
+	Add(key, defaultValue string) error
 }
 
 type TeamConfig struct {
@@ -29,12 +30,15 @@ type TeamConfig struct {
 	UserToken    string
 }
 
-type Module interface {
-	Setup(i ShockyInstance)
-	WantOnMessage() bool
-	OnMessage(m slack.IncomingMessage) error
-	WantOnReaction() bool
-	OnReaction(m slack.IncomingReaction) error
+func LoadTeamConfig(sec *ini.Section) *TeamConfig {
+	c := &TeamConfig{}
+	c.TeamDomain = sec.Key("TeamDomain").String()
+	c.ClientID = sec.Key("ClientID").String()
+	c.ClientSecret = sec.Key("ClientSecret").String()
+	c.VerifyToken = sec.Key("VerifyToken").String()
+	c.DBName = sec.Key("DBName").String()
+	c.UserToken = sec.Key("UserToken").String()
+	return c
 }
 
 type SlashCommand interface {
@@ -42,16 +46,46 @@ type SlashCommand interface {
 }
 
 type SubCommand interface {
-	Do(t Team)
+	Handle(t Team, args *CommandArguments) error
+}
+
+type SubCommandFunc func(t Team, args *CommandArguments) error
+
+func (f SubCommandFunc) Handle(t Team, args *CommandArguments) error {
+	return f(t, args)
+}
+
+type CommandRegistration interface {
+	RegisterCommand(name string, c SubCommand)
+	UnregisterCommand(name string, c SubCommand)
+}
+
+type HTTPDoer interface {
+	Do(*http.Request) (http.Response, error)
 }
 
 type Team interface {
 	Domain() string
 	DB() *sql.DB
-	TeamConfig() TeamConfig
+	TeamConfig() *TeamConfig
 	ModuleConfig() ModuleConfig
+
+	BotUser() slack.UserID
+
 	SendMessage
-	HTTPClient() http.Client
+	SlackAPIPost(method string, form url.Values) (*http.Response, error)
+	SubmitLateSlashCommand(responseURL string, resp slack.SlashCommandResponse)
+
+	OnEveryEvent(unregisterID string, f func(slack.RTMRawMessage))
+	OnEvent(unregisterID string, event string, f func(slack.RTMRawMessage))
+	OnNormalMessage(unregisterID string, f func(slack.RTMRawMessage))
+	OffAllEvents(unregisterID string)
+
+	CommandRegistration
+	DispatchCommand(args *CommandArguments) error
+
+	GetIM(user slack.UserID) (slack.ChannelID, error)
+	PrivateChannelInfo(channel slack.ChannelID) (*slack.Channel, error)
 }
 
 type ShockyInstance interface {
@@ -59,14 +93,8 @@ type ShockyInstance interface {
 	ModuleConfig(team TeamConfig) ModuleConfig
 	DB(team TeamConfig) *sql.DB
 
-	SendChannel(team Team, channel, message string)
-	SendPrivate(team Team, user, message string)
-	SendChannelSlack(team Team, channel string, message slack.Message)
-	SendPrivateSlack(team Team, user string, message slack.Message)
+	SendChannelSlack(team Team, channel string, message slack.OutgoingSlackMessage)
+	SendPrivateSlack(team Team, user string, message slack.OutgoingSlackMessage)
 
-	RegisterModule(m Module)
 	RegisterSlashCommand(c SlashCommand)
-	RegisterCommand(c SubCommand)
-
-	SubmitLateSlashCommand(responseURL string, resp slack.SlashCommandResponse)
 }
