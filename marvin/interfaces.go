@@ -65,15 +65,30 @@ type HTTPDoer interface {
 }
 
 type Team interface {
+	// Domain returns the leftmost component of the Slack domain name.
 	Domain() string
 	DB() *database.Conn
 	TeamConfig() *TeamConfig
-	ModuleConfig() ModuleConfig
+	ModuleConfig(mod ModuleID) ModuleConfig
 
 	BotUser() slack.UserID
 
-	EnableModules() error
-	//DependModule()
+	// EnableModules loads every module and attempts to transition them to
+	// the state listed in the configuration.
+	EnableModules()
+
+	// DependModule places the instance of the requested module in the
+	// given pointer.
+	//
+	// If the requested module is already enabled, the pointer is
+	// filled immediately and the function returns 1. If the requested
+	// module has errored, the pointer is left alone and the function
+	// returns -2.
+	//
+	// During loading, when the requested module has not been enabled
+	// yet, the function returns 0 and remembers the pointer. If the
+	// requested module is not known, the function returns -1.
+	DependModule(self Module, dependencyID ModuleID, ptr *Module) int
 
 	SendMessage
 	ReactMessage(channel slack.ChannelID, msg slack.MessageTS, emojiName string) error

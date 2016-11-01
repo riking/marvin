@@ -24,7 +24,7 @@ const Identifier = "autoinvite"
 type AutoInviteModule struct {
 	team marvin.Team
 
-	onReact on_reaction.API
+	onReact	marvin.Module
 
 	listLock sync.Mutex
 	list     []PendingInvite
@@ -41,7 +41,9 @@ func (aim *AutoInviteModule) Identifier() marvin.ModuleID {
 }
 
 func (aim *AutoInviteModule) Load(t marvin.Team) {
+	var _ marvin.Module = aim.onReact
 
+	t.DependModule(aim, on_reaction.Identifier, &aim.onReact)
 }
 
 func (aim *AutoInviteModule) Enable(t marvin.Team) {

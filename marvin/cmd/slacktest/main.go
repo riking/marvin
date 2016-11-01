@@ -1,10 +1,10 @@
 package main
 
 import (
-	"fmt"
-	"time"
 	"flag"
+	"fmt"
 	"os"
+	"time"
 
 	"github.com/pkg/errors"
 	"gopkg.in/ini.v1"
@@ -53,8 +53,10 @@ func main() {
 		}
 		fmt.Println("[DEBUG]", "main.go rtm message:", msg)
 	}, rtm.MsgTypeAll, nil)
-	team.Connect(client)
+
+	team.ConnectRTM(client)
 	team.EnableModules()
+
 	client.Start()
 
 	fmt.Println("started")

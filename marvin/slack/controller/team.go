@@ -9,6 +9,8 @@ import (
 
 	"github.com/pkg/errors"
 
+	"sync"
+
 	"github.com/riking/homeapi/marvin"
 	"github.com/riking/homeapi/marvin/database"
 	"github.com/riking/homeapi/marvin/slack"
@@ -19,7 +21,9 @@ type Team struct {
 	teamConfig *marvin.TeamConfig
 	client     *rtm.Client
 	db         *database.Conn
-	modules    []marvin.Module
+
+	modulesLock sync.Mutex
+	modules     []moduleStatus
 
 	commands marvin.ParentCommand
 }
@@ -29,6 +33,7 @@ func NewTeam(cfg *marvin.TeamConfig) (*Team, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	err = marvin.MigrateModuleConfig(db)
 	if err != nil {
 		return nil, err
@@ -41,8 +46,14 @@ func NewTeam(cfg *marvin.TeamConfig) (*Team, error) {
 	}, nil
 }
 
-func (t *Team) Connect(c *rtm.Client) {
+func (t *Team) ConnectRTM(c *rtm.Client) {
 	t.client = c
+}
+
+func (t *Team) EnableModules() {
+	t.constructModules()
+	t.loadModules()
+	t.enableModules()
 }
 
 func (t *Team) Domain() string {
@@ -58,7 +69,7 @@ func (t *Team) DB() *database.Conn {
 	return nil // TODO
 }
 
-func (t *Team) ModuleConfig() marvin.ModuleConfig {
+func (t *Team) ModuleConfig(ident marvin.ModuleID) marvin.ModuleConfig {
 	panic("Not implemented")
 	// TODO - needs DB()
 	return nil
@@ -79,7 +90,7 @@ func (t *Team) UnregisterCommand(name string, c marvin.SubCommand) {
 }
 
 func (t *Team) DispatchCommand(args *marvin.CommandArguments) error {
-	result := protectedCall(func() {
+	result := protectedCall(func() error {
 		return t.commands.Handle(t, args)
 	})
 	return result
@@ -219,58 +230,3 @@ func (t *Team) ArchiveURL(channel slack.ChannelID, msg slack.MessageTS) string {
 }
 
 // ---
-
-type ModuleState int
-
-const (
-	ModuleStateZero = iota
-	ModuleStateConstructed
-	ModuleStateLoaded
-	ModuleStateEnabled
-	ModuleStateDisabled
-)
-
-type ModuleStatus struct {
-	Identifier   marvin.ModuleID
-	Instance     marvin.Module
-	State        ModuleState
-	Dependencies []struct {
-		Identifier marvin.ModuleID
-		Pointer    *marvin.Module
-	}
-}
-
-func (t *Team) EnableModules() error {
-	var modList []marvin.Module
-
-	for _, constructor := range marvin.AllModules() {
-		mod := constructor(t)
-		modList = append(modList, mod)
-	}
-	for _, v := range modList {
-		err = protectedCall(func() {
-			v.Load(t)
-		})
-	}
-	for _, v := range modList {
-		v.Enable(t)
-	}
-	t.modules = modList
-	return nil
-}
-
-func protectedCall(f func() error) (err error) {
-	defer func() {
-		rec := recover()
-		if rec != nil {
-			if recErr, ok := rec.(error); ok {
-				err = recErr
-			} else if recStr, ok := rec.(string); ok {
-				err = errors.Errorf(recStr)
-			} else {
-				panic(errors.Errorf("Unrecognized panic object type=[%T] val=[%#v]", rec, rec))
-			}
-		}
-	}()
-	return f()
-}
