@@ -8,9 +8,11 @@ import (
 
 	"regexp"
 
-	"github.com/riking/homeapi/marvin"
-	"github.com/riking/homeapi/marvin/slack"
 	"sync"
+
+	"github.com/riking/homeapi/marvin"
+	"github.com/riking/homeapi/marvin/modules/on_reaction"
+	"github.com/riking/homeapi/marvin/slack"
 )
 
 func init() {
@@ -22,8 +24,10 @@ const Identifier = "autoinvite"
 type AutoInviteModule struct {
 	team marvin.Team
 
+	onReact on_reaction.API
+
 	listLock sync.Mutex
-	list []PendingInvite
+	list     []PendingInvite
 }
 
 func NewAutoInviteModule(t marvin.Team) marvin.Module {
@@ -32,32 +36,31 @@ func NewAutoInviteModule(t marvin.Team) marvin.Module {
 	return aim
 }
 
-func (aim *AutoInviteModule) Identifier() string {
+func (aim *AutoInviteModule) Identifier() marvin.ModuleID {
 	return Identifier
 }
 
-func (aim *AutoInviteModule) Unregister(t marvin.Team) {
-	t.UnregisterCommand("make-invite", marvin.SubCommandFunc(aim.PostInvite))
+func (aim *AutoInviteModule) Load(t marvin.Team) {
+
 }
 
-func (aim *AutoInviteModule) RegisterRTMEvents(t marvin.Team) {
-	t.OnEvent(Identifier, "reaction_added", aim.OnReaction)
+func (aim *AutoInviteModule) Enable(t marvin.Team) {
+}
+
+func (aim *AutoInviteModule) Disable(t marvin.Team) {
+	t.UnregisterCommand("make-invite", marvin.SubCommandFunc(aim.PostInvite))
 }
 
 type PendingInvite struct {
 	TargetChannel slack.ChannelID
-	MsgChannel slack.ChannelID
-	TS slack.MessageTS
+	MsgChannel    slack.ChannelID
+	TS            slack.MessageTS
 }
 
-func (aim *AutoInviteModule) OnReaction(rtm slack.RTMRawMessage) {
-	iUID, ok := rtm["item_user"].(string)
-	if !ok {
-		return
-	}
-	if iUID != aim.team.BotUser() {
-		return
-	}
+// TODO
+func (aim *AutoInviteModule) OnReaction(targetMsg slack.MessageID, rtm slack.RTMRawMessage, added bool, customData []byte) error {
+	panic("unimplemented")
+	return nil
 }
 
 const defaultInviteText = `<@%s> has invited everybody to the #%s channel%s%s
@@ -113,8 +116,6 @@ func (aim *AutoInviteModule) PostInvite(t marvin.Team, args *marvin.CommandArgum
 	} else {
 		msg = fmt.Sprintf(defaultInviteText, args.Source.UserID(), channel.Name, ".", "")
 	}
-
-
 
 	fmt.Println("[DEBUG]", "sending invite to", messageTarget, "text:", msg)
 	_, myRTM, err := t.SendMessage(messageTarget, msg)

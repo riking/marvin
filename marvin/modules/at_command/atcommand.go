@@ -20,7 +20,7 @@ const Identifier = "autoinvite"
 
 type AtCommandModule struct {
 	team       marvin.Team
-	BotUser    slack.UserID
+	botUser    slack.UserID
 	mentionRgx *regexp.Regexp
 }
 
@@ -29,17 +29,20 @@ func NewAtCommandModule(t marvin.Team) marvin.Module {
 	return mod
 }
 
-func (mod *AtCommandModule) Identifier() string {
+func (mod *AtCommandModule) Identifier() marvin.ModuleID {
 	return Identifier
 }
 
-func (mod *AtCommandModule) Unregister(t marvin.Team) {
-	t.OffAllEvents(Identifier)
+func (mod *AtCommandModule) Load(t marvin.Team) {
 }
 
-func (mod *AtCommandModule) RegisterRTMEvents(t marvin.Team) {
+func (mod *AtCommandModule) Enable(t marvin.Team) {
 	t.OnEvent(Identifier, "hello", mod.HandleHello)
 	t.OnNormalMessage(Identifier, mod.HandleMessage)
+}
+
+func (mod *AtCommandModule) Disable(t marvin.Team) {
+	t.OffAllEvents(Identifier)
 }
 
 // -----
@@ -47,8 +50,8 @@ func (mod *AtCommandModule) RegisterRTMEvents(t marvin.Team) {
 func (mod *AtCommandModule) HandleHello(rtm slack.RTMRawMessage) {
 	var err error
 
-	mod.BotUser = mod.team.BotUser()
-	mod.mentionRgx, err = regexp.Compile(fmt.Sprintf(`<@%s>`, mod.BotUser))
+	mod.botUser = mod.team.BotUser()
+	mod.mentionRgx, err = regexp.Compile(fmt.Sprintf(`<@%s>`, mod.botUser))
 	if err != nil {
 		panic(err)
 	}

@@ -78,7 +78,7 @@ type messageHandler struct {
 	Cb           func(slack.RTMRawMessage)
 	MsgType      string
 	SubtypesOnly []string
-	UnregisterID string
+	Module       marvin.ModuleID
 }
 
 const startAPIURL = "https://slack.com/api/rtm.start"
@@ -158,7 +158,7 @@ func (c *Client) Start() {
 }
 
 func (c *Client) RegisterRawHandler(
-	unregisterID string,
+	mod marvin.ModuleID,
 	cb func(slack.RTMRawMessage),
 	typeOnly string, subtypes []string,
 ) {
@@ -178,13 +178,13 @@ func (c *Client) RegisterRawHandler(
 	})
 }
 
-func (c *Client) UnregisterAllMatching(unregisterID string) {
+func (c *Client) UnregisterAllMatching(mod marvin.ModuleID) {
 	c.msgCbsLock.Lock()
 	defer c.msgCbsLock.Unlock()
 
 	newMsgCbs := make([]messageHandler, 0, len(c.msgCbs))
 	for _, v := range c.msgCbs {
-		if v.UnregisterID != unregisterID {
+		if v.Module != mod {
 			newMsgCbs = append(newMsgCbs, v)
 		}
 	}

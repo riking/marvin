@@ -79,25 +79,10 @@ func (t *Team) UnregisterCommand(name string, c marvin.SubCommand) {
 }
 
 func (t *Team) DispatchCommand(args *marvin.CommandArguments) error {
-	result := t.panicDispatch(args)
+	result := protectedCall(func() {
+		return t.commands.Handle(t, args)
+	})
 	return result
-}
-
-func (t *Team) panicDispatch(args *marvin.CommandArguments) (err error) {
-	defer func() {
-		rec := recover()
-		if rec != nil {
-			if recErr, ok := rec.(error); ok {
-				err = recErr
-			} else if recStr, ok := rec.(string); ok {
-				err = errors.Errorf(recStr)
-			} else {
-				panic(errors.Errorf("Unrecognized panic object type=[%T] val=[%#v]", rec, rec))
-			}
-		}
-	}()
-	err = t.commands.Handle(t, args)
-	return err
 }
 
 func (t *Team) Help(args *marvin.CommandArguments) error {
@@ -185,22 +170,22 @@ func (t *Team) SlackAPIPost(method string, form url.Values) (*http.Response, err
 
 // ---
 
-func (t *Team) OnEveryEvent(unregisterID string, f func(slack.RTMRawMessage)) {
-	t.client.RegisterRawHandler(unregisterID, f, rtm.MsgTypeAll, nil)
+func (t *Team) OnEveryEvent(mod marvin.ModuleID, f func(slack.RTMRawMessage)) {
+	t.client.RegisterRawHandler(mod, f, rtm.MsgTypeAll, nil)
 }
 
-func (t *Team) OnEvent(unregisterID string, event string, f func(slack.RTMRawMessage)) {
-	t.client.RegisterRawHandler(unregisterID, f, event, nil)
+func (t *Team) OnEvent(mod marvin.ModuleID, event string, f func(slack.RTMRawMessage)) {
+	t.client.RegisterRawHandler(mod, f, event, nil)
 }
 
 var _filterNoSubgroup = []string{""}
 
-func (t *Team) OnNormalMessage(unregisterID string, f func(slack.RTMRawMessage)) {
-	t.client.RegisterRawHandler(unregisterID, f, "message", _filterNoSubgroup)
+func (t *Team) OnNormalMessage(mod marvin.ModuleID, f func(slack.RTMRawMessage)) {
+	t.client.RegisterRawHandler(mod, f, "message", _filterNoSubgroup)
 }
 
-func (t *Team) OffAllEvents(unregisterID string) {
-	t.client.UnregisterAllMatching(unregisterID)
+func (t *Team) OffAllEvents(mod marvin.ModuleID) {
+	t.client.UnregisterAllMatching(mod)
 }
 
 // ---
@@ -235,6 +220,26 @@ func (t *Team) ArchiveURL(channel slack.ChannelID, msg slack.MessageTS) string {
 
 // ---
 
+type ModuleState int
+
+const (
+	ModuleStateZero = iota
+	ModuleStateConstructed
+	ModuleStateLoaded
+	ModuleStateEnabled
+	ModuleStateDisabled
+)
+
+type ModuleStatus struct {
+	Identifier   marvin.ModuleID
+	Instance     marvin.Module
+	State        ModuleState
+	Dependencies []struct {
+		Identifier marvin.ModuleID
+		Pointer    *marvin.Module
+	}
+}
+
 func (t *Team) EnableModules() error {
 	var modList []marvin.Module
 
@@ -243,8 +248,29 @@ func (t *Team) EnableModules() error {
 		modList = append(modList, mod)
 	}
 	for _, v := range modList {
-		v.RegisterRTMEvents(t)
+		err = protectedCall(func() {
+			v.Load(t)
+		})
+	}
+	for _, v := range modList {
+		v.Enable(t)
 	}
 	t.modules = modList
 	return nil
+}
+
+func protectedCall(f func() error) (err error) {
+	defer func() {
+		rec := recover()
+		if rec != nil {
+			if recErr, ok := rec.(error); ok {
+				err = recErr
+			} else if recStr, ok := rec.(string); ok {
+				err = errors.Errorf(recStr)
+			} else {
+				panic(errors.Errorf("Unrecognized panic object type=[%T] val=[%#v]", rec, rec))
+			}
+		}
+	}()
+	return f()
 }

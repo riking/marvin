@@ -36,6 +36,8 @@ import (
 
 // API is the cross-module interface that on_reaction presents.
 type API interface {
+	marvin.Module
+
 	RegisterHandler(h ReactionHandler, moduleIdentifier string)
 	RegisterFunc(f ReactionCallbackFunc, moduleIdentifier string)
 	Unregister(moduleIdentifier string)
@@ -43,26 +45,26 @@ type API interface {
 	ListenMessage(which slack.MessageID, moduleIdentifier string, data []byte)
 }
 
+// ReactionEvent contains all the available data about a reaction event.
 type ReactionEvent struct {
 	slack.MessageID
-	EmojiName  string
-	IsAdded    bool
-	UserID     slack.UserID
+	EmojiName string
+	IsAdded   bool
+	UserID    slack.UserID
 	// EventTS may be empty in the event of a backfill call
-	EventTS    slack.MessageTS
-	CustomData []byte
+	EventTS slack.MessageTS
 }
 
 // ReactionHandler is the interface for the callbacks that OnReactionModule exports.
 type ReactionHandler interface {
-	OnReaction(targetMsg slack.MessageID, rtm slack.RTMRawMessage, added bool, customData []byte) error
+	OnReaction(event *ReactionEvent, customData []byte) error
 }
 
-type ReactionCallbackFunc func(targetMsg slack.MessageID, rtm slack.RTMRawMessage, added bool, customData []byte) error
+type ReactionCallbackFunc func(event *ReactionEvent, customData []byte) error
 
 // OnReaction implements ReactionHandler by calling the function.
-func (f ReactionCallbackFunc) OnReaction(targetMsg slack.MessageID, rtm slack.RTMRawMessage, added bool, customData []byte) error {
-	return f(targetMsg, rtm, added, customData)
+func (f ReactionCallbackFunc) OnReaction(event *ReactionEvent, customData []byte) error {
+	return f(event, customData)
 }
 
 // ---
@@ -110,17 +112,17 @@ func NewOnReactionModule(t marvin.Team) marvin.Module {
 	return mod
 }
 
-func (mod *OnReactionModule) Identifier() string {
+func (mod *OnReactionModule) Identifier() marvin.ModuleID {
 	return Identifier
 }
 
-func (mod *OnReactionModule) Unregister(t marvin.Team) {
-	t.OffAllEvents(Identifier)
+func (mod *OnReactionModule) Load(t marvin.Team) {
 }
 
-func (mod *OnReactionModule) RegisterRTMEvents(t marvin.Team) {
-	t.OnEvent(Identifier, "hello", mod.HandleHello)
-	t.OnNormalMessage(Identifier, mod.HandleMessage)
+func (mod *OnReactionModule) Disable(t marvin.Team) {
+}
+
+func (mod *OnReactionModule) Enable(t marvin.Team) {
 }
 
 // ---

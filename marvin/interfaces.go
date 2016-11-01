@@ -73,6 +73,7 @@ type Team interface {
 	BotUser() slack.UserID
 
 	EnableModules() error
+	//DependModule()
 
 	SendMessage
 	ReactMessage(channel slack.ChannelID, msg slack.MessageTS, emojiName string) error
@@ -80,10 +81,10 @@ type Team interface {
 
 	ArchiveURL(channel slack.ChannelID, msg slack.MessageTS) string
 
-	OnEveryEvent(unregisterID string, f func(slack.RTMRawMessage))
-	OnEvent(unregisterID string, event string, f func(slack.RTMRawMessage))
-	OnNormalMessage(unregisterID string, f func(slack.RTMRawMessage))
-	OffAllEvents(unregisterID string)
+	OnEveryEvent(mod ModuleID, f func(slack.RTMRawMessage))
+	OnEvent(mod ModuleID, event string, f func(slack.RTMRawMessage))
+	OnNormalMessage(mod ModuleID, f func(slack.RTMRawMessage))
+	OffAllEvents(mod ModuleID)
 
 	CommandRegistration
 	DispatchCommand(args *CommandArguments) error

@@ -7,8 +7,14 @@ var allModules []ModuleConstructor
 type Module interface {
 	Identifier() ModuleID
 
-	Unregister(t Team)
-	RegisterRTMEvents(t Team)
+	// Load should declare dependencies
+	Load(t Team)
+
+	// Enable has dependencies available
+	Enable(t Team)
+
+	// Disable should shut down and unregister
+	Disable(t Team)
 }
 
 //type ModuleSetupGlobal func(ShockyInstance) error
