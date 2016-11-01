@@ -4,7 +4,7 @@ var allModules []ModuleConstructor
 var allSetupFuncs []ModuleSetupGlobal
 
 type Module interface {
-	Identifier() string
+	Identifier() ModuleID
 
 	Unregister(t Team)
 	RegisterRTMEvents(t Team)

@@ -6,9 +6,25 @@ import (
 	"github.com/pkg/errors"
 )
 
-const errMigrateHdr = "[Migrate %s-%d] "
+const errMigrateHdr = "[migrate %s@%d] "
 
-func (c *Conn) setupMigrate() error {
+const (
+	sqlCreateMigrations = `
+	CREATE TABLE IF NOT EXISTS
+	migrations (
+		id SERIAL PRIMARY KEY,
+		module varchar(255),
+		version INTEGER,
+
+		UNIQUE (module, version)
+	)`
+	// $1 = module, $2 = version
+	sqlInsertMigrations = `INSERT INTO migrations (module, version) VALUES ($1, $2)`
+	// $1 = module, $2 = version
+	sqlSelectMigrations = `SELECT 1 FROM migrations WHERE module = $1 AND version = $2`
+)
+
+func (c *Conn) setupMigrate() (err error) {
 	moduleIdentifier := "__core"
 	version := 1478019678
 
@@ -16,21 +32,18 @@ func (c *Conn) setupMigrate() error {
 	if err != nil {
 		return errors.Wrapf(err, errMigrateHdr+"start transaction", moduleIdentifier, version)
 	}
-	_, err = tx.Exec(`CREATE TABLE IF NOT EXISTS
-	migrations (
-		id SERIAL PRIMARY KEY,
-		module varchar(255),
-		versionTime INTEGER
-	)`)
+	defer func(tx *sql.Tx) {
+		if err != nil {
+			tx.Rollback()
+		}
+	}(tx)
+	_, err = tx.Exec(sqlCreateMigrations)
 	if err != nil {
 		return errors.Wrapf(err, errMigrateHdr+"exec %d", moduleIdentifier, version, 1)
 	}
-	_, err = tx.Exec(`CREATE INDEX IF NOT EXISTS
-	ON migrations
-	(module, versionTime)
-	`)
+	err = tx.Commit()
 	if err != nil {
-		return errors.Wrapf(err, errMigrateHdr+"exec %d", moduleIdentifier, version, 2)
+		return errors.Wrapf(err, errMigrateHdr+"commit")
 	}
 	return nil
 }
@@ -77,7 +90,7 @@ func (c *Conn) Migrate(moduleIdentifier string, version int, query ...string) (e
 		}
 	}
 
-	stmt, err := tx.Prepare(`INSERT INTO migrations (module, versionTime) VALUES ($1, $2)`)
+	stmt, err := tx.Prepare(sqlInsertMigrations)
 	if err != nil {
 		return errors.Wrapf(err, errMigrateHdr+"prepare record", moduleIdentifier, version)
 	}
@@ -94,7 +107,7 @@ func (c *Conn) Migrate(moduleIdentifier string, version int, query ...string) (e
 }
 
 func (c *Conn) migrationExists(moduleIdentifier string, version int) (bool, error) {
-	stmt, err := c.Prepare(`SELECT 1 FROM migrations WHERE module = $1 AND version = $2`)
+	stmt, err := c.Prepare(sqlSelectMigrations)
 	if err != nil {
 		return false, errors.Wrapf(err, errMigrateHdr+"prepare check", moduleIdentifier, version)
 	}

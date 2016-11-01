@@ -16,6 +16,11 @@ func (m RTMRawMessage) Text() string         { q, _ := m["text"].(string); retur
 func (m RTMRawMessage) Timestamp() MessageTS { q, _ := m["ts"].(string); return MessageTS(q) }
 func (m RTMRawMessage) IsHidden() bool       { q, _ := m["hidden"].(bool); return q }
 
+func (m RTMRawMessage) StringField(field string) string {
+	q, _ := m[field].(string)
+	return q
+}
+
 func (m RTMRawMessage) ReplyTo() int {
 	q, _ := m["reply_to"].(float64)
 	return int(q)

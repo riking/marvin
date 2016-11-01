@@ -2,9 +2,9 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"time"
 	"flag"
+	"os"
 
 	"github.com/pkg/errors"
 	"gopkg.in/ini.v1"
@@ -31,17 +31,20 @@ func main() {
 		cfg, err = ini.LooseLoad("testdata/config.ini", "config.ini", "/tank/www/apiserver/config.ini")
 	}
 	if err != nil {
-		log.Fatalln(errors.Wrap(err, "loading config"))
+		fmt.Fprintf(os.Stderr, "[ERR] %+v\n", errors.Wrap(err, "loading config"))
+		return
 	}
 
 	teamConfig := marvin.LoadTeamConfig(cfg.Section(*teamName))
 	team, err := controller.NewTeam(teamConfig)
 	if err != nil {
-		log.Fatalln(errors.Wrap(err, "NewTeam"))
+		fmt.Fprintf(os.Stderr, "[ERR] %+v\n", errors.Wrap(err, "NewTeam"))
+		return
 	}
 	client, err := rtm.Dial(team)
 	if err != nil {
-		log.Fatalln(errors.Wrap(err, "rtm.Dial"))
+		fmt.Fprintf(os.Stderr, "[ERR] %+v\n", errors.Wrap(err, "rtm.Dial"))
+		return
 	}
 	client.RegisterRawHandler("debug", func(msg slack.RTMRawMessage) {
 		fmt.Println("[DEBUG]", "main.go rtm message:", msg)

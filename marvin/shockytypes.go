@@ -61,6 +61,8 @@ func (e CommandError) SendReply(t Team) error {
 	return err
 }
 
+type ModuleID string
+
 type ParentCommand struct {
 	lock    sync.Mutex
 	nameMap map[string]SubCommand

@@ -9,6 +9,14 @@ type FileID string
 type FileCommentID string
 type MessageTS string
 
+// TODO replace channel, ts with this
+type MessageID struct {
+	ChannelID
+	MessageTS
+}
+
+func MsgID(ch ChannelID, ts MessageTS) MessageID { return MessageID{ch, ts} }
+
 type APIResponse struct {
 	OK         bool   `json:"ok"`
 	SlackError string `json:"error"`
@@ -32,7 +40,7 @@ func (ce CodedError) Error() string {
 	return ce.Msg
 }
 
-type LatestMsgID struct {
+type LatestMsg struct {
 	User    string    `json:"user"`
 	Text    string    `json:"text"`
 	Type    string    `json:"type"`
@@ -109,7 +117,7 @@ type Channel struct {
 	IsOpen        bool `json:"is_open"`
 
 	LastRead string `json:"last_read"`
-	Latest   LatestMsgID
+	Latest   LatestMsg
 	Topic    struct {
 		Value   string
 		Creator UserID
