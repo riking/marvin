@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"time"
+	"flag"
 
 	"github.com/pkg/errors"
 	"gopkg.in/ini.v1"
@@ -15,7 +16,6 @@ import (
 
 	_ "github.com/riking/homeapi/marvin/modules/at_command"
 	_ "github.com/riking/homeapi/marvin/modules/autoinvite"
-	"flag"
 )
 
 func main() {
@@ -23,7 +23,7 @@ func main() {
 	configFile := flag.String("conf", "", "override config file")
 	flag.Parse()
 
-	var cfg ini.File
+	var cfg *ini.File
 	var err error
 	if *configFile != "" {
 		cfg, err = ini.Load(*configFile)

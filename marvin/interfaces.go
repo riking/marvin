@@ -1,14 +1,13 @@
 package marvin
 
 import (
-	"database/sql"
 	"net/http"
 	"net/url"
 
 	"gopkg.in/ini.v1"
 
-	"github.com/riking/homeapi/marvin/slack"
 	"github.com/riking/homeapi/marvin/database"
+	"github.com/riking/homeapi/marvin/slack"
 )
 
 type SendMessage interface {

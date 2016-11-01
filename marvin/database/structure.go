@@ -2,8 +2,8 @@ package database
 
 import (
 	"database/sql"
+
 	"github.com/pkg/errors"
-	"github.com/riking/homeapi/marvin"
 )
 
 const errMigrateHdr = "[Migrate %s-%d] "
@@ -37,8 +37,8 @@ func (c *Conn) setupMigrate() error {
 
 // MustMigrate panics if Migrate fails. It also calls module.Identifier()
 // for the first argument.
-func (c *Conn) MustMigrate(mod marvin.Module, version int, sql string) {
-	err := c.Migrate(mod.Identifier(), version, sql)
+func (c *Conn) MustMigrate(moduleIdentifier string, version int, sql string) {
+	err := c.Migrate(moduleIdentifier, version, sql)
 	if err != nil {
 		panic(err)
 	}

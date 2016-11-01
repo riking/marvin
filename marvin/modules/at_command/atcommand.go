@@ -3,10 +3,11 @@ package at_command
 import (
 	"bytes"
 	"fmt"
-	"github.com/riking/homeapi/marvin"
-	"github.com/riking/homeapi/marvin/slack"
 	"regexp"
 	"strings"
+
+	"github.com/riking/homeapi/marvin"
+	"github.com/riking/homeapi/marvin/slack"
 )
 
 func init() {

@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -11,9 +10,9 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/riking/homeapi/marvin"
+	"github.com/riking/homeapi/marvin/database"
 	"github.com/riking/homeapi/marvin/slack"
 	"github.com/riking/homeapi/marvin/slack/rtm"
-	"github.com/riking/homeapi/marvin/database"
 )
 
 type Team struct {
