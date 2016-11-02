@@ -90,6 +90,14 @@ func (mod *AtCommandModule) DispatchResponse(rtm slack.RTMRawMessage, result mar
 		// && !rtm.User().IsAdmin()
 		result.Message = strings.Replace(result.Message, "<!channel>", "@\\channel", -1)
 	}
+	if strings.Contains(result.Message, "<!everyone>") {
+		// && !rtm.User().IsAdmin()
+		result.Message = strings.Replace(result.Message, "<!everyone>", "@\\everyone", -1)
+	}
+	if strings.Contains(result.Message, "<!here|@here>") {
+		// && !rtm.User().IsAdmin()
+		result.Message = strings.Replace(result.Message, "<!here|@here>", "@\\here", -1)
+	}
 	if strings.HasPrefix(result.Message, "/") {
 		result.Message = "." + result.Message
 	}

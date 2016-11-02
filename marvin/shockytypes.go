@@ -53,6 +53,11 @@ func (um ActionSourceUserMessage) SendCmdReply(t Team, result CommandResult) Com
 	replyIM := result.ReplyType&ReplyTypePM != 0
 	replyLog := result.ReplyType&ReplyTypeLog != 0
 
+	if um.Msg.ChannelID() == imChannel {
+		replyIM = true
+		replyChannel = false
+	}
+
 	switch result.Code {
 	case CmdResultOK, CmdResultFailure:
 		fallthrough
