@@ -163,7 +163,7 @@ func (pc *ParentCommand) helpListCommands(t Team, args *CommandArguments) Comman
 	if len(preArgs) > 1 {
 		return CmdHelpf(args, "Subcommands of `%s`:\n`%s`", strings.Join(preArgs[1:], " "), strings.Join(subNames, "` `"))
 	}
-	return CmdHelpf(args, "Available commands:\n%s", strings.Join(subNames, " "))
+	return CmdHelpf(args, "Available commands:\n`%s`", strings.Join(subNames, "` `"))
 }
 
 func (pc *ParentCommand) Handle(t Team, args *CommandArguments) CommandResult {

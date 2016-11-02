@@ -109,6 +109,8 @@ type Team interface {
 
 	ReportError(err error, source ActionSource)
 
+	ChannelName(channel slack.ChannelID) (string)
+	UserName(user slack.UserID) (string)
 	GetIM(user slack.UserID) (slack.ChannelID, error)
 	PublicChannelInfo(channel slack.ChannelID) (*slack.Channel, error)
 	PrivateChannelInfo(channel slack.ChannelID) (*slack.Channel, error)

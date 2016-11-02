@@ -51,6 +51,9 @@ func (mod *DebugModule) Enable(t marvin.Team) {
 
 func (mod *DebugModule) Disable(t marvin.Team) {
 	t.UnregisterCommand("debug")
+	t.UnregisterCommand("echo")
+	t.UnregisterCommand("whoami")
+	t.UnregisterCommand("whereami")
 }
 
 func (mod *DebugModule) DebugCommandPanic(t marvin.Team, args *marvin.CommandArguments) marvin.CommandResult {

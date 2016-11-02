@@ -74,6 +74,7 @@ type PendingInviteData struct {
 func (aim *AutoInviteModule) OnReaction(evt *on_reaction.ReactionEvent, customData []byte) error {
 	var data PendingInviteData
 
+	util.LogGood("Reaction from", aim.team.UserName(evt.UserID), "emoji", evt.EmojiName, "in", aim.team.ChannelName(evt.ChannelID))
 	if !evt.IsAdded {
 		return nil
 	}
@@ -111,6 +112,7 @@ func (aim *AutoInviteModule) OnReaction(evt *on_reaction.ReactionEvent, customDa
 		}
 		return errors.Wrap(response, "Could not invite to channel")
 	}
+	util.LogGood("Invited", aim.team.UserName(evt.UserID), "to", aim.team.ChannelName(data.InviteTargetChannel))
 	return nil
 }
 

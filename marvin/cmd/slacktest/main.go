@@ -46,11 +46,11 @@ func main() {
 	}
 	client.RegisterRawHandler("debug", func(msg slack.RTMRawMessage) {
 		switch msg.Type() {
-		case "user_typing", "reconnect_url", "presence_change":
+		case "user_typing", "reconnect_url", "presence_change", "emoji_use":
 			return
 		case "message":
 			if msg.Subtype() == "" {
-				fmt.Printf("[#%s] <@%s> %s\n", team.ChannelName(msg.ChannelID()), team.UserName(msg.UserID()), msg.Text())
+				fmt.Printf("[#%s] [@%s] %s\n", team.ChannelName(msg.ChannelID()), team.UserName(msg.UserID()), msg.Text())
 			}
 			return
 		}

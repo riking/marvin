@@ -38,7 +38,7 @@ func (mod *AtCommandModule) Identifier() marvin.ModuleID {
 func (mod *AtCommandModule) Load(t marvin.Team) {
 	mod.botUser = mod.team.BotUser()
 	mod.mentionRgx1 = regexp.MustCompile(fmt.Sprintf(`<@%s>`, mod.botUser))
-	mod.mentionRgx2 = regexp.MustCompile(fmt.Sprintf(`^\s*<@%s>\s+`, mod.botUser))
+	mod.mentionRgx2 = regexp.MustCompile(fmt.Sprintf(`(?m:\n?\s*<@%s>\s+)`, mod.botUser))
 }
 
 func (mod *AtCommandModule) Enable(t marvin.Team) {
@@ -85,6 +85,11 @@ func (mod *AtCommandModule) DispatchResponse(rtm slack.RTMRawMessage, result mar
 	replyType := marvin.ReplyTypeInvalid
 
 	util.LogGood(fmt.Sprintf("command reply type: %x", result.ReplyType))
+
+	if strings.Contains(result.Message, "<!channel>") {
+		// && !rtm.User().IsAdmin()
+		result.Message = strings.Replace(result.Message, "<!channel>", "@\\channel", -1)
+	}
 
 	switch result.Code {
 	case marvin.CmdResultOK:
