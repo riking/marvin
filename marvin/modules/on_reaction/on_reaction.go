@@ -135,8 +135,8 @@ func (mod *OnReactionModule) Disable(t marvin.Team) {
 const (
 	sqlMigrate1 = `CREATE TABLE module_on_reaction_data (
 		id		SERIAL PRIMARY KEY,
-		channel		char(9) NOT NULL,	-- "C01234ABC"
-		ts		char(17) NOT NULL,	-- "1477979163.000007"
+		channel		varchar(10) NOT NULL,	-- "C01234ABC"
+		ts		varchar(20) NOT NULL,	-- "1477979163.000007"
 		module		varchar(255) NOT NULL,
 		data		bytea,
 

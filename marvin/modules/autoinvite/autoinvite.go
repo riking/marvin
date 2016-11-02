@@ -48,11 +48,15 @@ func (aim *AutoInviteModule) Load(t marvin.Team) {
 
 func (aim *AutoInviteModule) Enable(t marvin.Team) {
 	aim.onReactAPI().RegisterHandler(aim, Identifier)
-	t.RegisterCommand("make-invite", marvin.SubCommandFunc(aim.PostInvite))
+	t.RegisterCommandFunc("make-invite", marvin.SubCommandFunc(aim.PostInvite),
+		"`make-invite` posts a message to another channel that functions as a private channel invitation. "+
+			"Any team member can react to the message to be added to the private channel."+
+			"\n"+usage,
+	)
 }
 
 func (aim *AutoInviteModule) Disable(t marvin.Team) {
-	t.UnregisterCommand("make-invite", marvin.SubCommandFunc(aim.PostInvite))
+	t.UnregisterCommand("make-invite")
 }
 
 func (aim *AutoInviteModule) onReactAPI() on_reaction.API {
@@ -117,10 +121,11 @@ const defaultInviteText = `%v has invited everybody to the #%s channel%s%s
 const andSaid = ", saying:\n>"
 const defaultEmoji = `white_check_mark`
 
+const usage = "Usage: `@marvin make-invite` [emoji = :white_check_mark:] <send_to = #channel> [message]"
+
 var channelMentionRgx = regexp.MustCompile(`<#(C[A-Z0-9]+)\|([a-z0-9_-]+)>`)
 
 func (aim *AutoInviteModule) PostInvite(t marvin.Team, args *marvin.CommandArguments) marvin.CommandResult {
-
 	util.LogDebug("PostInvite", args.Arguments)
 
 	inviteTarget := args.Source.ChannelID()
@@ -129,14 +134,14 @@ func (aim *AutoInviteModule) PostInvite(t marvin.Team, args *marvin.CommandArgum
 	}
 	privateChannel, err := t.PrivateChannelInfo(inviteTarget)
 	if err != nil {
-		return marvin.CmdError(args, errors.Wrap(err, "Could not retrieve information about the channel"), "Slack API error").WithReplyType(marvin.ReplyTypeLongProblem)
+		return marvin.CmdError(args, errors.Wrap(err, "Could not retrieve information about the channel"), "Slack API error")
 	}
 	if privateChannel.IsMultiIM() {
-		return marvin.CmdFailuref(args, "You cannnot invite users to a multi-party IM.").WithReplyType(marvin.ReplyTypeInChannel)
+		return marvin.CmdFailuref(args, "You cannnot invite users to a multi-party IM.")
 	}
 
 	usage := func() marvin.CommandResult {
-		return marvin.CmdFailuref(args, "Usage: `@marvin make-invite` [`emoji` = :white_check_mark:] <`send_to` = #boardgame> [`message`]").WithReplyType(marvin.ReplyTypePreferChannel)
+		return marvin.CmdUsage(args, usage)
 	}
 
 	if len(args.Arguments) < 1 {
@@ -169,13 +174,13 @@ func (aim *AutoInviteModule) PostInvite(t marvin.Team, args *marvin.CommandArgum
 
 	dataBytes, err := json.Marshal(data)
 	if err != nil {
-		return marvin.CmdError(args, errors.Wrap(err, "marshal json"), "Slack API error.").WithReplyType(marvin.ReplyTypeShortProblem)
+		return marvin.CmdError(args, errors.Wrap(err, "marshal json"), "Slack API error")
 	}
 
 	util.LogDebug("sending invite to", messageChannel, "text:", msg)
 	ts, _, err := t.SendMessage(messageChannel, msg)
 	if err != nil {
-		return marvin.CmdError(args, errors.Wrap(err, "Couldn't send message"), "Slack API error.").WithReplyType(marvin.ReplyTypeShortProblem)
+		return marvin.CmdError(args, errors.Wrap(err, "Couldn't send message"), "Slack API error")
 	}
 	msgID := slack.MsgID(messageChannel, ts)
 	err = aim.onReactAPI().ListenMessage(msgID, Identifier, dataBytes)
@@ -187,12 +192,12 @@ func (aim *AutoInviteModule) PostInvite(t marvin.Team, args *marvin.CommandArgum
 			"as_user": []string{"true"},
 		}
 		slack.SlackAPILog(t.SlackAPIPost("chat.delete", form))
-		return marvin.CmdError(args, errors.Wrap(err, "Saving to database"), "Could not save message to database.").WithReplyType(marvin.ReplyTypeAll)
+		return marvin.CmdError(args, errors.Wrap(err, "Saving to database"), "Couldn't save message")
 	}
 	err = t.ReactMessage(msgID, emoji)
 	if err != nil {
 		return marvin.CmdError(args, errors.Wrap(err, "Sending example reaction"),
-			"Could not post sample reaction. The message should still work.").WithReplyType(marvin.ReplyTypeShortProblem)
+			"Couldn't post sample reaction (the message should still work)").WithReplyType(marvin.ReplyTypeShortProblem)
 	}
 	return marvin.CmdSuccess(args, fmt.Sprintf("Message posted: %s", t.ArchiveURL(msgID))).WithReplyType(marvin.ReplyTypeInChannel)
 }

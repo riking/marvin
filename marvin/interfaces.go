@@ -10,6 +10,8 @@ import (
 	"github.com/riking/homeapi/marvin/slack"
 )
 
+type ModuleID string
+
 type SendMessage interface {
 	SendMessage(channelID slack.ChannelID, message string) (slack.MessageTS, slack.RTMRawMessage, error)
 	SendComplexMessage(channelID slack.ChannelID, message url.Values) (slack.MessageTS, error)
@@ -49,17 +51,15 @@ type SlashCommand interface {
 
 type SubCommand interface {
 	Handle(t Team, args *CommandArguments) CommandResult
+	Help(t Team, args *CommandArguments) CommandResult
 }
 
 type SubCommandFunc func(t Team, args *CommandArguments) CommandResult
 
-func (f SubCommandFunc) Handle(t Team, args *CommandArguments) CommandResult {
-	return f(t, args)
-}
-
 type CommandRegistration interface {
 	RegisterCommand(name string, c SubCommand)
-	UnregisterCommand(name string, c SubCommand)
+	RegisterCommandFunc(name string, c SubCommandFunc, help string) SubCommand
+	UnregisterCommand(name string)
 }
 
 type HTTPDoer interface {

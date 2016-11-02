@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"time"
 
 	"github.com/pkg/errors"
 	"gopkg.in/ini.v1"
@@ -12,10 +11,9 @@ import (
 	"github.com/riking/homeapi/marvin/slack"
 	"github.com/riking/homeapi/marvin/slack/controller"
 	"github.com/riking/homeapi/marvin/slack/rtm"
-
-	_ "github.com/riking/homeapi/marvin/modules/atcommand"
-	_ "github.com/riking/homeapi/marvin/modules/autoinvite"
 	"github.com/riking/homeapi/marvin/util"
+
+	_ "github.com/riking/homeapi/marvin/modules/_all"
 )
 
 func main() {
@@ -60,5 +58,5 @@ func main() {
 	client.Start()
 
 	fmt.Println("started")
-	time.Sleep(180 * time.Second)
+	select {}
 }

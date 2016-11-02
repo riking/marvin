@@ -24,11 +24,10 @@ type Team struct {
 	teamConfig *marvin.TeamConfig
 	client     *rtm.Client
 	db         *database.Conn
+	commands   *marvin.ParentCommand
 
 	modulesLock sync.Mutex
 	modules     []moduleStatus
-
-	commands marvin.ParentCommand
 }
 
 func NewTeam(cfg *marvin.TeamConfig) (*Team, error) {
@@ -85,8 +84,12 @@ func (t *Team) RegisterCommand(name string, c marvin.SubCommand) {
 	t.commands.RegisterCommand(name, c)
 }
 
-func (t *Team) UnregisterCommand(name string, c marvin.SubCommand) {
-	t.commands.UnregisterCommand(name, c)
+func (t *Team) RegisterCommandFunc(name string, c marvin.SubCommandFunc, help string) marvin.SubCommand {
+	return t.commands.RegisterCommandFunc(name, c, help)
+}
+
+func (t *Team) UnregisterCommand(name string) {
+	t.commands.UnregisterCommand(name)
 }
 
 func (t *Team) DispatchCommand(args *marvin.CommandArguments) marvin.CommandResult {
@@ -96,12 +99,12 @@ func (t *Team) DispatchCommand(args *marvin.CommandArguments) marvin.CommandResu
 		return nil
 	})
 	if err != nil {
-		result = marvin.CmdError(args, err, "Runtime error.").WithReplyType(marvin.ReplyTypeAll)
+		return marvin.CmdError(args, err, "Runtime error")
 	}
 	return result
 }
 
-func (t *Team) Help(args *marvin.CommandArguments) error {
+func (t *Team) Help(args *marvin.CommandArguments) marvin.CommandResult {
 	return t.commands.Help(t, args)
 }
 

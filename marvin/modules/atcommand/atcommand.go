@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"sync"
 
 	"github.com/pkg/errors"
 	"github.com/riking/homeapi/marvin"
@@ -19,9 +20,10 @@ func init() {
 const Identifier = "atcommand"
 
 type AtCommandModule struct {
-	team       marvin.Team
-	botUser    slack.UserID
-	mentionRgx *regexp.Regexp
+	team        marvin.Team
+	botUser     slack.UserID
+	mentionRgx2 *regexp.Regexp
+	mentionRgx1 *regexp.Regexp
 }
 
 func NewAtCommandModule(t marvin.Team) marvin.Module {
@@ -34,10 +36,12 @@ func (mod *AtCommandModule) Identifier() marvin.ModuleID {
 }
 
 func (mod *AtCommandModule) Load(t marvin.Team) {
+	mod.botUser = mod.team.BotUser()
+	mod.mentionRgx1 = regexp.MustCompile(fmt.Sprintf(`<@%s>`, mod.botUser))
+	mod.mentionRgx2 = regexp.MustCompile(fmt.Sprintf(`^\s*<@%s>\s+`, mod.botUser))
 }
 
 func (mod *AtCommandModule) Enable(t marvin.Team) {
-	t.OnEvent(Identifier, "hello", mod.HandleHello)
 	t.OnNormalMessage(Identifier, mod.HandleMessage)
 }
 
@@ -47,25 +51,15 @@ func (mod *AtCommandModule) Disable(t marvin.Team) {
 
 // -----
 
-func (mod *AtCommandModule) HandleHello(rtm slack.RTMRawMessage) {
-	var err error
-
-	mod.botUser = mod.team.BotUser()
-	mod.mentionRgx, err = regexp.Compile(fmt.Sprintf(`<@%s>`, mod.botUser))
-	if err != nil {
-		panic(err)
-	}
-}
-
 func (mod *AtCommandModule) HandleMessage(rtm slack.RTMRawMessage) {
-	if mod.mentionRgx == nil {
-		util.LogBad("AtCommand regex not set up!")
-		return
-	}
-
 	msgRawTxt := rtm.Text()
-	matches := mod.mentionRgx.FindStringIndex(msgRawTxt)
+	matches := mod.mentionRgx2.FindStringIndex(msgRawTxt)
 	if len(matches) == 0 {
+		m := mod.mentionRgx1.FindString(msgRawTxt)
+		if m != "" {
+			reactEmoji, _ := mod.team.ModuleConfig("main").Get("emoji-hi", "wave")
+			mod.team.ReactMessage(rtm.MessageID(), reactEmoji)
+		}
 		return
 	}
 
@@ -74,6 +68,10 @@ func (mod *AtCommandModule) HandleMessage(rtm slack.RTMRawMessage) {
 	matchIdx := matches // removed loop, limited to one command per message
 	{
 		args := ParseArgs(msgRawTxt, matchIdx[1])
+		if len(args.OriginalArguments) == 0 {
+			util.LogDebug("Mention has no arguments, stopping")
+			return
+		}
 		args.Source = marvin.ActionSourceUserMessage{Msg: rtm}
 		util.LogDebug("args: [", strings.Join(args.OriginalArguments, "] ["), "]")
 		result := mod.team.DispatchCommand(&args)
@@ -84,22 +82,47 @@ func (mod *AtCommandModule) HandleMessage(rtm slack.RTMRawMessage) {
 
 func (mod *AtCommandModule) DispatchResponse(rtm slack.RTMRawMessage, result marvin.CommandResult) {
 	reactEmoji := ""
-	replyType := result.ReplyType
+	replyType := marvin.ReplyTypeInvalid
 
-	if replyType == 0 {
-		replyType = marvin.ReplyTypePreferChannel
-	}
-	result = marvin.ActionSourceUserMessage{Msg: rtm}.SendCmdReply(mod.team, result)
+	util.LogGood(fmt.Sprintf("command reply type: %x", result.ReplyType))
 
 	switch result.Code {
 	case marvin.CmdResultOK:
 		reactEmoji, _ = mod.team.ModuleConfig("main").Get("emoji-ok", "white_check_mark")
+		replyType = marvin.ReplyTypeInChannel
 	case marvin.CmdResultFailure:
 		reactEmoji, _ = mod.team.ModuleConfig("main").Get("emoji-fail", "negative_squared_cross_mark")
+		replyType = marvin.ReplyTypeShortProblem
 	case marvin.CmdResultError:
 		reactEmoji, _ = mod.team.ModuleConfig("main").Get("emoji-error", "warning")
+		replyType = marvin.ReplyTypeShortProblem
 	case marvin.CmdResultNoSuchCommand:
 		reactEmoji, _ = mod.team.ModuleConfig("main").Get("emoji-unknown", "question")
+		replyType = marvin.ReplyTypePM
+	case marvin.CmdResultPrintUsage:
+		reactEmoji, _ = mod.team.ModuleConfig("main").Get("emoji-usage", "confused")
+		replyType = marvin.ReplyTypePM
+	case marvin.CmdResultPrintHelp:
+		reactEmoji = ""
+		replyType = marvin.ReplyTypeInChannel
+	default:
+		replyType = marvin.ReplyTypeShortProblem
+	}
+
+	if result.ReplyType&marvin.ReplyTypeDestinations == marvin.ReplyTypeInvalid {
+		result.ReplyType = result.ReplyType | replyType
+	}
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	defer wg.Wait()
+	go func() {
+		marvin.ActionSourceUserMessage{Msg: rtm}.SendCmdReply(mod.team, result)
+		wg.Done()
+	}()
+
+	if reactEmoji == "" {
+		return
 	}
 	err := mod.team.ReactMessage(rtm.MessageID(), reactEmoji)
 	if err != nil {
@@ -115,12 +138,7 @@ func ParseArgs(raw string, match int) marvin.CommandArguments {
 	cmdLine := raw[match:endOfLine]
 
 	var argSplit []string
-	semiIdx := strings.IndexByte(cmdLine, ';')
-	if semiIdx != -1 {
-		argSplit = strings.Split(cmdLine, ";")
-	} else {
-		argSplit = shellSplit(strings.TrimLeft(cmdLine, " "))
-	}
+	argSplit = shellSplit(strings.TrimLeft(cmdLine, " "))
 
 	for i, v := range argSplit {
 		str := strings.TrimSpace(v)
@@ -135,6 +153,7 @@ func ParseArgs(raw string, match int) marvin.CommandArguments {
 	return args
 }
 
+// TODO(kyork) this code sucks, need to find / write replacement
 func shellSplit(s string) []string {
 	split := strings.Split(s, " ")
 
