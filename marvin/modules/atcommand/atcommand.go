@@ -90,6 +90,9 @@ func (mod *AtCommandModule) DispatchResponse(rtm slack.RTMRawMessage, result mar
 		// && !rtm.User().IsAdmin()
 		result.Message = strings.Replace(result.Message, "<!channel>", "@\\channel", -1)
 	}
+	if strings.HasPrefix(result.Message, "/") {
+		result.Message = "." + result.Message
+	}
 
 	switch result.Code {
 	case marvin.CmdResultOK:
