@@ -15,6 +15,9 @@ func (m RTMRawMessage) UserID() UserID       { q, _ := m["user"].(string); retur
 func (m RTMRawMessage) Text() string         { q, _ := m["text"].(string); return q }
 func (m RTMRawMessage) MessageTS() MessageTS { q, _ := m["ts"].(string); return MessageTS(q) }
 func (m RTMRawMessage) IsHidden() bool       { q, _ := m["hidden"].(bool); return q }
+func (m RTMRawMessage) MessageID() MessageID {
+	return MessageID{ChannelID: m.ChannelID(), MessageTS: m.MessageTS()}
+}
 
 func (m RTMRawMessage) StringField(field string) string {
 	q, _ := m[field].(string)

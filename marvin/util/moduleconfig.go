@@ -1,9 +1,10 @@
-package marvin
+package util
 
 import (
 	"database/sql"
 
 	"github.com/pkg/errors"
+	"github.com/riking/homeapi/marvin"
 	"github.com/riking/homeapi/marvin/database"
 )
 
@@ -13,7 +14,7 @@ type DBModuleConfig struct {
 	defaults         map[string]string
 }
 
-func NewModuleConfig(c *database.Conn, moduleIdentifier string) ModuleConfig {
+func NewModuleConfig(c *database.Conn, moduleIdentifier string) marvin.ModuleConfig {
 	return &DBModuleConfig{
 		conn:             c,
 		ModuleIdentifier: moduleIdentifier,

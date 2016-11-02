@@ -11,10 +11,13 @@ import (
 
 	"sync"
 
+	"os"
+
 	"github.com/riking/homeapi/marvin"
 	"github.com/riking/homeapi/marvin/database"
 	"github.com/riking/homeapi/marvin/slack"
 	"github.com/riking/homeapi/marvin/slack/rtm"
+	"github.com/riking/homeapi/marvin/util"
 )
 
 type Team struct {
@@ -34,7 +37,7 @@ func NewTeam(cfg *marvin.TeamConfig) (*Team, error) {
 		return nil, err
 	}
 
-	err = marvin.MigrateModuleConfig(db)
+	err = util.MigrateModuleConfig(db)
 	if err != nil {
 		return nil, err
 	}
@@ -65,14 +68,11 @@ func (t *Team) TeamConfig() *marvin.TeamConfig {
 }
 
 func (t *Team) DB() *database.Conn {
-	panic("Not implemented")
-	return nil // TODO
+	return t.db
 }
 
 func (t *Team) ModuleConfig(ident marvin.ModuleID) marvin.ModuleConfig {
-	panic("Not implemented")
-	// TODO - needs DB()
-	return nil
+	return util.NewModuleConfig(t.db, string(ident))
 }
 
 func (t *Team) BotUser() slack.UserID {
@@ -90,7 +90,7 @@ func (t *Team) UnregisterCommand(name string, c marvin.SubCommand) {
 }
 
 func (t *Team) DispatchCommand(args *marvin.CommandArguments) error {
-	result := protectedCall(func() error {
+	result := util.PCall(func() error {
 		return t.commands.Handle(t, args)
 	})
 	return result
@@ -135,11 +135,11 @@ func (t *Team) SendComplexMessage(channelID slack.ChannelID, message url.Values)
 	return response.TS, nil
 }
 
-func (t *Team) ReactMessage(channel slack.ChannelID, msgID slack.MessageTS, emojiName string) error {
+func (t *Team) ReactMessage(msgID slack.MessageID, emojiName string) error {
 	form := url.Values{
 		"name":      []string{emojiName},
-		"channel":   []string{string(channel)},
-		"timestamp": []string{string(msgID)},
+		"channel":   []string{string(msgID.ChannelID)},
+		"timestamp": []string{string(msgID.MessageTS)},
 	}
 	resp, err := t.SlackAPIPost("reactions.add", form)
 	var response struct {
@@ -201,9 +201,11 @@ func (t *Team) OffAllEvents(mod marvin.ModuleID) {
 
 // ---
 
-func (t *Team) ArchiveURL(channel slack.ChannelID, msg slack.MessageTS) string {
-	splitTS := strings.Split(string(msg), ".")
+func (t *Team) ArchiveURL(msgID slack.MessageID) string {
+	splitTS := strings.Split(string(msgID.MessageTS), ".")
 	stripTS := "p" + splitTS[0] + splitTS[1]
+
+	channel := msgID.ChannelID
 	if channel[0] == 'D' {
 		return fmt.Sprintf("https://%s.slack.com/archives/%s/%s",
 			t.teamConfig.TeamDomain, channel, stripTS)
@@ -230,3 +232,7 @@ func (t *Team) ArchiveURL(channel slack.ChannelID, msg slack.MessageTS) string {
 }
 
 // ---
+
+func (t *Team) ReportError(err error, source marvin.ActionSource) {
+	fmt.Fprintf(os.Stderr, "[ERR] From %v: %+v", source, err)
+}

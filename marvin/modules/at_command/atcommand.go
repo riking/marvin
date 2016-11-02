@@ -112,14 +112,14 @@ func (mod *AtCommandModule) DispatchResponse(rtm slack.RTMRawMessage, args *marv
 		} else {
 			_, _, err = mod.team.SendMessage(imChannel,
 				fmt.Sprintf("Your command encountered an error. %s\n%s",
-					mod.team.ArchiveURL(rtm.ChannelID(), rtm.MessageTS()),
+					mod.team.ArchiveURL(rtm.MessageID()),
 					result.Error()))
 			// TODO pm the failure to controllers?
 			fmt.Println("[ERR]", args.OriginalArguments)
 			fmt.Printf("[ERR] %+v\n", err) // TODO
 		}
 	}
-	err := mod.team.ReactMessage(rtm.ChannelID(), rtm.MessageTS(), reactEmoji)
+	err := mod.team.ReactMessage(rtm.MessageID(), reactEmoji)
 	if err != nil {
 		fmt.Printf("[ERR] %+v\n", err)
 	}

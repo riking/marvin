@@ -9,6 +9,14 @@ type FileID string
 type FileCommentID string
 type MessageTS string
 
+func (u UserID) Format(f fmt.State, c rune) {
+	if c == 'v' {
+		fmt.Fprintf(f, "<@%s>", string(u))
+	} else {
+		fmt.Fprint(f, string(u))
+	}
+}
+
 // TODO replace channel, ts with this
 type MessageID struct {
 	ChannelID

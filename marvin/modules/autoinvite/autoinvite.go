@@ -1,14 +1,13 @@
 package autoinvite
 
 import (
+	"encoding/json"
 	"fmt"
+	"net/url"
+	"regexp"
 	"strings"
 
 	"github.com/pkg/errors"
-
-	"regexp"
-
-	"sync"
 
 	"github.com/riking/homeapi/marvin"
 	"github.com/riking/homeapi/marvin/modules/on_reaction"
@@ -24,15 +23,11 @@ const Identifier = "autoinvite"
 type AutoInviteModule struct {
 	team marvin.Team
 
-	onReact	marvin.Module
-
-	listLock sync.Mutex
-	list     []PendingInvite
+	onReact marvin.Module
 }
 
 func NewAutoInviteModule(t marvin.Team) marvin.Module {
 	aim := &AutoInviteModule{team: t}
-	t.RegisterCommand("make-invite", marvin.SubCommandFunc(aim.PostInvite))
 	return aim
 }
 
@@ -47,21 +42,67 @@ func (aim *AutoInviteModule) Load(t marvin.Team) {
 }
 
 func (aim *AutoInviteModule) Enable(t marvin.Team) {
+	aim.onReactAPI().RegisterHandler(aim, Identifier)
+	t.RegisterCommand("make-invite", marvin.SubCommandFunc(aim.PostInvite))
 }
 
 func (aim *AutoInviteModule) Disable(t marvin.Team) {
 	t.UnregisterCommand("make-invite", marvin.SubCommandFunc(aim.PostInvite))
 }
 
-type PendingInvite struct {
-	TargetChannel slack.ChannelID
-	MsgChannel    slack.ChannelID
-	TS            slack.MessageTS
+func (aim *AutoInviteModule) onReactAPI() on_reaction.API {
+	if aim.onReact != nil {
+		return aim.onReact.(on_reaction.API)
+	}
+	return nil
 }
 
-// TODO
-func (aim *AutoInviteModule) OnReaction(targetMsg slack.MessageID, rtm slack.RTMRawMessage, added bool, customData []byte) error {
-	panic("unimplemented")
+// ---
+
+type PendingInviteData struct {
+	TargetChannel slack.ChannelID
+}
+
+func (aim *AutoInviteModule) OnReaction(evt *on_reaction.ReactionEvent, customData []byte) error {
+	var data PendingInviteData
+
+	if !evt.IsAdded {
+		return nil
+	}
+	if evt.UserID == aim.team.BotUser() {
+		return nil
+	}
+
+	err := json.Unmarshal(customData, &data)
+	if err != nil {
+		return errors.Wrap(err, "unmarshal json")
+	}
+	form := url.Values{
+		"channel": []string{string(data.TargetChannel)},
+		"user":    []string{string(evt.UserID)},
+	}
+	resp, err := aim.team.SlackAPIPost("groups.invite", form)
+	if err != nil {
+		imChannel, err := aim.team.GetIM(evt.UserID)
+		if err == nil {
+			aim.team.SendMessage(imChannel, "Sorry, an error occured. Try again later?")
+		}
+		return errors.Wrap(err, "invite to group")
+	}
+	var response slack.APIResponse
+	err = json.NewDecoder(resp.Body).Decode(&response)
+	resp.Body.Close()
+	if err != nil {
+		return errors.Wrap(err, "decode slack API response")
+	}
+	if !response.OK {
+		// TODO logging
+		imChannel, err := aim.team.GetIM(evt.UserID)
+		if err == nil {
+			aim.team.SendMessage(imChannel, fmt.Sprintf("Sorry, an error occured: %s", response.Error()))
+		}
+		return errors.Wrap(response, "Could not invite to channel")
+	}
 	return nil
 }
 
@@ -109,7 +150,8 @@ func (aim *AutoInviteModule) PostInvite(t marvin.Team, args *marvin.CommandArgum
 	if match == nil {
 		return usage()
 	}
-	messageTarget := slack.ChannelID(match[1])
+	var data PendingInviteData
+	data.TargetChannel = slack.ChannelID(match[1])
 
 	customMsg := strings.TrimSpace(strings.Join(args.Arguments, " "))
 	msg := ""
@@ -119,14 +161,30 @@ func (aim *AutoInviteModule) PostInvite(t marvin.Team, args *marvin.CommandArgum
 		msg = fmt.Sprintf(defaultInviteText, args.Source.UserID(), channel.Name, ".", "")
 	}
 
-	fmt.Println("[DEBUG]", "sending invite to", messageTarget, "text:", msg)
-	_, myRTM, err := t.SendMessage(messageTarget, msg)
+	dataBytes, err := json.Marshal(data)
+	if err != nil {
+		return errors.Wrap(err, "marshal json")
+	}
+
+	fmt.Println("[DEBUG]", "sending invite to", data.TargetChannel, "text:", msg)
+	_, myRTM, err := t.SendMessage(data.TargetChannel, msg)
 	if err != nil {
 		return errors.Wrap(err, "Failed to send message")
 	}
-	err = t.ReactMessage(messageTarget, myRTM.MessageTS(), emoji)
+	err = aim.onReactAPI().ListenMessage(myRTM.MessageID(), Identifier, dataBytes)
 	if err != nil {
-		return err
+		// Failed to save, delete the message
+		form := url.Values{
+			"ts":      []string{string(myRTM.MessageTS())},
+			"channel": []string{string(myRTM.ChannelID())},
+			"as_user": []string{"true"},
+		}
+		t.SlackAPIPost("chat.delete", form)
+		return errors.Wrap(err, "Failed to save message")
+	}
+	err = t.ReactMessage(myRTM.MessageID(), emoji)
+	if err != nil {
+		return errors.Wrap(err, "Failed to send example reaction")
 	}
 	return nil
 }

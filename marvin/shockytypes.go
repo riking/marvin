@@ -2,16 +2,34 @@ package marvin
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 
-	"github.com/pkg/errors"
 	"github.com/riking/homeapi/marvin/slack"
 )
+
+type ReplyType int
+
+const (
+	ReplyTypePM ReplyType = 1 << iota
+	ReplyTypeInChannel
+	ReplyTypeLog
+)
+const (
+	ReplyTypePreferChannel = ReplyTypeInChannel | ReplyTypePM
+	ReplyTypeShortProblem  = ReplyTypeInChannel | ReplyTypeLog
+	ReplyTypeLongProblem   = ReplyTypePM | ReplyTypeLog
+	ReplyTypeAny           = ReplyTypeInChannel | ReplyTypePM | ReplyTypeLog
+)
+
+const LongReplyThreshold = 400
 
 type ActionSource interface {
 	UserID() slack.UserID
 	ChannelID() slack.ChannelID
-	MessageTS() slack.MessageTS
+	ArchiveLink(t Team) string
+
+	SendCmdReply(t Team, typ ReplyType, result CommandResult)
 }
 
 type ActionSourceUserMessage struct {
@@ -20,7 +38,66 @@ type ActionSourceUserMessage struct {
 
 func (um ActionSourceUserMessage) UserID() slack.UserID       { return um.Msg.UserID() }
 func (um ActionSourceUserMessage) ChannelID() slack.ChannelID { return um.Msg.ChannelID() }
-func (um ActionSourceUserMessage) MessageTS() slack.MessageTS { return um.Msg.MessageTS() }
+func (um ActionSourceUserMessage) ArchiveLink(t Team) string  { return t.ArchiveURL(um.Msg.MessageID()) }
+
+func (um ActionSourceUserMessage) SendCmdReply(t Team, typ ReplyType, result CommandResult) {
+	logChannel := t.TeamConfig().LogChannel
+	imChannel, _ := t.GetIM(um.UserID())
+
+	replyChannel := typ&ReplyTypeInChannel != 0
+	replyIM := typ&ReplyTypePM != 0
+	replyLog := typ&ReplyTypeLog != 0
+
+	switch result.Code {
+	case CmdResultOK:
+	case CmdResultFailure:
+		if result.Message == "" {
+			return
+		}
+		// Prefer Channel > PM > Log
+		if replyChannel {
+			channelMsg := result.Message
+			if len(result.Message) > LongReplyThreshold {
+				channelMsg = "This reply has been truncated. The full message is in your PMs.\n" + result.Message[:100] + "...\n"
+				replyIM = true
+			} else {
+				replyIM = false
+			}
+			t.SendMessage(um.Msg.ChannelID(), channelMsg)
+		}
+		if replyIM {
+			t.SendMessage(imChannel, fmt.Sprintf("%s\n%s", result.Message, um.ArchiveLink(t)))
+		}
+		if replyLog {
+			t.SendMessage(logChannel, fmt.Sprintf("%s\n%s", result.Message, um.ArchiveLink(t)))
+		}
+	case CmdResultError:
+		// Print terse in channel, detail in PM, full in log
+		if replyChannel {
+			if result.Message == "" {
+				result.Message = "An error occurred."
+			}
+			t.SendMessage(um.Msg.ChannelID(), result.Message)
+		}
+		if replyLog {
+			t.SendMessage(logChannel, fmt.Sprintf("%s\n```\n%+v\n```", um.ArchiveLink(t), result.Error))
+		}
+	case CmdResultNoSuchCommand:
+		if replyChannel {
+			t.ReactMessage(um.Msg.MessageID(), "question")
+		}
+		if replyIM {
+			t.SendMessage(imChannel, fmt.Sprintf("I didn't quite understand that, sorry.\nYou said: [%s]",
+				strings.Join(result.Args.OriginalArguments, "] [")))
+		}
+		if replyLog {
+			t.SendMessage(logChannel, fmt.Sprintf("No such command by %v\nArgs: [%s]\nLink: %s",
+				um.UserID(),
+				strings.Join(result.Args.OriginalArguments, "] ["),
+				um.ArchiveLink(t)))
+		}
+	}
+}
 
 type CommandArguments struct {
 	//Msg       slack.RTMRawMessage
@@ -37,52 +114,33 @@ func (ca *CommandArguments) Pop() string {
 }
 
 const (
-	CmdErrGeneric = iota
-	CmdErrNoSuchCommand
+	CmdResultOK = iota
+	CmdResultFailure
+	CmdResultError
+	CmdResultNoSuchCommand
 )
 
-type CommandError struct {
+type CommandResult struct {
 	Args    *CommandArguments
 	Message string
+	Err     error
 	Code    int
-	Success bool
 }
 
-func CmdErrorf(args *CommandArguments, format string, v ...interface{}) CommandError {
-	return CommandError{Args: args, Message: fmt.Sprintf(format, v...), Success: false}
+func CmdError(args *CommandArguments, err error, msg string) CommandResult {
+	return CommandResult{Args: args, Message: msg, Err: err, Code: CmdResultError}
 }
 
-func CmdSuccess(args *CommandArguments, format string, v ...interface{}) CommandError {
-	return CommandError{Args: args, Message: fmt.Sprintf(format, v...), Success: true}
+func CmdFailuref(args *CommandArguments, format string, v ...interface{}) CommandResult {
+	return CommandResult{Args: args, Message: fmt.Sprintf(format, v...), Code: CmdResultFailure}
 }
 
-func (e CommandError) Error() string {
-	return e.Message
+func CmdSuccess(args *CommandArguments, msg string) CommandResult {
+	return CommandResult{Args: args, Message: msg, Code: CmdResultOK}
 }
 
-func (e CommandError) SendReply(t Team) error {
-	if e.Success && e.Message == "" {
-		return nil
-	}
-	if e.Code == CmdErrNoSuchCommand {
-		_, _, err := t.SendMessage(e.Args.Source.ChannelID(), "I'm not quite sure what you meant by that.")
-		return err
-	}
-
-	imChannel, err := t.GetIM(e.Args.Source.UserID())
-	if err != nil {
-		return err
-	}
-	if !e.Success {
-		_, _, err = t.SendMessage(imChannel,
-			fmt.Sprintf("Your command failed. %s\n%s",
-				t.ArchiveURL(e.Args.Source.ChannelID(), e.Args.Source.MessageTS()),
-				e.Message,
-			))
-	} else if e.Message != "" {
-		_, _, err = t.SendMessage(imChannel, e.Message)
-	}
-	return err
+func (r CommandResult) Error() string {
+	return r.Message
 }
 
 type ModuleID string
@@ -129,18 +187,10 @@ func (pc *ParentCommand) Handle(t Team, args *CommandArguments) error {
 	pc.lock.Unlock()
 
 	if !ok {
-		cmdErr := CmdErrorf(args, "No such subcommand '%s'", args.Command)
-		cmdErr.Code = CmdErrNoSuchCommand
+		cmdErr := CmdFailuref(args, "No such subcommand '%s'", args.Command)
+		cmdErr.Code = CmdResultNoSuchCommand
 		return cmdErr
 	}
 
-	err := subC.Handle(t, args)
-	if err, ok := err.(CommandError); ok {
-		if err.Success {
-			return err
-		} else if err.Code == CmdErrNoSuchCommand {
-			err.Code = CmdErrGeneric
-		}
-	}
-	return errors.Wrap(err, args.Command)
+	return subC.Handle(t, args)
 }

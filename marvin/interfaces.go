@@ -28,6 +28,7 @@ type TeamConfig struct {
 	VerifyToken  string
 	DatabaseURL  string
 	UserToken    string
+	LogChannel   slack.ChannelID
 }
 
 func LoadTeamConfig(sec *ini.Section) *TeamConfig {
@@ -38,6 +39,7 @@ func LoadTeamConfig(sec *ini.Section) *TeamConfig {
 	c.VerifyToken = sec.Key("VerifyToken").String()
 	c.DatabaseURL = sec.Key("DatabaseURL").String()
 	c.UserToken = sec.Key("UserToken").String()
+	c.LogChannel = slack.ChannelID(sec.Key("LogChannel").String())
 	return c
 }
 
@@ -89,12 +91,13 @@ type Team interface {
 	// yet, the function returns 0 and remembers the pointer. If the
 	// requested module is not known, the function returns -1.
 	DependModule(self Module, dependencyID ModuleID, ptr *Module) int
+	GetModule(modID ModuleID) Module
 
 	SendMessage
-	ReactMessage(channel slack.ChannelID, msg slack.MessageTS, emojiName string) error
+	ReactMessage(msgID slack.MessageID, emojiName string) error
 	SlackAPIPost(method string, form url.Values) (*http.Response, error)
 
-	ArchiveURL(channel slack.ChannelID, msg slack.MessageTS) string
+	ArchiveURL(msgID slack.MessageID) string
 
 	OnEveryEvent(mod ModuleID, f func(slack.RTMRawMessage))
 	OnEvent(mod ModuleID, event string, f func(slack.RTMRawMessage))
@@ -104,7 +107,10 @@ type Team interface {
 	CommandRegistration
 	DispatchCommand(args *CommandArguments) error
 
+	ReportError(err error, source ActionSource)
+
 	GetIM(user slack.UserID) (slack.ChannelID, error)
+	PublicChannelInfo(channel slack.ChannelID) (*slack.Channel, error)
 	PrivateChannelInfo(channel slack.ChannelID) (*slack.Channel, error)
 }
 

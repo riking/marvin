@@ -42,6 +42,15 @@ func (t *Team) DependModule(self marvin.Module, dependID marvin.ModuleID, ptr *m
 	return -1
 }
 
+func (t *Team) GetModule(ident marvin.ModuleID) marvin.Module {
+	for _, ms := range t.modules {
+		if ms.Identifier == ident {
+			return ms.Instance
+		}
+	}
+	return nil
+}
+
 func (t *Team) EnableModule(ident marvin.ModuleID) error {
 	var idx int = -1
 
@@ -247,22 +256,6 @@ func (t *Team) enableModule2(ms *moduleStatus) error {
 	ms.State = ModuleStateEnabled
 	ms.DegradeReason = nil
 	return nil
-}
-
-func protectedCall(f func() error) (err error) {
-	defer func() {
-		rec := recover()
-		if rec != nil {
-			if recErr, ok := rec.(error); ok {
-				err = recErr
-			} else if recStr, ok := rec.(string); ok {
-				err = errors.Errorf(recStr)
-			} else {
-				panic(errors.Errorf("Unrecognized panic object type=[%T] val=[%#v]", rec, rec))
-			}
-		}
-	}()
-	return f()
 }
 
 func protectedCallT(t marvin.Team, f func(t marvin.Team)) (err error) {
