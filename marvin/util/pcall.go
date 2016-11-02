@@ -7,7 +7,7 @@ func PCall(f func() error) (err error) {
 		rec := recover()
 		if rec != nil {
 			if recErr, ok := rec.(error); ok {
-				err = recErr
+				err = errors.Wrap(recErr, "panic")
 			} else if recStr, ok := rec.(string); ok {
 				err = errors.Errorf(recStr)
 			} else {

@@ -1,4 +1,4 @@
-package at_command
+package atcommand
 
 import (
 	"bytes"
@@ -7,16 +7,16 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
-
 	"github.com/riking/homeapi/marvin"
 	"github.com/riking/homeapi/marvin/slack"
+	"github.com/riking/homeapi/marvin/util"
 )
 
 func init() {
 	marvin.RegisterModule(NewAtCommandModule)
 }
 
-const Identifier = "autoinvite"
+const Identifier = "atcommand"
 
 type AtCommandModule struct {
 	team       marvin.Team
@@ -59,7 +59,7 @@ func (mod *AtCommandModule) HandleHello(rtm slack.RTMRawMessage) {
 
 func (mod *AtCommandModule) HandleMessage(rtm slack.RTMRawMessage) {
 	if mod.mentionRgx == nil {
-		fmt.Println("[ERR] regex not set up!")
+		util.LogBad("AtCommand regex not set up!")
 		return
 	}
 
@@ -69,59 +69,41 @@ func (mod *AtCommandModule) HandleMessage(rtm slack.RTMRawMessage) {
 		return
 	}
 
-	fmt.Println("[DEBUG]", "Found mention in message", rtm.Text())
-	fmt.Println("[DEBUG]", "Mention starts at", rtm.Text()[matches[0]:])
+	util.LogDebug("Found mention in message", rtm.Text())
+	util.LogDebug("Mention starts at", rtm.Text()[matches[0]:])
 	matchIdx := matches // removed loop, limited to one command per message
 	{
 		args := ParseArgs(msgRawTxt, matchIdx[1])
 		args.Source = marvin.ActionSourceUserMessage{Msg: rtm}
-		fmt.Println("[DEBUG]", "args:")
-		for i, v := range args.OriginalArguments {
-			fmt.Println(i, v)
-		}
-		fmt.Println("[DEBUG]", "args=", args.OriginalArguments)
+		util.LogDebug("args: [", strings.Join(args.OriginalArguments, "] ["), "]")
 		result := mod.team.DispatchCommand(&args)
-		mod.DispatchResponse(rtm, &args, result)
-		fmt.Println("[DEBUG]", "command result:", result)
+		mod.DispatchResponse(rtm, result)
+		util.LogGood("command result:", result)
 	}
 }
 
-func (mod *AtCommandModule) DispatchResponse(rtm slack.RTMRawMessage, args *marvin.CommandArguments, result error) {
+func (mod *AtCommandModule) DispatchResponse(rtm slack.RTMRawMessage, result marvin.CommandResult) {
 	reactEmoji := ""
-	if cmdErr, ok := errors.Cause(result).(marvin.CommandError); ok {
-		if cmdErr.Success {
-			// TODO configurable
-			reactEmoji = "white_check_mark"
-		} else if ok && cmdErr.Code == marvin.CmdErrNoSuchCommand {
-			reactEmoji = "question"
-		} else {
-			reactEmoji = "negative_squared_cross_mark"
-		}
-		err := cmdErr.SendReply(mod.team)
-		if err != nil {
-			fmt.Printf("[ERR] %+v\n", err) // TODO
-		}
-	} else if result == nil {
-		reactEmoji = "white_check_mark"
-	} else {
-		reactEmoji = "warning"
+	replyType := result.ReplyType
 
-		imChannel, err := mod.team.GetIM(rtm.UserID())
-		if err != nil {
-			fmt.Printf("[ERR] %+v\n", err) // TODO
-		} else {
-			_, _, err = mod.team.SendMessage(imChannel,
-				fmt.Sprintf("Your command encountered an error. %s\n%s",
-					mod.team.ArchiveURL(rtm.MessageID()),
-					result.Error()))
-			// TODO pm the failure to controllers?
-			fmt.Println("[ERR]", args.OriginalArguments)
-			fmt.Printf("[ERR] %+v\n", err) // TODO
-		}
+	if replyType == 0 {
+		replyType = marvin.ReplyTypePreferChannel
+	}
+	result = marvin.ActionSourceUserMessage{Msg: rtm}.SendCmdReply(mod.team, result)
+
+	switch result.Code {
+	case marvin.CmdResultOK:
+		reactEmoji, _ = mod.team.ModuleConfig("main").Get("emoji-ok", "white_check_mark")
+	case marvin.CmdResultFailure:
+		reactEmoji, _ = mod.team.ModuleConfig("main").Get("emoji-fail", "negative_squared_cross_mark")
+	case marvin.CmdResultError:
+		reactEmoji, _ = mod.team.ModuleConfig("main").Get("emoji-error", "warning")
+	case marvin.CmdResultNoSuchCommand:
+		reactEmoji, _ = mod.team.ModuleConfig("main").Get("emoji-unknown", "question")
 	}
 	err := mod.team.ReactMessage(rtm.MessageID(), reactEmoji)
 	if err != nil {
-		fmt.Printf("[ERR] %+v\n", err)
+		util.LogError(errors.Wrap(err, "reacting to command"))
 	}
 }
 

@@ -1,4 +1,4 @@
-package util
+package controller
 
 import (
 	"database/sql"
@@ -23,7 +23,7 @@ func NewModuleConfig(c *database.Conn, moduleIdentifier string) marvin.ModuleCon
 }
 
 func MigrateModuleConfig(c *database.Conn) error {
-	return c.Migrate("__core", 1478022704,
+	return c.Migrate("main", 1478022704,
 		`CREATE TABLE config (
 			id SERIAL PRIMARY KEY,
 			module varchar(255),
@@ -39,18 +39,23 @@ func (pc *DBModuleConfig) Add(key string, defaultValue string) {
 	pc.defaults[key] = defaultValue
 }
 
-func (pc *DBModuleConfig) Get(key string) (string, error) {
+func (pc *DBModuleConfig) Get(key, defaultValue string) (string, error) {
+	def := defaultValue
+	if def == "" {
+		def = pc.defaults[key]
+	}
+
 	stmt, err := pc.conn.Prepare(`SELECT value FROM config WHERE module = $1 AND key = $2`)
 	if err != nil {
-		return "", errors.Wrapf(err, "moduleconfig.get(%s, %s)", pc.ModuleIdentifier, key)
+		return def, errors.Wrapf(err, "moduleconfig.get(%s, %s)", pc.ModuleIdentifier, key)
 	}
 	row := stmt.QueryRow(pc.ModuleIdentifier, key)
 	var result sql.NullString
 	err = row.Scan(&result)
 	if !result.Valid {
-		return pc.defaults[key], nil
+		return def, nil
 	} else if err != nil {
-		return "", errors.Wrapf(err, "moduleconfig.get(%s, %s)", pc.ModuleIdentifier, key)
+		return def, errors.Wrapf(err, "moduleconfig.get(%s, %s)", pc.ModuleIdentifier, key)
 	}
 	return result.String, nil
 }

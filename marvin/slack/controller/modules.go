@@ -4,11 +4,12 @@ import (
 	"sort"
 
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/pkg/errors"
+
 	"github.com/riking/homeapi/marvin"
+	"github.com/riking/homeapi/marvin/util"
 )
 
 const ConfTurnOffModule = "off"
@@ -23,30 +24,42 @@ func (t *Team) DependModule(self marvin.Module, dependID marvin.ModuleID, ptr *m
 	t.modulesLock.Lock()
 	defer t.modulesLock.Unlock()
 
-	for i, val := range t.modules {
-		if val.Identifier == dependID {
-			t.modules[i].Dependencies = append(t.modules[i].Dependencies, oneModuleDependency{
-				Identifier: self.Identifier(),
-				Pointer:    ptr,
-			})
-			if val.Degraded() {
-				return -2
-			}
-			if val.State == ModuleStateEnabled {
-				*ptr = t.modules[i].Instance
-				return 1
-			}
-			return 0
+	selfMS := t.GetModuleStatus(self.Identifier())
+	if selfMS == nil {
+		panic(errors.Errorf("DependModule() self parameter is not loaded?"))
+	}
+	dependMS := t.GetModuleStatus(dependID)
+	if dependMS == nil {
+		return -1
+	}
+
+	selfMS.Dependencies = append(selfMS.Dependencies, oneModuleDependency{
+		Identifier: dependMS.Identifier,
+		Pointer:    ptr,
+	})
+	if dependMS.Degraded() {
+		return -2
+	}
+	if dependMS.State == ModuleStateEnabled {
+		*ptr = dependMS.Instance
+		return 1
+	}
+	return 0
+}
+
+func (t *Team) GetModuleStatus(ident marvin.ModuleID) *moduleStatus {
+	for i, ms := range t.modules {
+		if ms.Identifier == ident {
+			return &t.modules[i]
 		}
 	}
-	return -1
+	return nil
 }
 
 func (t *Team) GetModule(ident marvin.ModuleID) marvin.Module {
-	for _, ms := range t.modules {
-		if ms.Identifier == ident {
-			return ms.Instance
-		}
+	ms := t.GetModuleStatus(ident)
+	if ms != nil {
+		return ms.Instance
 	}
 	return nil
 }
@@ -158,7 +171,7 @@ type moduleStatus struct {
 }
 
 func (ms *moduleStatus) IsEnabled() bool {
-	return ms.DegradeReason != nil && ms.State == ModuleStateEnabled
+	return ms.DegradeReason == nil && ms.State == ModuleStateEnabled
 }
 
 func (ms *moduleStatus) Degraded() bool {
@@ -175,8 +188,7 @@ func (t *Team) constructModules() {
 			mod = constructor(team)
 		})
 		if err != nil {
-			// TODO central logging
-			fmt.Fprintf(os.Stderr, "[WARN] Could not construct module: %s",
+			util.LogWarnf("Could not construct module: %s",
 				strings.Replace(fmt.Sprintf("%+v", err), "\n", "\t\n", -1))
 			continue
 		}
@@ -209,8 +221,10 @@ func (t *Team) loadModules() {
 		if err != nil {
 			t.modules[i].State = ModuleStateErrorLoading
 			t.modules[i].DegradeReason = err
+			util.LogBadf("Module %s failed to load: %v\n", t.modules[i].Identifier, err)
 			continue
 		}
+		util.LogGood("Loaded module", t.modules[i].Identifier)
 		t.modules[i].State = ModuleStateLoaded
 	}
 
@@ -220,25 +234,27 @@ func (t *Team) loadModules() {
 func (t *Team) enableModules() {
 	conf := t.ModuleConfig("modules")
 	for i, ms := range t.modules {
-		desired, err := conf.Get(fmt.Sprintf("%s.enabled", ms.Identifier))
-		if err != nil {
-			t.modules[i].DegradeReason = errors.Wrap(err, "Could not determine desired state")
-			t.modules[i].State = ModuleStateErrorEnabling
-			continue
-		}
-		if desired == "false" || desired == ConfTurnOffModule {
+		desired, _ := conf.Get(fmt.Sprintf("%s.enabled", ms.Identifier), "on")
+		if desired == ConfTurnOffModule {
 			t.modules[i].State = ModuleStateDisabled
+			util.LogWarn("Left disabled module", t.modules[i].Identifier)
 			continue
 		}
 
 		// Set dependency pointers
+		util.LogDebug(ms.Identifier, "depends:", ms.Dependencies)
+		ok := true
 		for _, v := range ms.Dependencies {
-			for _, m2 := range t.modules {
-				if m2.Identifier == v.Identifier && m2.IsEnabled() {
-					*v.Pointer = m2.Instance
-					break
-				}
+			dependMS := t.GetModuleStatus(v.Identifier)
+			if !dependMS.IsEnabled() {
+				util.LogWarnf("Enabling module %s failed: dependency %s is not enabled\n%v", ms.Identifier, dependMS.Identifier, dependMS)
+				ok = false
+				break
 			}
+			*v.Pointer = dependMS.Instance
+		}
+		if !ok {
+			continue
 		}
 
 		t.enableModule2(&t.modules[i])
@@ -251,8 +267,10 @@ func (t *Team) enableModule2(ms *moduleStatus) error {
 		ms.State = ModuleStateErrorEnabling
 		ms.DegradeReason = err
 		protectedCallT(t, ms.Instance.Disable)
+		util.LogBadf("Enabling module %s failed: %+v\n", ms.Identifier, err)
 		return err
 	}
+	util.LogGood("Enabled module", ms.Identifier)
 	ms.State = ModuleStateEnabled
 	ms.DegradeReason = nil
 	return nil
@@ -263,11 +281,11 @@ func protectedCallT(t marvin.Team, f func(t marvin.Team)) (err error) {
 		rec := recover()
 		if rec != nil {
 			if recErr, ok := rec.(error); ok {
-				err = recErr
+				err = errors.Wrap(recErr, "panic")
 			} else if recStr, ok := rec.(string); ok {
 				err = errors.Errorf(recStr)
 			} else {
-				panic(errors.Errorf("Unrecognized panic object type=[%T] val=[%#v]", rec, rec))
+				err = errors.Errorf("Unrecognized panic object type=[%T] val=[%#v]", rec, rec)
 			}
 		}
 	}()

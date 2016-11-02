@@ -37,7 +37,7 @@ func NewTeam(cfg *marvin.TeamConfig) (*Team, error) {
 		return nil, err
 	}
 
-	err = util.MigrateModuleConfig(db)
+	err = MigrateModuleConfig(db)
 	if err != nil {
 		return nil, err
 	}
@@ -72,7 +72,7 @@ func (t *Team) DB() *database.Conn {
 }
 
 func (t *Team) ModuleConfig(ident marvin.ModuleID) marvin.ModuleConfig {
-	return util.NewModuleConfig(t.db, string(ident))
+	return NewModuleConfig(t.db, string(ident))
 }
 
 func (t *Team) BotUser() slack.UserID {
@@ -89,10 +89,15 @@ func (t *Team) UnregisterCommand(name string, c marvin.SubCommand) {
 	t.commands.UnregisterCommand(name, c)
 }
 
-func (t *Team) DispatchCommand(args *marvin.CommandArguments) error {
-	result := util.PCall(func() error {
-		return t.commands.Handle(t, args)
+func (t *Team) DispatchCommand(args *marvin.CommandArguments) marvin.CommandResult {
+	var result marvin.CommandResult
+	err := util.PCall(func() error {
+		result = t.commands.Handle(t, args)
+		return nil
 	})
+	if err != nil {
+		result = marvin.CmdError(args, err, "Runtime error.").WithReplyType(marvin.ReplyTypeAll)
+	}
 	return result
 }
 
@@ -156,7 +161,7 @@ func (t *Team) ReactMessage(msgID slack.MessageID, emojiName string) error {
 }
 
 func (t *Team) SlackAPIPost(method string, form url.Values) (*http.Response, error) {
-	fmt.Println("[DEBUG]", "Slack API request", method, form)
+	util.LogDebug("Slack API request", method, form)
 
 	var url string
 	if strings.HasPrefix(method, "https://slack.com") {
@@ -174,7 +179,7 @@ func (t *Team) SlackAPIPost(method string, form url.Values) (*http.Response, err
 	req.Header.Set("User-Agent", "marvin-slackbot (+https://github.com/riking/homeapi/tree/shocky)")
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return resp, errors.Wrapf(err, "Error calling slack.%s", method)
+		return resp, errors.Wrapf(err, "Slack API %s", method)
 	}
 	return resp, nil
 }

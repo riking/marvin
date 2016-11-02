@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/pkg/errors"
@@ -14,8 +13,9 @@ import (
 	"github.com/riking/homeapi/marvin/slack/controller"
 	"github.com/riking/homeapi/marvin/slack/rtm"
 
-	_ "github.com/riking/homeapi/marvin/modules/at_command"
+	_ "github.com/riking/homeapi/marvin/modules/atcommand"
 	_ "github.com/riking/homeapi/marvin/modules/autoinvite"
+	"github.com/riking/homeapi/marvin/util"
 )
 
 func main() {
@@ -31,27 +31,27 @@ func main() {
 		cfg, err = ini.LooseLoad("testdata/config.ini", "config.ini", "/tank/www/apiserver/config.ini")
 	}
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "[ERR] %+v\n", errors.Wrap(err, "loading config"))
+		util.LogError(errors.Wrap(err, "loading config"))
 		return
 	}
 
 	teamConfig := marvin.LoadTeamConfig(cfg.Section(*teamName))
 	team, err := controller.NewTeam(teamConfig)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "[ERR] %+v\n", errors.Wrap(err, "NewTeam"))
+		util.LogError(errors.Wrap(err, "NewTeam"))
 		return
 	}
 	client, err := rtm.Dial(team)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "[ERR] %+v\n", errors.Wrap(err, "rtm.Dial"))
+		util.LogError(errors.Wrap(err, "rtm.Dial"))
 		return
 	}
 	client.RegisterRawHandler("debug", func(msg slack.RTMRawMessage) {
 		switch msg.Type() {
-		case "user_typing", "reconnect_url":
+		case "user_typing", "reconnect_url", "presence_change":
 			return
 		}
-		fmt.Println("[DEBUG]", "main.go rtm message:", msg)
+		util.LogDebug("main.go rtm message:", msg)
 	}, rtm.MsgTypeAll, nil)
 
 	team.ConnectRTM(client)
@@ -60,6 +60,5 @@ func main() {
 	client.Start()
 
 	fmt.Println("started")
-	time.Sleep(3 * time.Second)
-	time.Sleep(60 * time.Second)
+	time.Sleep(180 * time.Second)
 }

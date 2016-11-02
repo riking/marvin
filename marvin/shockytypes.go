@@ -1,11 +1,13 @@
 package marvin
 
 import (
+	"bytes"
 	"fmt"
 	"strings"
 	"sync"
 
 	"github.com/riking/homeapi/marvin/slack"
+	"github.com/riking/homeapi/marvin/util"
 )
 
 type ReplyType int
@@ -19,7 +21,7 @@ const (
 	ReplyTypePreferChannel = ReplyTypeInChannel | ReplyTypePM
 	ReplyTypeShortProblem  = ReplyTypeInChannel | ReplyTypeLog
 	ReplyTypeLongProblem   = ReplyTypePM | ReplyTypeLog
-	ReplyTypeAny           = ReplyTypeInChannel | ReplyTypePM | ReplyTypeLog
+	ReplyTypeAll           = ReplyTypeInChannel | ReplyTypePM | ReplyTypeLog
 )
 
 const LongReplyThreshold = 400
@@ -29,7 +31,7 @@ type ActionSource interface {
 	ChannelID() slack.ChannelID
 	ArchiveLink(t Team) string
 
-	SendCmdReply(t Team, typ ReplyType, result CommandResult)
+	SendCmdReply(t Team, result CommandResult) CommandResult
 }
 
 type ActionSourceUserMessage struct {
@@ -40,19 +42,19 @@ func (um ActionSourceUserMessage) UserID() slack.UserID       { return um.Msg.Us
 func (um ActionSourceUserMessage) ChannelID() slack.ChannelID { return um.Msg.ChannelID() }
 func (um ActionSourceUserMessage) ArchiveLink(t Team) string  { return t.ArchiveURL(um.Msg.MessageID()) }
 
-func (um ActionSourceUserMessage) SendCmdReply(t Team, typ ReplyType, result CommandResult) {
+func (um ActionSourceUserMessage) SendCmdReply(t Team, result CommandResult) CommandResult {
 	logChannel := t.TeamConfig().LogChannel
 	imChannel, _ := t.GetIM(um.UserID())
 
-	replyChannel := typ&ReplyTypeInChannel != 0
-	replyIM := typ&ReplyTypePM != 0
-	replyLog := typ&ReplyTypeLog != 0
+	replyChannel := result.ReplyType&ReplyTypeInChannel != 0
+	replyIM := result.ReplyType&ReplyTypePM != 0
+	replyLog := result.ReplyType&ReplyTypeLog != 0
 
 	switch result.Code {
 	case CmdResultOK:
 	case CmdResultFailure:
 		if result.Message == "" {
-			return
+			break
 		}
 		// Prefer Channel > PM > Log
 		if replyChannel {
@@ -70,17 +72,22 @@ func (um ActionSourceUserMessage) SendCmdReply(t Team, typ ReplyType, result Com
 		}
 		if replyLog {
 			t.SendMessage(logChannel, fmt.Sprintf("%s\n%s", result.Message, um.ArchiveLink(t)))
+			util.LogDebug("Command", fmt.Sprintf("[%s]", strings.Join(result.Args.OriginalArguments, "] [")), "result", result.Message)
 		}
 	case CmdResultError:
 		// Print terse in channel, detail in PM, full in log
+		if result.Message == "" {
+			result.Message = "An error occurred."
+		}
 		if replyChannel {
-			if result.Message == "" {
-				result.Message = "An error occurred."
-			}
 			t.SendMessage(um.Msg.ChannelID(), result.Message)
 		}
+		if replyIM {
+			t.SendMessage(imChannel, fmt.Sprintf("%s: %s\n%s", result.Message, result.Err, um.ArchiveLink(t)))
+		}
 		if replyLog {
-			t.SendMessage(logChannel, fmt.Sprintf("%s\n```\n%+v\n```", um.ArchiveLink(t), result.Error))
+			t.SendMessage(logChannel, fmt.Sprintf("%s\n```\n%+v\n```", um.ArchiveLink(t), result.Err))
+			util.LogError(result.Err)
 		}
 	case CmdResultNoSuchCommand:
 		if replyChannel {
@@ -97,6 +104,8 @@ func (um ActionSourceUserMessage) SendCmdReply(t Team, typ ReplyType, result Com
 				um.ArchiveLink(t)))
 		}
 	}
+	result.Sent = true
+	return result
 }
 
 type CommandArguments struct {
@@ -113,18 +122,22 @@ func (ca *CommandArguments) Pop() string {
 	return str
 }
 
+type CommandResultCode int
+
 const (
-	CmdResultOK = iota
+	CmdResultOK CommandResultCode = iota
 	CmdResultFailure
 	CmdResultError
 	CmdResultNoSuchCommand
 )
 
 type CommandResult struct {
-	Args    *CommandArguments
-	Message string
-	Err     error
-	Code    int
+	Args      *CommandArguments
+	Message   string
+	Err       error
+	Code      CommandResultCode
+	ReplyType ReplyType
+	Sent      bool
 }
 
 func CmdError(args *CommandArguments, err error, msg string) CommandResult {
@@ -137,6 +150,11 @@ func CmdFailuref(args *CommandArguments, format string, v ...interface{}) Comman
 
 func CmdSuccess(args *CommandArguments, msg string) CommandResult {
 	return CommandResult{Args: args, Message: msg, Code: CmdResultOK}
+}
+
+func (r CommandResult) WithReplyType(rt ReplyType) CommandResult {
+	r.ReplyType = rt
+	return r
 }
 
 func (r CommandResult) Error() string {
@@ -170,12 +188,17 @@ func (pc *ParentCommand) UnregisterCommand(name string, c SubCommand) {
 	delete(pc.nameMap, name)
 }
 
-func (pc *ParentCommand) Help(t Team, args *CommandArguments) error {
-	// TODO
-	return nil
+func (pc *ParentCommand) Help(t Team, args *CommandArguments) CommandResult {
+	var buf bytes.Buffer
+
+	for k := range pc.nameMap {
+		buf.WriteString(k)
+		buf.WriteString(" ")
+	}
+	return CmdFailuref(args, "Subcommands: %s", buf.String())
 }
 
-func (pc *ParentCommand) Handle(t Team, args *CommandArguments) error {
+func (pc *ParentCommand) Handle(t Team, args *CommandArguments) CommandResult {
 	if len(args.Arguments) == 0 {
 		return pc.Help(t, args)
 	}

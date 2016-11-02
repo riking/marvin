@@ -16,7 +16,7 @@ type SendMessage interface {
 }
 
 type ModuleConfig interface {
-	Get(key string) (string, error)
+	Get(key, defaultValue string) (string, error)
 	Set(key, value string) error
 	Add(key, defaultValue string)
 }
@@ -48,12 +48,12 @@ type SlashCommand interface {
 }
 
 type SubCommand interface {
-	Handle(t Team, args *CommandArguments) error
+	Handle(t Team, args *CommandArguments) CommandResult
 }
 
-type SubCommandFunc func(t Team, args *CommandArguments) error
+type SubCommandFunc func(t Team, args *CommandArguments) CommandResult
 
-func (f SubCommandFunc) Handle(t Team, args *CommandArguments) error {
+func (f SubCommandFunc) Handle(t Team, args *CommandArguments) CommandResult {
 	return f(t, args)
 }
 
@@ -105,7 +105,7 @@ type Team interface {
 	OffAllEvents(mod ModuleID)
 
 	CommandRegistration
-	DispatchCommand(args *CommandArguments) error
+	DispatchCommand(args *CommandArguments) CommandResult
 
 	ReportError(err error, source ActionSource)
 

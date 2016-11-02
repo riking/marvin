@@ -27,13 +27,12 @@ func Dial(connect string) (*Conn, error) {
 	return c, nil
 }
 
-func (c *Conn) SyntaxCheck(query ...string) error {
+func (c *Conn) SyntaxCheck(query ...string) {
 	for _, v := range query {
 		stmt, err := c.DB.Prepare(v)
 		if err != nil {
-			return err
+			panic(errors.Wrap(err, "SQL syntax check failed"))
 		}
 		stmt.Close()
 	}
-	return nil
 }
