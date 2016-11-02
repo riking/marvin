@@ -7,7 +7,46 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/riking/homeapi/marvin/slack"
+	"fmt"
 )
+
+func (t *Team) ChannelName(channel slack.ChannelID) (string) {
+	switch channel[0] {
+	case 'C':
+		ch, err := t.PublicChannelInfo(channel)
+		if err != nil {
+			return fmt.Sprintf("<!error getting channel name for %s>", string(channel))
+		}
+		return ch.Name
+	case 'G':
+		ch, err := t.PrivateChannelInfo(channel)
+		if err != nil {
+			return fmt.Sprintf("<!error getting channel name for %s>", string(channel))
+		}
+		return ch.Name
+	}
+	return string(channel)
+}
+
+func (t *Team) UserName(user slack.UserID) (string) {
+	u := t.cachedUserInfo(user)
+	if u == nil {
+		return fmt.Sprintf("<!error getting channel name for %s>", string(user))
+	}
+	return u.Name
+}
+
+func (t *Team) cachedUserInfo(user slack.UserID) *slack.User {
+	t.client.MetadataLock.RLock()
+	defer t.client.MetadataLock.RUnlock()
+
+	for i, v := range t.client.Users {
+		if v.ID == user {
+			return &t.client.Users[i]
+		}
+	}
+	return nil
+}
 
 func (t *Team) cachedPublicChannelInfo(channel slack.ChannelID) *slack.Channel {
 	t.client.MetadataLock.RLock()

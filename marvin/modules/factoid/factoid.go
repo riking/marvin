@@ -5,7 +5,18 @@ import (
 	"sync"
 
 	"github.com/riking/homeapi/marvin"
+	"github.com/riking/homeapi/marvin/slack"
 )
+
+type API interface {
+	marvin.Module
+
+	RunFactoidSplit(args []string, source marvin.ActionSource)
+	RunFactoidLine(rawLine string, source marvin.ActionSource)
+	RunFactoidMessage(msg slack.RTMRawMessage)
+}
+
+// ---
 
 func init() {
 	marvin.RegisterModule(NewFactoidModule)

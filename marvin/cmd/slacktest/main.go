@@ -48,6 +48,11 @@ func main() {
 		switch msg.Type() {
 		case "user_typing", "reconnect_url", "presence_change":
 			return
+		case "message":
+			if msg.Subtype() == "" {
+				fmt.Printf("[#%s] <@%s> %s\n", team.ChannelName(msg.ChannelID()), team.UserName(msg.UserID()), msg.Text())
+			}
+			return
 		}
 		util.LogDebug("main.go rtm message:", msg)
 	}, rtm.MsgTypeAll, nil)

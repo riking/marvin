@@ -5,6 +5,8 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/riking/homeapi/marvin"
+	"fmt"
+	"github.com/riking/homeapi/marvin/slack"
 )
 
 func init() {
@@ -38,8 +40,13 @@ func (mod *DebugModule) Enable(t marvin.Team) {
 	parent.RegisterCommandFunc("do_help", mod.DebugCommandHelp, "`debug do_help` tests the behavior of commands returning help text.")
 	parent.RegisterCommandFunc("success", mod.DebugCommandSuccess, "`debug success` tests the behavior of successful commands.")
 
+	whoami := parent.RegisterCommandFunc("whoami", mod.CommandWhoAmI, "`debug whoami [@user]` prints out your Slack user ID.")
+	whereami := parent.RegisterCommandFunc("whereami", mod.CommandWhereAmI, "`debug whereami` prints out the current channel ID.")
+
 	t.RegisterCommand("debug", parent)
 	t.RegisterCommandFunc("echo", mod.CommandEcho, "`echo` echos back the command arguments to the channel.")
+	t.RegisterCommand("whoami", whoami)
+	t.RegisterCommand("whereami", whereami)
 }
 
 func (mod *DebugModule) Disable(t marvin.Team) {
@@ -76,4 +83,33 @@ func (mod *DebugModule) DebugCommandSuccess(t marvin.Team, args *marvin.CommandA
 
 func (mod *DebugModule) CommandEcho(t marvin.Team, args *marvin.CommandArguments) marvin.CommandResult {
 	return marvin.CmdSuccess(args, strings.Join(args.Arguments, " ")).WithReplyType(marvin.ReplyTypeFlagOmitUsername)
+}
+
+func (mod *DebugModule) CommandWhoAmI(t marvin.Team, args *marvin.CommandArguments) marvin.CommandResult {
+	var uid slack.UserID
+
+	uid = args.Source.UserID()
+	if len(args.Arguments) > 0 {
+		uid = slack.ParseUserMention(args.Arguments[0])
+		if uid == "" {
+			return marvin.CmdFailuref(args, "'%s' is not a valid @mention", args.Arguments[0])
+		}
+		return marvin.CmdSuccess(args, fmt.Sprintf("%v's user ID is %s", uid, string(uid)))
+	}
+	return marvin.CmdSuccess(args, fmt.Sprintf("%v, your user ID is %s", uid, string(uid))).WithReplyType(marvin.ReplyTypeFlagOmitUsername)
+}
+
+func (mod *DebugModule) CommandWhereAmI(t marvin.Team, args *marvin.CommandArguments) marvin.CommandResult {
+	var cid slack.ChannelID
+
+	cid = args.Source.ChannelID()
+	//if len(args.Arguments) > 0 {
+	//	uid = slack.ParseUserMention(args.Arguments[0])
+	//	if uid == "" {
+	//		uid = args.Source.UserID()
+	//	}
+	//}
+	return marvin.CmdSuccess(args,
+		fmt.Sprintf("You sent that command in channel ID %s.", string(cid)),
+	)
 }

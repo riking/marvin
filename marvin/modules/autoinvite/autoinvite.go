@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
-	"regexp"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -121,9 +120,8 @@ const defaultInviteText = `%v has invited everybody to the #%s channel%s%s
 const andSaid = ", saying:\n>"
 const defaultEmoji = `white_check_mark`
 
+// TODO - support timeouts
 const usage = "Usage: `@marvin make-invite` [emoji = :white_check_mark:] <send_to = #channel> [message]"
-
-var channelMentionRgx = regexp.MustCompile(`<#(C[A-Z0-9]+)\|([a-z0-9_-]+)>`)
 
 func (aim *AutoInviteModule) PostInvite(t marvin.Team, args *marvin.CommandArguments) marvin.CommandResult {
 	util.LogDebug("PostInvite", args.Arguments)
@@ -156,13 +154,10 @@ func (aim *AutoInviteModule) PostInvite(t marvin.Team, args *marvin.CommandArgum
 		emoji = strings.Trim(arg, ":")
 		arg = args.Pop()
 	}
-	match := channelMentionRgx.FindStringSubmatch(arg)
-	if match == nil {
+	messageChannel := slack.ParseChannelID(arg)
+	if messageChannel == "" {
 		return usage()
 	}
-	messageChannel := slack.ChannelID(match[1])
-	var data PendingInviteData
-	data.InviteTargetChannel = inviteTarget
 
 	customMsg := strings.TrimSpace(strings.Join(args.Arguments, " "))
 	msg := ""
@@ -172,6 +167,8 @@ func (aim *AutoInviteModule) PostInvite(t marvin.Team, args *marvin.CommandArgum
 		msg = fmt.Sprintf(defaultInviteText, args.Source.UserID(), privateChannel.Name, ".", "")
 	}
 
+	var data PendingInviteData
+	data.InviteTargetChannel = inviteTarget
 	dataBytes, err := json.Marshal(data)
 	if err != nil {
 		return marvin.CmdError(args, errors.Wrap(err, "marshal json"), "Slack API error")
