@@ -50,8 +50,8 @@ func (c *Conn) setupMigrate() (err error) {
 
 // MustMigrate panics if Migrate fails. It also calls module.Identifier()
 // for the first argument.
-func (c *Conn) MustMigrate(moduleIdentifier string, version int, sql string) {
-	err := c.Migrate(moduleIdentifier, version, sql)
+func (c *Conn) MustMigrate(moduleIdentifier string, version int, query ...string) {
+	err := c.Migrate(moduleIdentifier, version, query...)
 	if err != nil {
 		panic(err)
 	}

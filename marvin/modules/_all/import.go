@@ -6,5 +6,6 @@ import (
 	_ "github.com/riking/homeapi/marvin/modules/autoinvite"
 	_ "github.com/riking/homeapi/marvin/modules/core"
 	_ "github.com/riking/homeapi/marvin/modules/debug"
+	_ "github.com/riking/homeapi/marvin/modules/factoid"
 	_ "github.com/riking/homeapi/marvin/modules/on_reaction"
 )

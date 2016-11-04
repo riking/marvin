@@ -130,11 +130,11 @@ func (aim *AutoInviteModule) PostInvite(t marvin.Team, args *marvin.CommandArgum
 
 	inviteTarget := args.Source.ChannelID()
 	if inviteTarget == "" || inviteTarget[0] != 'G' {
-		return marvin.CmdFailuref(args, "Command must be used from a private channel.").WithReplyType(marvin.ReplyTypePM)
+		return marvin.CmdFailuref(args, "Command must be used from a private channel.")
 	}
 	privateChannel, err := t.PrivateChannelInfo(inviteTarget)
 	if err != nil {
-		return marvin.CmdError(args, errors.Wrap(err, "Could not retrieve information about the channel"), "Slack API error")
+		return marvin.CmdError(args, err, "Could not retrieve information about the channel")
 	}
 	if privateChannel.IsMultiIM() {
 		return marvin.CmdFailuref(args, "You cannnot invite users to a multi-party IM.")
@@ -173,13 +173,13 @@ func (aim *AutoInviteModule) PostInvite(t marvin.Team, args *marvin.CommandArgum
 	data.InviteTargetChannel = inviteTarget
 	dataBytes, err := json.Marshal(data)
 	if err != nil {
-		return marvin.CmdError(args, errors.Wrap(err, "marshal json"), "Slack API error")
+		return marvin.CmdError(args, err, "error marshal json")
 	}
 
 	util.LogDebug("sending invite to", messageChannel, "text:", msg)
 	ts, _, err := t.SendMessage(messageChannel, msg)
 	if err != nil {
-		return marvin.CmdError(args, errors.Wrap(err, "Couldn't send message"), "Slack API error")
+		return marvin.CmdError(args, err, "Couldn't send message")
 	}
 	msgID := slack.MsgID(messageChannel, ts)
 	err = aim.onReactAPI().ListenMessage(msgID, Identifier, dataBytes)
@@ -191,12 +191,12 @@ func (aim *AutoInviteModule) PostInvite(t marvin.Team, args *marvin.CommandArgum
 			"as_user": []string{"true"},
 		}
 		slack.SlackAPILog(t.SlackAPIPost("chat.delete", form))
-		return marvin.CmdError(args, errors.Wrap(err, "Saving to database"), "Couldn't save message")
+		return marvin.CmdError(args, err, "Error saving message")
 	}
 	err = t.ReactMessage(msgID, emoji)
 	if err != nil {
-		return marvin.CmdError(args, errors.Wrap(err, "Sending example reaction"),
-			"Couldn't post sample reaction (the message should still work)").WithReplyType(marvin.ReplyTypeShortProblem)
+		return marvin.CmdError(args, err,
+			"Couldn't post sample reaction (the message should still work)")
 	}
-	return marvin.CmdSuccess(args, fmt.Sprintf("Message posted: %s", t.ArchiveURL(msgID))).WithReplyType(marvin.ReplyTypeInChannel)
+	return marvin.CmdSuccess(args, fmt.Sprintf("Message posted: %s", t.ArchiveURL(msgID)))
 }

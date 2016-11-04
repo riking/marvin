@@ -172,11 +172,14 @@ func (mod *OnReactionModule) ListenMessage(which slack.MessageID, modID marvin.M
 		return errors.Wrap(err, "on_reaction preparing SQL statement")
 	}
 	defer stmt.Close()
+
 	_, err = stmt.Exec(string(which.ChannelID), string(which.MessageTS), string(modID), []byte(data))
 	if err != nil {
 		return errors.Wrap(err, "on_reaction inserting row")
 	}
+
 	go mod.backfillReactions(which, handler, data, 0)
+
 	return nil
 }
 
@@ -191,6 +194,7 @@ func (mod *OnReactionModule) getListens(msgID slack.MessageID) ([]cbData, error)
 		return nil, errors.Wrap(err, "on_reaction preparing SQL statement")
 	}
 	defer stmt.Close()
+
 	rows, err := stmt.Query(string(msgID.ChannelID), string(msgID.MessageTS))
 	if err != nil {
 		return nil, errors.Wrap(err, "on_reaction checking DB")

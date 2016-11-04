@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+
+	"github.com/pkg/errors"
 )
 
 // CommandArguments contains the post-split arguments arrays. The pre-split
@@ -55,8 +57,9 @@ type CommandResult struct {
 }
 
 // CmdError includes the Err field for the CmdResultError code.
+// An error is something that shouldn't normally happen - access violations go under Failure.
 func CmdError(args *CommandArguments, err error, msg string) CommandResult {
-	return CommandResult{Args: args, Message: msg, Err: err, Code: CmdResultError}
+	return CommandResult{Args: args, Message: msg, Err: errors.Wrap(err, msg), Code: CmdResultError}
 }
 
 // CmdFailuref formats a string to create a CmdResultFailure result.

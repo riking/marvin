@@ -86,6 +86,9 @@ func (mod *DebugModule) DebugCommandSuccess(t marvin.Team, args *marvin.CommandA
 }
 
 func (mod *DebugModule) CommandEcho(t marvin.Team, args *marvin.CommandArguments) marvin.CommandResult {
+	if args.Source.AccessLevel() < marvin.AccessLevelAdmin {
+		return marvin.CmdFailuref(args, "This command is restricted to admins.")
+	}
 	return marvin.CmdSuccess(args, strings.Join(args.Arguments, " ")).WithReplyType(marvin.ReplyTypeFlagOmitUsername)
 }
 

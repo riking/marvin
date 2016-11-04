@@ -120,6 +120,7 @@ const (
 type ActionSource interface {
 	UserID() slack.UserID
 	ChannelID() slack.ChannelID
+	MsgTimestamp() slack.MessageTS
 	AccessLevel() AccessLevel
 	ArchiveLink() string
 

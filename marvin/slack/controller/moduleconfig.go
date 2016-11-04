@@ -87,9 +87,13 @@ func (pc *DBModuleConfig) Get(key string) (string, error) {
 	if err != nil {
 		return def, errors.Wrapf(err, "config.get(%s, %s)", pc.ModuleIdentifier, key)
 	}
+	defer stmt.Close()
+
 	row := stmt.QueryRow(pc.ModuleIdentifier, key)
+
 	var result sql.NullString
 	err = row.Scan(&result)
+
 	if !result.Valid {
 		return def, nil
 	} else if err != nil {
@@ -112,6 +116,8 @@ func (pc *DBModuleConfig) GetIsDefault(key string) (string, bool, error) {
 	if err != nil {
 		return def, true, errors.Wrapf(err, "config.get(%s, %s)", pc.ModuleIdentifier, key)
 	}
+	defer stmt.Close()
+
 	row := stmt.QueryRow(pc.ModuleIdentifier, key)
 	var result sql.NullString
 	err = row.Scan(&result)
@@ -138,6 +144,8 @@ func (pc *DBModuleConfig) GetIsDefaultNotProtected(key string) (string, bool, er
 	if err != nil {
 		return def, true, errors.Wrapf(err, "config.get(%s, %s)", pc.ModuleIdentifier, key)
 	}
+	defer stmt.Close()
+
 	row := stmt.QueryRow(pc.ModuleIdentifier, key)
 	var result sql.NullString
 	err = row.Scan(&result)
@@ -158,6 +166,8 @@ func (pc *DBModuleConfig) Set(key, value string) error {
 	if err != nil {
 		return errors.Wrapf(err, "moduleconfig.set(%s, %s)", pc.ModuleIdentifier, key)
 	}
+	defer stmt.Close()
+
 	_, err = stmt.Exec(pc.ModuleIdentifier, key, value)
 	if err != nil {
 		return errors.Wrapf(err, "moduleconfig.set(%s, %s)", pc.ModuleIdentifier, key)
@@ -170,6 +180,8 @@ func (pc *DBModuleConfig) SetDefault(key string) error {
 	if err != nil {
 		return errors.Wrapf(err, "moduleconfig.set(%s, %s)", pc.ModuleIdentifier, key)
 	}
+	defer stmt.Close()
+
 	_, err = stmt.Exec(pc.ModuleIdentifier, key)
 	if err != nil {
 		return errors.Wrapf(err, "moduleconfig.set(%s, %s)", pc.ModuleIdentifier, key)

@@ -289,7 +289,6 @@ func (t *Team) enableModules() {
 		}
 
 		// Set dependency pointers
-		util.LogDebug(ms.identifier, "depends:", ms.Dependencies)
 		ok := true
 		for _, v := range ms.Dependencies {
 			dependMS := t.getModuleStatus(v.Identifier)
