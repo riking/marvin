@@ -3,27 +3,33 @@ package controller
 import (
 	"database/sql"
 
+	"fmt"
+
 	"github.com/pkg/errors"
 	"github.com/riking/homeapi/marvin"
 	"github.com/riking/homeapi/marvin/database"
 )
 
 type DBModuleConfig struct {
-	conn             *database.Conn
-	ModuleIdentifier string
+	team             *Team
+	ModuleIdentifier marvin.ModuleID
 	defaults         map[string]string
+	protected        map[string]bool
+	DefaultsLocked   bool
 }
 
-func NewModuleConfig(c *database.Conn, moduleIdentifier string) marvin.ModuleConfig {
+func newModuleConfig(t *Team, modID marvin.ModuleID) *DBModuleConfig {
 	return &DBModuleConfig{
-		conn:             c,
-		ModuleIdentifier: moduleIdentifier,
+		team:             t,
+		ModuleIdentifier: modID,
 		defaults:         make(map[string]string),
+		protected:        make(map[string]bool),
+		DefaultsLocked:   false,
 	}
 }
 
 func MigrateModuleConfig(c *database.Conn) error {
-	return c.Migrate("main", 1478022704,
+	err := c.Migrate("main", 1478022704,
 		`CREATE TABLE config (
 			id SERIAL PRIMARY KEY,
 			module varchar(255),
@@ -33,21 +39,49 @@ func MigrateModuleConfig(c *database.Conn) error {
 			CONSTRAINT confkey UNIQUE(module, key)
 		)`,
 	)
+	c.SyntaxCheck(
+		sqlConfigGet,
+		sqlConfigSet,
+	)
+	return err
 }
 
+const (
+	sqlConfigGet = `SELECT value FROM config WHERE module = $1 AND key = $2`
+	sqlConfigSet = `
+		INSERT INTO config (module, key, value)
+		VALUES ($1, $2, $3)
+		ON CONFLICT ON CONSTRAINT confkey
+		DO UPDATE SET value = excluded.value
+			WHERE config.module = excluded.module
+			AND config.key = excluded.key
+	`
+)
+
 func (pc *DBModuleConfig) Add(key string, defaultValue string) {
+	if pc.DefaultsLocked {
+		panic("Module configuration must be set up during Load()")
+	}
 	pc.defaults[key] = defaultValue
 }
 
-func (pc *DBModuleConfig) Get(key, defaultValue string) (string, error) {
-	def := defaultValue
-	if def == "" {
-		def = pc.defaults[key]
+func (pc *DBModuleConfig) AddProtect(key string, defaultValue string, protect bool) {
+	if pc.DefaultsLocked {
+		panic("Module configuration must be set up during Load()")
+	}
+	pc.defaults[key] = defaultValue
+	pc.protected[key] = protect
+}
+
+func (pc *DBModuleConfig) Get(key string) (string, error) {
+	def, haveDefault := pc.defaults[key]
+	if !haveDefault {
+		panic("Get() must have a default set")
 	}
 
-	stmt, err := pc.conn.Prepare(`SELECT value FROM config WHERE module = $1 AND key = $2`)
+	stmt, err := pc.team.DB().Prepare(sqlConfigGet)
 	if err != nil {
-		return def, errors.Wrapf(err, "moduleconfig.get(%s, %s)", pc.ModuleIdentifier, key)
+		return def, errors.Wrapf(err, "config.get(%s, %s)", pc.ModuleIdentifier, key)
 	}
 	row := stmt.QueryRow(pc.ModuleIdentifier, key)
 	var result sql.NullString
@@ -55,20 +89,83 @@ func (pc *DBModuleConfig) Get(key, defaultValue string) (string, error) {
 	if !result.Valid {
 		return def, nil
 	} else if err != nil {
-		return def, errors.Wrapf(err, "moduleconfig.get(%s, %s)", pc.ModuleIdentifier, key)
+		return def, errors.Wrapf(err, "config.get(%s, %s)", pc.ModuleIdentifier, key)
+	}
+	return result.String, nil
+}
+
+// GetIsDefault gets a module configuration value, but does not require the key have been initialized.
+//
+// 1) If the key was not initialized with Add(), value is the empty string, isDefault is true, and err is ErrConfNoDefault.
+// 2) If the key was initialized, but has no override, value is the default value, isDefault is true, and err is nil.
+// 3) If the key has an override, value is the override, isDefault is false, and err is nil.
+//
+// implements marvin.ModuleConfig.GetIsDefault
+func (pc *DBModuleConfig) GetIsDefault(key, defaultValue string) (string, bool, error) {
+	def, haveDefault := pc.defaults[key]
+
+	stmt, err := pc.team.DB().Prepare(sqlConfigGet)
+	if err != nil {
+		return defaultValue, errors.Wrapf(err, "config.get(%s, %s)", pc.ModuleIdentifier, key)
+	}
+	row := stmt.QueryRow(pc.ModuleIdentifier, key)
+	var result sql.NullString
+	err = row.Scan(&result)
+	if !result.Valid {
+		if haveDefault {
+			return def, true, nil
+		} else {
+			return "", true, marvin.ErrConfNoDefault{key: fmt.Sprintf("%s.%s", pc.ModuleIdentifier, key)}
+		}
+	} else if err != nil {
+		return defaultValue, errors.Wrapf(err, "config.get(%s, %s)", pc.ModuleIdentifier, key)
+	}
+	return result.String, nil
+}
+
+func (pc *DBModuleConfig) GetWithDefault(key, defaultValue string) (string, error) {
+	stmt, err := pc.team.DB().Prepare(sqlConfigGet)
+	if err != nil {
+		return defaultValue, errors.Wrapf(err, "config.get(%s, %s)", pc.ModuleIdentifier, key)
+	}
+	row := stmt.QueryRow(pc.ModuleIdentifier, key)
+	var result sql.NullString
+	err = row.Scan(&result)
+	if !result.Valid {
+		return defaultValue, nil
+	} else if err != nil {
+		return defaultValue, errors.Wrapf(err, "config.get(%s, %s)", pc.ModuleIdentifier, key)
+	}
+	return result.String, nil
+}
+
+func (pc *DBModuleConfig) GetNotProtected(key string, defaultValue string) (string, error) {
+	def, haveDef := pc.defaults[key]
+	if !haveDef {
+		def = defaultValue
+	}
+
+	if pc.protected[key] {
+		return "__ERROR", ErrProtected{key: fmt.Sprintf("%s.%s", pc.ModuleIdentifier, key)}
+	}
+
+	stmt, err := pc.team.DB().Prepare(sqlConfigGet)
+	if err != nil {
+		return def, errors.Wrapf(err, "config.get(%s, %s)", pc.ModuleIdentifier, key)
+	}
+	row := stmt.QueryRow(pc.ModuleIdentifier, key)
+	var result sql.NullString
+	err = row.Scan(&result)
+	if !result.Valid {
+		return def, nil
+	} else if err != nil {
+		return def, errors.Wrapf(err, "config.get(%s.%s)", pc.ModuleIdentifier, key)
 	}
 	return result.String, nil
 }
 
 func (pc *DBModuleConfig) Set(key, value string) error {
-	stmt, err := pc.conn.Prepare(`
-		INSERT INTO config (module, key, value)
-		VALUES ($1, $2, $3)
-		ON CONFLICT ON CONSTRAINT confkey
-		DO UPDATE SET value = excluded.value
-			WHERE module = excluded.module
-			AND key = excluded.key
-	`)
+	stmt, err := pc.team.DB().Prepare(sqlConfigSet)
 	if err != nil {
 		return errors.Wrapf(err, "moduleconfig.set(%s, %s)", pc.ModuleIdentifier, key)
 	}
@@ -77,4 +174,18 @@ func (pc *DBModuleConfig) Set(key, value string) error {
 		return errors.Wrapf(err, "moduleconfig.set(%s, %s)", pc.ModuleIdentifier, key)
 	}
 	return nil
+}
+
+func (pc *DBModuleConfig) ListDefaults() map[string]string {
+	if !pc.DefaultsLocked {
+		panic("ListDefaults() called before defaults locked")
+	}
+	return pc.defaults
+}
+
+func (pc *DBModuleConfig) ListProtected() map[string]bool {
+	if !pc.DefaultsLocked {
+		panic("ListProtected() called before defaults locked")
+	}
+	return pc.protected
 }

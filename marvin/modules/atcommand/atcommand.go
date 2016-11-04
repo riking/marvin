@@ -39,6 +39,15 @@ func (mod *AtCommandModule) Load(t marvin.Team) {
 	mod.botUser = mod.team.BotUser()
 	mod.mentionRgx1 = regexp.MustCompile(fmt.Sprintf(`<@%s>`, mod.botUser))
 	mod.mentionRgx2 = regexp.MustCompile(fmt.Sprintf(`(?m:\n?\s*<@%s>\s+)`, mod.botUser))
+
+	c := mod.team.ModuleConfig(Identifier)
+	c.Add(confKeyEmojiHi, "wave")
+	c.Add(confKeyEmojiOk, "white_check_mark")
+	c.Add(confKeyEmojiFail, "negative_squared_cross_mark")
+	c.Add(confKeyEmojiError, "warning")
+	c.Add(confKeyEmojiUnkCmd, "question")
+	c.Add(confKeyEmojiUsage, "confused")
+	c.Add(confKeyEmojiHelp, "memo")
 }
 
 func (mod *AtCommandModule) Enable(t marvin.Team) {
@@ -51,13 +60,23 @@ func (mod *AtCommandModule) Disable(t marvin.Team) {
 
 // -----
 
+const (
+	confKeyEmojiHi     = "emoji-hi"
+	confKeyEmojiOk     = "emoji-ok"
+	confKeyEmojiFail   = "emoji-fail"
+	confKeyEmojiError  = "emoji-error"
+	confKeyEmojiUnkCmd = "emoji-unknown"
+	confKeyEmojiUsage  = "emoji-usage"
+	confKeyEmojiHelp   = "emoji-help"
+)
+
 func (mod *AtCommandModule) HandleMessage(rtm slack.RTMRawMessage) {
 	msgRawTxt := rtm.Text()
 	matches := mod.mentionRgx2.FindStringIndex(msgRawTxt)
 	if len(matches) == 0 {
 		m := mod.mentionRgx1.FindString(msgRawTxt)
 		if m != "" {
-			reactEmoji, _ := mod.team.ModuleConfig("main").Get("emoji-hi", "wave")
+			reactEmoji, _ := mod.team.ModuleConfig(Identifier).Get(confKeyEmojiHi)
 			mod.team.ReactMessage(rtm.MessageID(), reactEmoji)
 		}
 		return
@@ -72,15 +91,18 @@ func (mod *AtCommandModule) HandleMessage(rtm slack.RTMRawMessage) {
 			util.LogDebug("Mention has no arguments, stopping")
 			return
 		}
-		args.Source = marvin.ActionSourceUserMessage{Msg: rtm}
 		util.LogDebug("args: [", strings.Join(args.OriginalArguments, "] ["), "]")
+
+		source := marvin.ActionSourceUserMessage{Msg: rtm, Team: mod.team}
+		args.Source = source
 		result := mod.team.DispatchCommand(&args)
-		mod.DispatchResponse(rtm, result)
+
+		mod.DispatchResponse(rtm, result, source)
 		util.LogGood("command result:", result)
 	}
 }
 
-func (mod *AtCommandModule) DispatchResponse(rtm slack.RTMRawMessage, result marvin.CommandResult) {
+func (mod *AtCommandModule) DispatchResponse(rtm slack.RTMRawMessage, result marvin.CommandResult, source marvin.ActionSourceUserMessage) {
 	reactEmoji := ""
 	replyType := marvin.ReplyTypeInvalid
 
@@ -104,24 +126,25 @@ func (mod *AtCommandModule) DispatchResponse(rtm slack.RTMRawMessage, result mar
 
 	switch result.Code {
 	case marvin.CmdResultOK:
-		reactEmoji, _ = mod.team.ModuleConfig("main").Get("emoji-ok", "white_check_mark")
+		reactEmoji, _ = mod.team.ModuleConfig(Identifier).Get(confKeyEmojiOk)
 		replyType = marvin.ReplyTypeInChannel
 	case marvin.CmdResultFailure:
-		reactEmoji, _ = mod.team.ModuleConfig("main").Get("emoji-fail", "negative_squared_cross_mark")
+		reactEmoji, _ = mod.team.ModuleConfig(Identifier).Get(confKeyEmojiFail)
 		replyType = marvin.ReplyTypeShortProblem
 	case marvin.CmdResultError:
-		reactEmoji, _ = mod.team.ModuleConfig("main").Get("emoji-error", "warning")
+		reactEmoji, _ = mod.team.ModuleConfig(Identifier).Get(confKeyEmojiError)
 		replyType = marvin.ReplyTypeShortProblem
 	case marvin.CmdResultNoSuchCommand:
-		reactEmoji, _ = mod.team.ModuleConfig("main").Get("emoji-unknown", "question")
+		reactEmoji, _ = mod.team.ModuleConfig(Identifier).Get(confKeyEmojiUnkCmd)
 		replyType = marvin.ReplyTypePM
 	case marvin.CmdResultPrintUsage:
-		reactEmoji, _ = mod.team.ModuleConfig("main").Get("emoji-usage", "confused")
+		reactEmoji, _ = mod.team.ModuleConfig(Identifier).Get(confKeyEmojiUsage)
 		replyType = marvin.ReplyTypePM
 	case marvin.CmdResultPrintHelp:
-		reactEmoji = ""
+		reactEmoji, _ = mod.team.ModuleConfig(Identifier).Get(confKeyEmojiHelp)
 		replyType = marvin.ReplyTypeInChannel
 	default:
+		reactEmoji, _ = mod.team.ModuleConfig(Identifier).Get(confKeyEmojiError)
 		replyType = marvin.ReplyTypeShortProblem
 	}
 
@@ -133,7 +156,7 @@ func (mod *AtCommandModule) DispatchResponse(rtm slack.RTMRawMessage, result mar
 	wg.Add(1)
 	defer wg.Wait()
 	go func() {
-		marvin.ActionSourceUserMessage{Msg: rtm}.SendCmdReply(mod.team, result)
+		source.SendCmdReply(result)
 		wg.Done()
 	}()
 

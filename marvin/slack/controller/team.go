@@ -28,6 +28,9 @@ type Team struct {
 
 	modulesLock sync.Mutex
 	modules     []moduleStatus
+
+	confLock sync.Mutex
+	confMap  map[marvin.ModuleID]*DBModuleConfig
 }
 
 func NewTeam(cfg *marvin.TeamConfig) (*Team, error) {
@@ -43,8 +46,11 @@ func NewTeam(cfg *marvin.TeamConfig) (*Team, error) {
 
 	return &Team{
 		teamConfig: cfg,
+		client:     nil, // ConnectRTM()
 		db:         db,
 		commands:   marvin.NewParentCommand(),
+		modules:    nil,
+		confMap:    make(map[marvin.ModuleID]*DBModuleConfig),
 	}, nil
 }
 
@@ -71,7 +77,15 @@ func (t *Team) DB() *database.Conn {
 }
 
 func (t *Team) ModuleConfig(ident marvin.ModuleID) marvin.ModuleConfig {
-	return NewModuleConfig(t.db, string(ident))
+	t.confLock.Lock()
+	defer t.confLock.Unlock()
+	conf, ok := t.confMap[ident]
+	if ok {
+		return conf
+	}
+	conf = newModuleConfig(t, ident)
+	t.confMap[ident] = conf
+	return conf
 }
 
 func (t *Team) BotUser() slack.UserID {

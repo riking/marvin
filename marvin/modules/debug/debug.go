@@ -3,9 +3,10 @@ package debug
 import (
 	"strings"
 
+	"fmt"
+
 	"github.com/pkg/errors"
 	"github.com/riking/homeapi/marvin"
-	"fmt"
 	"github.com/riking/homeapi/marvin/slack"
 )
 

@@ -290,9 +290,9 @@ func (mod *OnReactionModule) getHandler(modID marvin.ModuleID) ReactionHandler {
 
 func (mod *OnReactionModule) backfillReactions(which slack.MessageID, handler ReactionHandler, data []byte, retries int) {
 	form := url.Values{
-		"channel": []string{string(which.ChannelID)},
-		"ts":      []string{string(which.MessageTS)},
-		"full":    []string{"true"},
+		"channel":   []string{string(which.ChannelID)},
+		"timestamp": []string{string(which.MessageTS)},
+		"full":      []string{"true"},
 	}
 	resp, err := mod.team.SlackAPIPost("reactions.get", form)
 	if err != nil {

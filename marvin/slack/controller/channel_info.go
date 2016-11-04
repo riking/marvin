@@ -6,11 +6,13 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/riking/homeapi/marvin/slack"
 	"fmt"
+
+	"github.com/riking/homeapi/marvin"
+	"github.com/riking/homeapi/marvin/slack"
 )
 
-func (t *Team) ChannelName(channel slack.ChannelID) (string) {
+func (t *Team) ChannelName(channel slack.ChannelID) string {
 	switch channel[0] {
 	case 'C':
 		ch, err := t.PublicChannelInfo(channel)
@@ -28,12 +30,42 @@ func (t *Team) ChannelName(channel slack.ChannelID) (string) {
 	return string(channel)
 }
 
-func (t *Team) UserName(user slack.UserID) (string) {
+func (t *Team) UserName(user slack.UserID) string {
 	u := t.cachedUserInfo(user)
 	if u == nil {
 		return fmt.Sprintf("<!error getting channel name for %s>", string(user))
 	}
 	return u.Name
+}
+
+func (t *Team) UserLevel(user slack.UserID) marvin.AccessLevel {
+	if user == "U2223J70R" { // TODO store in teamconfig? database?
+		return marvin.AccessLevelController
+	}
+
+	u := t.cachedUserInfo(user)
+	if u == nil {
+		// unknown user ID
+		return marvin.AccessLevelBlacklisted
+	}
+
+	val, isDefault, err := t.ModuleConfig("blacklist").GetIsDefault(string(u.ID))
+	if isDefault {
+		// user not blacklisted
+	} else if err != nil {
+		// DB error, continue
+	} else if val != "" {
+		// user is blacklisted
+		return marvin.AccessLevelBlacklisted
+	}
+
+	if u.IsOwner || u.IsAdmin {
+		return marvin.AccessLevelAdmin
+	}
+	if u.IsBot {
+		return marvin.AccessLevelBlacklisted
+	}
+	return marvin.AccessLevelNormal
 }
 
 func (t *Team) cachedUserInfo(user slack.UserID) *slack.User {

@@ -226,6 +226,14 @@ func (t *Team) loadModules() {
 		}
 		util.LogGood("Loaded module", t.modules[i].Identifier)
 		t.modules[i].State = ModuleStateLoaded
+
+		// Lock configuration
+		t.confLock.Lock()
+		mc, ok := t.confMap[v.Identifier]
+		t.confLock.Unlock()
+		if ok {
+			mc.DefaultsLocked = true
+		}
 	}
 
 	sort.Sort(sortModules(t.modules))
@@ -234,7 +242,7 @@ func (t *Team) loadModules() {
 func (t *Team) enableModules() {
 	conf := t.ModuleConfig("modules")
 	for i, ms := range t.modules {
-		desired, _ := conf.Get(fmt.Sprintf("%s.enabled", ms.Identifier), "on")
+		desired, _, _ := conf.GetIsDefault(string(ms.Identifier))
 		if desired == ConfTurnOffModule {
 			t.modules[i].State = ModuleStateDisabled
 			util.LogWarn("Left disabled module", t.modules[i].Identifier)

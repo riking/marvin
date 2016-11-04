@@ -29,32 +29,34 @@ const LongReplyThreshold = 400
 const LongReplyCut = 100
 const ShortReplyThreshold = 35
 
-type ActionSource interface {
-	UserID() slack.UserID
-	ChannelID() slack.ChannelID
-	ArchiveLink(t Team) string
-
-	SendCmdReply(t Team, result CommandResult) CommandResult
-}
-
 type ActionSourceUserMessage struct {
-	Msg slack.RTMRawMessage
+	Team Team
+	Msg  slack.RTMRawMessage
 }
 
 func (um ActionSourceUserMessage) UserID() slack.UserID       { return um.Msg.UserID() }
 func (um ActionSourceUserMessage) ChannelID() slack.ChannelID { return um.Msg.ChannelID() }
-func (um ActionSourceUserMessage) ArchiveLink(t Team) string  { return t.ArchiveURL(um.Msg.MessageID()) }
+func (um ActionSourceUserMessage) ArchiveLink() string        { return um.Team.ArchiveURL(um.Msg.MessageID()) }
+func (um ActionSourceUserMessage) AccessLevel() AccessLevel   { return um.Team.UserLevel(um.Msg.UserID()) }
 
-func (um ActionSourceUserMessage) SendCmdReply(t Team, result CommandResult) CommandResult {
+func (um ActionSourceUserMessage) SendCmdReply(result CommandResult) CommandResult {
+	t := um.Team
 	logChannel := t.TeamConfig().LogChannel
 	imChannel, _ := t.GetIM(um.UserID())
 
+	// Reply in the public / group channel message was sent from
 	replyChannel := result.ReplyType&ReplyTypeInChannel != 0
+	// Reply in a DM
 	replyIM := result.ReplyType&ReplyTypePM != 0
+	// Post in the logging channel
 	replyLog := result.ReplyType&ReplyTypeLog != 0
 
-	if um.Msg.ChannelID() == imChannel {
-		replyIM = true
+	// Message was sent from a DM; do not include archive link
+	replyIMPrimary := false
+
+	if (replyChannel || replyIM) && um.Msg.ChannelID() == imChannel {
+		replyIMPrimary = true
+		replyIM = false
 		replyChannel = false
 	}
 
@@ -77,11 +79,14 @@ func (um ActionSourceUserMessage) SendCmdReply(t Team, result CommandResult) Com
 			}
 			t.SendMessage(um.Msg.ChannelID(), channelMsg)
 		}
+		if replyIMPrimary {
+			t.SendMessage(imChannel, result.Message)
+		}
 		if replyIM {
-			t.SendMessage(imChannel, fmt.Sprintf("%s\n%s", result.Message, um.ArchiveLink(t)))
+			t.SendMessage(imChannel, fmt.Sprintf("%s\n%s", result.Message, um.ArchiveLink()))
 		}
 		if replyLog {
-			_, _, err := t.SendMessage(logChannel, fmt.Sprintf("%s\n%s", result.Message, um.ArchiveLink(t)))
+			_, _, err := t.SendMessage(logChannel, fmt.Sprintf("%s\n%s", result.Message, um.ArchiveLink()))
 			if err != nil {
 				util.LogError(errors.Wrapf(err, "send to log channel"))
 			}
@@ -98,11 +103,14 @@ func (um ActionSourceUserMessage) SendCmdReply(t Team, result CommandResult) Com
 			}
 			t.SendMessage(um.Msg.ChannelID(), fmt.Sprintf("%s: %s", result.Message, util.PreviewString(errors.Cause(result.Err).Error(), ShortReplyThreshold)))
 		}
+		if replyIMPrimary {
+			t.SendMessage(imChannel, fmt.Sprintf("%s: %v", result.Message, result.Err))
+		}
 		if replyIM {
-			t.SendMessage(imChannel, fmt.Sprintf("%s: %v\n%s", result.Message, result.Err, um.ArchiveLink(t)))
+			t.SendMessage(imChannel, fmt.Sprintf("%s: %v\n%s", result.Message, result.Err, um.ArchiveLink()))
 		}
 		if replyLog {
-			_, _, err := t.SendMessage(logChannel, fmt.Sprintf("%s\n```\n%+v\n```", um.ArchiveLink(t), result.Err))
+			_, _, err := t.SendMessage(logChannel, fmt.Sprintf("%s\n```\n%+v\n```", um.ArchiveLink(), result.Err))
 			if err != nil {
 				util.LogError(errors.Wrapf(err, "send to log channel %s", logChannel))
 			}
@@ -112,7 +120,7 @@ func (um ActionSourceUserMessage) SendCmdReply(t Team, result CommandResult) Com
 		if replyChannel {
 			// Nothing
 		}
-		if replyIM {
+		if replyIM || replyIMPrimary {
 			t.SendMessage(imChannel, fmt.Sprintf("I didn't quite understand that, sorry.\nYou said: [%s]",
 				strings.Join(result.Args.OriginalArguments, "] [")))
 		}
@@ -120,7 +128,7 @@ func (um ActionSourceUserMessage) SendCmdReply(t Team, result CommandResult) Com
 			t.SendMessage(logChannel, fmt.Sprintf("No such command from %v\nArgs: [%s]\nLink: %s",
 				um.UserID(),
 				strings.Join(result.Args.OriginalArguments, "] ["),
-				um.ArchiveLink(t)))
+				um.ArchiveLink()))
 		}
 	case CmdResultPrintHelp:
 		if replyChannel {
@@ -131,7 +139,7 @@ func (um ActionSourceUserMessage) SendCmdReply(t Team, result CommandResult) Com
 			}
 			t.SendMessage(um.Msg.ChannelID(), msg)
 		}
-		if replyIM {
+		if replyIM || replyIMPrimary {
 			t.SendMessage(imChannel, result.Message)
 		}
 		if replyLog {
@@ -146,7 +154,7 @@ func (um ActionSourceUserMessage) SendCmdReply(t Team, result CommandResult) Com
 			}
 			t.SendMessage(um.Msg.ChannelID(), msg)
 		}
-		if replyIM {
+		if replyIM || replyIMPrimary {
 			t.SendMessage(imChannel, result.Message)
 		}
 		if replyLog {

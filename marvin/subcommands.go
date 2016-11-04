@@ -102,14 +102,20 @@ func (sc subCommandWithHelp) Help(t Team, args *CommandArguments) CommandResult 
 }
 
 type ParentCommand struct {
-	lock    sync.Mutex
-	nameMap map[string]SubCommand
+	extraHelp string
+	lock      sync.Mutex
+	nameMap   map[string]SubCommand
 }
 
 func NewParentCommand() *ParentCommand {
 	return &ParentCommand{
 		nameMap: make(map[string]SubCommand),
 	}
+}
+
+func (pc *ParentCommand) WithHelp(extraHelp string) *ParentCommand {
+	pc.extraHelp = extraHelp
+	return pc
 }
 
 func (pc *ParentCommand) RegisterCommand(name string, c SubCommand) {
@@ -161,6 +167,9 @@ func (pc *ParentCommand) helpListCommands(t Team, args *CommandArguments) Comman
 	}
 	preArgs := args.PreArgs()
 	if len(preArgs) > 1 {
+		if pc.extraHelp != "" {
+			return CmdHelpf(args, "%s\nSubcommands: `%s`", pc.extraHelp, strings.Join(subNames, "` `"))
+		}
 		return CmdHelpf(args, "Subcommands of `%s`:\n`%s`", strings.Join(preArgs[1:], " "), strings.Join(subNames, "` `"))
 	}
 	return CmdHelpf(args, "Available commands:\n`%s`", strings.Join(subNames, "` `"))
