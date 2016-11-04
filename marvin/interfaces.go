@@ -14,17 +14,56 @@ import (
 // ModuleID is a string constant identifying a module.
 type ModuleID string
 
+type ModuleState int
+
+const (
+	_ ModuleState = iota
+	ModuleStateConstructed
+	ModuleStateLoaded
+	ModuleStateEnabled
+	ModuleStateDisabled
+	ModuleStateErrorLoading
+	ModuleStateErrorEnabling
+)
+
+type Module interface {
+	Identifier() ModuleID
+
+	// Load should declare dependencies.
+	Load(t Team)
+	// Enable has dependencies available.
+	Enable(t Team)
+	// Disable should shut down and unregister all resources.
+	Disable(t Team)
+}
+
+type ModuleStatus interface {
+	Instance() Module
+	State() ModuleState
+	// Returns non-nil if Degraded returns true.
+	Err() error
+
+	IsLoaded() bool
+	IsEnabled() bool
+	Degraded() bool
+}
+
 type ModuleConfig interface {
 	// Get gets a module configuration value. The error will be set on database errors.
 	// Get() will panic if the key was not initialized with Add() or AddProtect().
 	Get(key string) (string, error)
-	// GetIsDefault gets a module configuration value, but does not require the key have been initialized.
+	// GetIsDefault gets a module configuration value, but does not require the key
+	// have been initialized.
 	//
-	// 1) If the key was not initialized with Add(), value is the empty string, isDefault is true, and err is ErrConfNoDefault.
-	// 2) If the key was initialized, but has no override, value is the default value, isDefault is true, and err is nil.
-	// 3) If the key has an override, value is the override, isDefault is false, and err is nil.
+	// 1) If the key was not initialized with Add(), value is the empty string,
+	//    isDefault is true, and err is ErrConfNoDefault.
+	// 2) If the key was initialized, but has no override, value is the default value,
+	//    isDefault is true, and err is nil.
+	// 3) If the key has an override, value is the override, isDefault is false, and
+	//    err is nil.
 	GetIsDefault(key string) (value string, isDefault bool, err error)
-	// GetIsDefaultNotProtected acts like GetIsDefault, but returns ("", false, ErrConfProtected) if the key is protected.
+	// GetIsDefaultNotProtected acts like GetIsDefault, but returns
+	// ("", false, ErrConfProtected) if the key is protected.
 	GetIsDefaultNotProtected(key string) (value string, isDefault bool, err error)
 	// Set sets an override for the given configuration key.
 	Set(key, value string) error
@@ -33,7 +72,8 @@ type ModuleConfig interface {
 	// Add initializes the default value for a key for use with Get().
 	// This must be called during the module Load phase.
 	Add(key, defaultValue string)
-	// Add initializes the default value for a key for use with Get(), and also sets the key as protected.
+	// Add initializes the default value for a key for use with Get(), and also sets
+	// the key as protected.
 	// This must be called during the module Load phase.
 	AddProtect(key, defaultValue string, protect bool)
 
@@ -163,6 +203,10 @@ type Team interface {
 	// GetModule returns the Module instance for a module directly.
 	// TODO - return its state?
 	GetModule(modID ModuleID) Module
+	// GetAllModules() returns the status of all modules.
+	GetAllModules() []ModuleStatus
+	// GetAllModules() returns the status of all enabled modules.
+	GetAllEnabledModules() []ModuleStatus
 
 	SendMessage
 	ReactMessage(msgID slack.MessageID, emojiName string) error

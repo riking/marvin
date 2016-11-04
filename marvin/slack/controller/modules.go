@@ -24,51 +24,83 @@ func (t *Team) DependModule(self marvin.Module, dependID marvin.ModuleID, ptr *m
 	t.modulesLock.Lock()
 	defer t.modulesLock.Unlock()
 
-	selfMS := t.GetModuleStatus(self.Identifier())
+	selfMS := t.getModuleStatus(self.Identifier())
 	if selfMS == nil {
 		panic(errors.Errorf("DependModule() self parameter is not loaded?"))
 	}
-	dependMS := t.GetModuleStatus(dependID)
+	dependMS := t.getModuleStatus(dependID)
 	if dependMS == nil {
 		return -1
 	}
 
 	selfMS.Dependencies = append(selfMS.Dependencies, oneModuleDependency{
-		Identifier: dependMS.Identifier,
+		Identifier: dependMS.identifier,
 		Pointer:    ptr,
 	})
 	if dependMS.Degraded() {
 		return -2
 	}
-	if dependMS.State == ModuleStateEnabled {
-		*ptr = dependMS.Instance
+	if dependMS.state == marvin.ModuleStateEnabled {
+		*ptr = dependMS.instance
 		return 1
 	}
 	return 0
 }
 
-func (t *Team) GetModuleStatus(ident marvin.ModuleID) *moduleStatus {
-	for i, ms := range t.modules {
-		if ms.Identifier == ident {
-			return &t.modules[i]
+func (t *Team) getModuleStatus(ident marvin.ModuleID) *moduleStatus {
+	for _, ms := range t.modules {
+		if ms.identifier == ident {
+			return ms
 		}
 	}
 	return nil
 }
 
 func (t *Team) GetModule(ident marvin.ModuleID) marvin.Module {
-	ms := t.GetModuleStatus(ident)
+	ms := t.getModuleStatus(ident)
 	if ms != nil {
-		return ms.Instance
+		return ms.instance
 	}
 	return nil
+}
+
+func (t *Team) GetModuleStatus(ident marvin.ModuleID) marvin.ModuleStatus {
+	ms := t.getModuleStatus(ident)
+	if ms != nil {
+		return ms
+	}
+	return nil
+}
+
+func (t *Team) GetAllModules() []marvin.ModuleStatus {
+	var all []marvin.ModuleStatus
+
+	t.modulesLock.Lock()
+	defer t.modulesLock.Unlock()
+	for i := range t.modules {
+		all = append(all, t.modules[i])
+	}
+	return all
+}
+
+func (t *Team) GetAllEnabledModules() []marvin.ModuleStatus {
+	var all []marvin.ModuleStatus
+
+	t.modulesLock.Lock()
+	defer t.modulesLock.Unlock()
+	for _, v := range t.modules {
+		if v.state == marvin.ModuleStateEnabled {
+			all = append(all, v)
+		}
+	}
+	return all
 }
 
 func (t *Team) EnableModule(ident marvin.ModuleID) error {
 	var idx int = -1
 
 	for i, ms := range t.modules {
-		if ms.Identifier == ident {
+		if ms.identifier == ident {
 			idx = i
 			break
 		}
@@ -77,65 +109,65 @@ func (t *Team) EnableModule(ident marvin.ModuleID) error {
 		return errors.Errorf("No such module '%s'", ident)
 	}
 
-	switch t.modules[idx].State {
-	case ModuleStateEnabled:
+	switch t.modules[idx].state {
+	case marvin.ModuleStateEnabled:
 		// Do nothing
 		return nil
-	case ModuleStateConstructed:
-	case ModuleStateErrorLoading:
+	case marvin.ModuleStateConstructed:
+	case marvin.ModuleStateErrorLoading:
 	default:
 		return errors.Errorf("module must complete loading first")
-	case ModuleStateLoaded:
-	case ModuleStateErrorEnabling:
-	case ModuleStateDisabled:
+	case marvin.ModuleStateLoaded:
+	case marvin.ModuleStateErrorEnabling:
+	case marvin.ModuleStateDisabled:
 		// OK
 		break
 	}
 
-	err := t.enableModule2(&t.modules[idx])
+	err := t.enableModule2(t.modules[idx])
 	if err != nil {
 		return errors.Wrapf(err, "Could not enable '%s'", ident)
 	}
 
 	for _, v := range t.modules[idx].Dependencies {
-		*v.Pointer = t.modules[idx].Instance
+		*v.Pointer = t.modules[idx].instance
 	}
 	return nil
 }
 
 func (t *Team) DisableModule(ident marvin.ModuleID) error {
-	var idx int = -1
+	var ms *moduleStatus
 
-	for i, ms := range t.modules {
-		if ms.Identifier == ident {
-			idx = i
+	for _, v := range t.modules {
+		if v.identifier == ident {
+			ms = v
 			break
 		}
 	}
-	if idx == -1 {
+	if ms == nil {
 		return errors.Errorf("No such module '%s'", ident)
 	}
 
-	switch t.modules[idx].State {
-	case ModuleStateDisabled:
-	case ModuleStateLoaded:
-	case ModuleStateConstructed:
+	switch ms.state {
+	case marvin.ModuleStateDisabled:
+	case marvin.ModuleStateLoaded:
+	case marvin.ModuleStateConstructed:
 		// Do nothing
 		return nil
-	case ModuleStateErrorLoading:
-	case ModuleStateErrorEnabling:
+	case marvin.ModuleStateErrorLoading:
+	case marvin.ModuleStateErrorEnabling:
 	default:
 		return errors.Errorf("module must complete loading first")
-	case ModuleStateEnabled:
+	case marvin.ModuleStateEnabled:
 		// OK
 		break
 	}
 
-	for _, v := range t.modules[idx].Dependencies {
+	err := protectedCallT(t, ms.instance.Disable)
+
+	for _, v := range ms.Dependencies {
 		*v.Pointer = nil
 	}
-
-	err := protectedCallT(t, t.modules[idx].Instance.Disable)
 
 	if err != nil {
 		return errors.Wrapf(err, "Failure disabling '%s'", ident)
@@ -145,41 +177,49 @@ func (t *Team) DisableModule(ident marvin.ModuleID) error {
 
 // Loading
 
-type ModuleState int
-
-const (
-	_ ModuleState = iota
-	ModuleStateConstructed
-	ModuleStateLoaded
-	ModuleStateEnabled
-	ModuleStateDisabled
-	ModuleStateErrorLoading
-	ModuleStateErrorEnabling
-)
-
 type oneModuleDependency struct {
 	Identifier marvin.ModuleID
 	Pointer    *marvin.Module
 }
 
 type moduleStatus struct {
-	Identifier    marvin.ModuleID
-	Instance      marvin.Module
-	State         ModuleState
-	DegradeReason error
+	identifier    marvin.ModuleID
+	instance      marvin.Module
+	state         marvin.ModuleState
+	degradeReason error
 	Dependencies  []oneModuleDependency
 }
 
+func (ms *moduleStatus) Identifier() marvin.ModuleID {
+	return ms.identifier
+}
+
+func (ms *moduleStatus) Instance() marvin.Module {
+	return ms.instance
+}
+
+func (ms *moduleStatus) State() marvin.ModuleState {
+	return ms.state
+}
+
+func (ms *moduleStatus) IsLoaded() bool {
+	return ms.state == marvin.ModuleStateLoaded || ms.state == marvin.ModuleStateErrorEnabling
+}
+
 func (ms *moduleStatus) IsEnabled() bool {
-	return ms.DegradeReason == nil && ms.State == ModuleStateEnabled
+	return ms.state == marvin.ModuleStateEnabled
 }
 
 func (ms *moduleStatus) Degraded() bool {
-	return ms.DegradeReason != nil
+	return ms.degradeReason != nil
+}
+
+func (ms *moduleStatus) Err() error {
+	return ms.degradeReason
 }
 
 func (t *Team) constructModules() {
-	var modList []moduleStatus
+	var modList []*moduleStatus
 	var err error
 
 	for _, constructor := range marvin.AllModules() {
@@ -192,23 +232,23 @@ func (t *Team) constructModules() {
 				strings.Replace(fmt.Sprintf("%+v", err), "\n", "\t\n", -1))
 			continue
 		}
-		modList = append(modList, moduleStatus{
-			Instance:     mod,
-			Identifier:   mod.Identifier(),
-			State:        ModuleStateConstructed,
+		modList = append(modList, &moduleStatus{
+			instance:     mod,
+			identifier:   mod.Identifier(),
+			state:        marvin.ModuleStateConstructed,
 			Dependencies: nil,
 		})
 	}
 	t.modules = modList
 }
 
-type sortModules []moduleStatus
+type sortModules []*moduleStatus
 
 func (sm sortModules) Len() int      { return len(sm) }
-func (sm sortModules) Swap(i, j int) { var tmp moduleStatus; tmp = sm[i]; sm[i] = sm[j]; sm[j] = tmp }
+func (sm sortModules) Swap(i, j int) { var tmp *moduleStatus; tmp = sm[i]; sm[i] = sm[j]; sm[j] = tmp }
 func (sm sortModules) Less(i, j int) bool {
 	for _, v := range sm[j].Dependencies {
-		if v.Identifier == sm[i].Identifier {
+		if v.Identifier == sm[i].identifier {
 			return true
 		}
 	}
@@ -216,24 +256,23 @@ func (sm sortModules) Less(i, j int) bool {
 }
 
 func (t *Team) loadModules() {
-	for i, v := range t.modules {
-		err := protectedCallT(t, v.Instance.Load)
+	for _, v := range t.modules {
+		err := protectedCallT(t, v.instance.Load)
 		if err != nil {
-			t.modules[i].State = ModuleStateErrorLoading
-			t.modules[i].DegradeReason = err
-			util.LogBadf("Module %s failed to load: %v\n", t.modules[i].Identifier, err)
+			v.state = marvin.ModuleStateErrorLoading
+			v.degradeReason = err
+			util.LogBadf("Module %s failed to load: %v\n", v.identifier, err)
 			continue
 		}
-		util.LogGood("Loaded module", t.modules[i].Identifier)
-		t.modules[i].State = ModuleStateLoaded
+		util.LogGood("Loaded module", v.identifier)
+		v.state = marvin.ModuleStateLoaded
 
 		// Lock configuration
+		_ = t.ModuleConfig(v.identifier)
 		t.confLock.Lock()
-		mc, ok := t.confMap[v.Identifier]
+		mc := t.confMap[v.identifier]
 		t.confLock.Unlock()
-		if ok {
-			mc.DefaultsLocked = true
-		}
+		mc.DefaultsLocked = true
 	}
 
 	sort.Sort(sortModules(t.modules))
@@ -241,46 +280,46 @@ func (t *Team) loadModules() {
 
 func (t *Team) enableModules() {
 	conf := t.ModuleConfig("modules")
-	for i, ms := range t.modules {
-		desired, _, _ := conf.GetIsDefault(string(ms.Identifier))
+	for _, ms := range t.modules {
+		desired, _, _ := conf.GetIsDefault(string(ms.identifier))
 		if desired == ConfTurnOffModule {
-			t.modules[i].State = ModuleStateDisabled
-			util.LogWarn("Left disabled module", t.modules[i].Identifier)
+			ms.state = marvin.ModuleStateDisabled
+			util.LogWarn("Left disabled module", ms.identifier)
 			continue
 		}
 
 		// Set dependency pointers
-		util.LogDebug(ms.Identifier, "depends:", ms.Dependencies)
+		util.LogDebug(ms.identifier, "depends:", ms.Dependencies)
 		ok := true
 		for _, v := range ms.Dependencies {
-			dependMS := t.GetModuleStatus(v.Identifier)
+			dependMS := t.getModuleStatus(v.Identifier)
 			if !dependMS.IsEnabled() {
-				util.LogWarnf("Enabling module %s failed: dependency %s is not enabled\n%v", ms.Identifier, dependMS.Identifier, dependMS)
+				util.LogWarnf("Enabling module %s failed: dependency %s is not enabled\n%v", ms.identifier, dependMS.identifier, dependMS)
 				ok = false
 				break
 			}
-			*v.Pointer = dependMS.Instance
+			*v.Pointer = dependMS.instance
 		}
 		if !ok {
 			continue
 		}
 
-		t.enableModule2(&t.modules[i])
+		t.enableModule2(ms)
 	}
 }
 
 func (t *Team) enableModule2(ms *moduleStatus) error {
-	err := protectedCallT(t, ms.Instance.Enable)
+	err := protectedCallT(t, ms.instance.Enable)
 	if err != nil {
-		ms.State = ModuleStateErrorEnabling
-		ms.DegradeReason = err
-		protectedCallT(t, ms.Instance.Disable)
-		util.LogBadf("Enabling module %s failed: %+v\n", ms.Identifier, err)
+		ms.state = marvin.ModuleStateErrorEnabling
+		ms.degradeReason = err
+		protectedCallT(t, ms.instance.Disable)
+		util.LogBadf("Enabling module %s failed: %+v\n", ms.identifier, err)
 		return err
 	}
-	util.LogGood("Enabled module", ms.Identifier)
-	ms.State = ModuleStateEnabled
-	ms.DegradeReason = nil
+	util.LogGood("Enabled module", ms.identifier)
+	ms.state = marvin.ModuleStateEnabled
+	ms.degradeReason = nil
 	return nil
 }
 

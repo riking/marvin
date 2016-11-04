@@ -56,6 +56,10 @@ const (
 			WHERE config.module = excluded.module
 			AND config.key = excluded.key
 	`
+	sqlConfigReset = `
+		DELETE FROM config
+		WHERE module = $1 AND key = $2
+	`
 )
 
 func (pc *DBModuleConfig) Add(key string, defaultValue string) {
@@ -101,12 +105,12 @@ func (pc *DBModuleConfig) Get(key string) (string, error) {
 // 3) If the key has an override, value is the override, isDefault is false, and err is nil.
 //
 // implements marvin.ModuleConfig.GetIsDefault
-func (pc *DBModuleConfig) GetIsDefault(key, defaultValue string) (string, bool, error) {
+func (pc *DBModuleConfig) GetIsDefault(key string) (string, bool, error) {
 	def, haveDefault := pc.defaults[key]
 
 	stmt, err := pc.team.DB().Prepare(sqlConfigGet)
 	if err != nil {
-		return defaultValue, errors.Wrapf(err, "config.get(%s, %s)", pc.ModuleIdentifier, key)
+		return def, true, errors.Wrapf(err, "config.get(%s, %s)", pc.ModuleIdentifier, key)
 	}
 	row := stmt.QueryRow(pc.ModuleIdentifier, key)
 	var result sql.NullString
@@ -115,53 +119,38 @@ func (pc *DBModuleConfig) GetIsDefault(key, defaultValue string) (string, bool, 
 		if haveDefault {
 			return def, true, nil
 		} else {
-			return "", true, marvin.ErrConfNoDefault{key: fmt.Sprintf("%s.%s", pc.ModuleIdentifier, key)}
+			return "", true, marvin.ErrConfNoDefault{Key: fmt.Sprintf("%s.%s", pc.ModuleIdentifier, key)}
 		}
 	} else if err != nil {
-		return defaultValue, errors.Wrapf(err, "config.get(%s, %s)", pc.ModuleIdentifier, key)
+		return def, true, errors.Wrapf(err, "config.get(%s, %s)", pc.ModuleIdentifier, key)
 	}
-	return result.String, nil
+	return result.String, false, nil
 }
 
-func (pc *DBModuleConfig) GetWithDefault(key, defaultValue string) (string, error) {
-	stmt, err := pc.team.DB().Prepare(sqlConfigGet)
-	if err != nil {
-		return defaultValue, errors.Wrapf(err, "config.get(%s, %s)", pc.ModuleIdentifier, key)
-	}
-	row := stmt.QueryRow(pc.ModuleIdentifier, key)
-	var result sql.NullString
-	err = row.Scan(&result)
-	if !result.Valid {
-		return defaultValue, nil
-	} else if err != nil {
-		return defaultValue, errors.Wrapf(err, "config.get(%s, %s)", pc.ModuleIdentifier, key)
-	}
-	return result.String, nil
-}
-
-func (pc *DBModuleConfig) GetNotProtected(key string, defaultValue string) (string, error) {
-	def, haveDef := pc.defaults[key]
-	if !haveDef {
-		def = defaultValue
-	}
+func (pc *DBModuleConfig) GetIsDefaultNotProtected(key string) (string, bool, error) {
+	def, haveDefault := pc.defaults[key]
 
 	if pc.protected[key] {
-		return "__ERROR", ErrProtected{key: fmt.Sprintf("%s.%s", pc.ModuleIdentifier, key)}
+		return "__ERROR", true, marvin.ErrConfProtected{Key: fmt.Sprintf("%s.%s", pc.ModuleIdentifier, key)}
 	}
 
 	stmt, err := pc.team.DB().Prepare(sqlConfigGet)
 	if err != nil {
-		return def, errors.Wrapf(err, "config.get(%s, %s)", pc.ModuleIdentifier, key)
+		return def, true, errors.Wrapf(err, "config.get(%s, %s)", pc.ModuleIdentifier, key)
 	}
 	row := stmt.QueryRow(pc.ModuleIdentifier, key)
 	var result sql.NullString
 	err = row.Scan(&result)
 	if !result.Valid {
-		return def, nil
+		if haveDefault {
+			return def, true, nil
+		} else {
+			return "", true, marvin.ErrConfNoDefault{Key: fmt.Sprintf("%s.%s", pc.ModuleIdentifier, key)}
+		}
 	} else if err != nil {
-		return def, errors.Wrapf(err, "config.get(%s.%s)", pc.ModuleIdentifier, key)
+		return def, true, errors.Wrapf(err, "config.get(%s, %s)", pc.ModuleIdentifier, key)
 	}
-	return result.String, nil
+	return result.String, false, nil
 }
 
 func (pc *DBModuleConfig) Set(key, value string) error {
@@ -176,16 +165,28 @@ func (pc *DBModuleConfig) Set(key, value string) error {
 	return nil
 }
 
+func (pc *DBModuleConfig) SetDefault(key string) error {
+	stmt, err := pc.team.DB().Prepare(sqlConfigReset)
+	if err != nil {
+		return errors.Wrapf(err, "moduleconfig.set(%s, %s)", pc.ModuleIdentifier, key)
+	}
+	_, err = stmt.Exec(pc.ModuleIdentifier, key)
+	if err != nil {
+		return errors.Wrapf(err, "moduleconfig.set(%s, %s)", pc.ModuleIdentifier, key)
+	}
+	return nil
+}
+
 func (pc *DBModuleConfig) ListDefaults() map[string]string {
 	if !pc.DefaultsLocked {
-		panic("ListDefaults() called before defaults locked")
+		//panic("ListDefaults() called before defaults locked")
 	}
 	return pc.defaults
 }
 
 func (pc *DBModuleConfig) ListProtected() map[string]bool {
 	if !pc.DefaultsLocked {
-		panic("ListProtected() called before defaults locked")
+		//panic("ListProtected() called before defaults locked")
 	}
 	return pc.protected
 }

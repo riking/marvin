@@ -60,7 +60,7 @@ func (mod *DebugModule) CommandConfigGet(t marvin.Team, args *marvin.CommandArgu
 	default:
 		fallthrough
 	case 0:
-		return marvin.CmdUsage(args, "Usage: `@marvin config get [module] [key]")
+		return marvin.CmdUsage(args, "Usage: `@marvin config get [module] [key]`")
 	case 1:
 		return mod.CommandConfigList(t, args)
 	case 2:
@@ -80,7 +80,7 @@ func (mod *DebugModule) CommandConfigGet(t marvin.Team, args *marvin.CommandArgu
 	}
 	if _, ok := err.(marvin.ErrConfProtected); ok {
 		return marvin.CmdFailuref(args, "`%s.%s` is a protected configuration value. Viewing is restricted to admin DMs.", module, key)
-	} else if _, ok := err.(marvin.ErrConfProtected); ok {
+	} else if _, ok := err.(marvin.ErrConfNoDefault); ok {
 		return marvin.CmdFailuref(args, "`%s.%s` is not a configuration value.", module, key)
 	} else if err != nil {
 		return marvin.CmdError(args, err, "Database error")
@@ -93,11 +93,22 @@ func (mod *DebugModule) CommandConfigGet(t marvin.Team, args *marvin.CommandArgu
 func (mod *DebugModule) CommandConfigList(t marvin.Team, args *marvin.CommandArguments) marvin.CommandResult {
 	switch len(args.Arguments) {
 	case 0:
-		return marvin.CmdUsage(args, "Usage: `@marvin config list [module]")
+		var modList []string
+		for _, v := range mod.team.GetAllModules() {
+			if v.IsEnabled() {
+				modList = append(modList, fmt.Sprintf("`%s`", v.Instance().Identifier()))
+			} else {
+				modList = append(modList, fmt.Sprintf("~`%s`~", v.Instance().Identifier()))
+			}
+		}
+		return marvin.CmdUsage(args, fmt.Sprintf("Usage: `@marvin config list [module]`\nModules: %s", strings.Join(modList, " ")))
 	}
 
 	module := marvin.ModuleID(args.Arguments[0])
 	conf := mod.team.ModuleConfig(module)
+	if conf == nil {
+		return marvin.CmdFailuref(args, "No such module `%s`", module)
+	}
 
 	var keyList []string
 

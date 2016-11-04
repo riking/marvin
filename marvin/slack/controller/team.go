@@ -27,7 +27,7 @@ type Team struct {
 	commands   *marvin.ParentCommand
 
 	modulesLock sync.Mutex
-	modules     []moduleStatus
+	modules     []*moduleStatus
 
 	confLock sync.Mutex
 	confMap  map[marvin.ModuleID]*DBModuleConfig
@@ -59,6 +59,9 @@ func (t *Team) ConnectRTM(c *rtm.Client) {
 }
 
 func (t *Team) EnableModules() {
+	t.ModuleConfig("modules").(*DBModuleConfig).DefaultsLocked = true
+	t.ModuleConfig("blacklist").(*DBModuleConfig).DefaultsLocked = true
+
 	t.constructModules()
 	t.loadModules()
 	t.enableModules()
@@ -77,6 +80,13 @@ func (t *Team) DB() *database.Conn {
 }
 
 func (t *Team) ModuleConfig(ident marvin.ModuleID) marvin.ModuleConfig {
+	st := t.GetModuleStatus(ident)
+	if st == nil {
+		if ident != "modules" && ident != "blacklist" {
+			return nil
+		}
+	}
+
 	t.confLock.Lock()
 	defer t.confLock.Unlock()
 	conf, ok := t.confMap[ident]
