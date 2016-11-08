@@ -145,6 +145,10 @@ func (mod *FactoidModule) CmdRemember(t marvin.Team, args *marvin.CommandArgumen
 	return marvin.CmdSuccess(args, "")
 }
 
+func (mod *FactoidModule) ProcessMsg(msg string, source marvin.ActionSource) {
+
+}
+
 func (mod *FactoidModule) CmdGet(t marvin.Team, args *marvin.CommandArguments) marvin.CommandResult {
 	if len(args.Arguments) < 1 {
 		return marvin.CmdUsage(args, "`@marvin factoid get <name> [args...]` (args optional)")
