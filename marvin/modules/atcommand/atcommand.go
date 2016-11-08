@@ -38,7 +38,7 @@ func (mod *AtCommandModule) Identifier() marvin.ModuleID {
 func (mod *AtCommandModule) Load(t marvin.Team) {
 	mod.botUser = mod.team.BotUser()
 	mod.mentionRgx1 = regexp.MustCompile(fmt.Sprintf(`<@%s>`, mod.botUser))
-	mod.mentionRgx2 = regexp.MustCompile(fmt.Sprintf(`(?m:(\n|^)\s*<@%s>\s+)`, mod.botUser))
+	mod.mentionRgx2 = regexp.MustCompile(fmt.Sprintf(`(?m:(?:\n|^)\s*(<@%s>)\s+())`, mod.botUser))
 
 	c := mod.team.ModuleConfig(Identifier)
 	c.Add(confKeyEmojiHi, "wave")
@@ -72,7 +72,7 @@ const (
 
 func (mod *AtCommandModule) HandleMessage(rtm slack.RTMRawMessage) {
 	msgRawTxt := rtm.Text()
-	matches := mod.mentionRgx2.FindStringIndex(msgRawTxt)
+	matches := mod.mentionRgx2.FindStringSubmatchIndex(msgRawTxt)
 	if len(matches) == 0 {
 		m := mod.mentionRgx1.FindString(msgRawTxt)
 		if m != "" {
@@ -82,11 +82,11 @@ func (mod *AtCommandModule) HandleMessage(rtm slack.RTMRawMessage) {
 		return
 	}
 
-	util.LogDebug("Found mention in message", rtm.Text())
-	util.LogDebug("Mention starts at", rtm.Text()[matches[0]:])
+	util.LogDebug("Found mention in message", rtm.Text(), matches)
+	util.LogDebug("Mention starts at", rtm.Text()[matches[2 * 1 + 0]:])
 	matchIdx := matches // removed loop, limited to one command per message
 	{
-		args := ParseArgs(msgRawTxt, matchIdx[1])
+		args := ParseArgs(msgRawTxt, matchIdx[2 * 2 + 1])
 		if len(args.OriginalArguments) == 0 {
 			util.LogDebug("Mention has no arguments, stopping")
 			return
@@ -174,7 +174,7 @@ func ParseArgs(raw string, match int) marvin.CommandArguments {
 	if endOfLine == -1 {
 		endOfLine = len(raw)
 	}
-	cmdLine := raw[match:endOfLine]
+	cmdLine := raw[match:match + endOfLine]
 
 	var argSplit []string
 	argSplit = shellSplit(strings.TrimLeft(cmdLine, " "))
