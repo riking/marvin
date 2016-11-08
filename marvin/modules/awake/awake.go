@@ -1,10 +1,10 @@
 package awake
 
 import (
-	"github.com/riking/homeapi/marvin"
 	"time"
-	"sync"
 	"net/url"
+
+	"github.com/riking/homeapi/marvin"
 )
 
 func init() {
@@ -15,8 +15,8 @@ const Identifier = "core"
 
 type AwakeModule struct {
 	team marvin.Team
-	lock sync.Mutex
-	ticker time.Ticker
+	quit chan struct{}
+	ticker *time.Ticker
 }
 
 func NewAwakeModule(t marvin.Team) marvin.Module {
@@ -32,20 +32,24 @@ func (mod *AwakeModule) Load(t marvin.Team) {
 }
 
 func (mod *AwakeModule) Enable(t marvin.Team) {
-	mod.lock.Lock()
 	mod.ticker = time.NewTicker(20*time.Minute)
-	mod.lock.Unlock()
+	mod.quit = make(chan struct{})
+	go mod.onTick()
 }
 
 func (mod *AwakeModule) Disable(t marvin.Team) {
-	mod.lock.Lock()
 	mod.ticker.Stop()
-	close(mod.ticker.C)
-	mod.lock.Unlock()
+	close(mod.quit)
+
 }
 
 func (mod *AwakeModule) onTick() {
-	for range mod.ticker.C {
-		mod.team.SlackAPIPost("users.setActive", url.Values{})
+	for {
+		select {
+		case <-mod.ticker.C:
+			mod.team.SlackAPIPost("users.setActive", url.Values{})
+		case <-mod.quit:
+			return
+		}
 	}
 }

@@ -38,7 +38,7 @@ func (mod *AtCommandModule) Identifier() marvin.ModuleID {
 func (mod *AtCommandModule) Load(t marvin.Team) {
 	mod.botUser = mod.team.BotUser()
 	mod.mentionRgx1 = regexp.MustCompile(fmt.Sprintf(`<@%s>`, mod.botUser))
-	mod.mentionRgx2 = regexp.MustCompile(fmt.Sprintf(`(?m:\n?\s*<@%s>\s+)`, mod.botUser))
+	mod.mentionRgx2 = regexp.MustCompile(fmt.Sprintf(`(?m:(\n|^)\s*<@%s>\s+)`, mod.botUser))
 
 	c := mod.team.ModuleConfig(Identifier)
 	c.Add(confKeyEmojiHi, "wave")
