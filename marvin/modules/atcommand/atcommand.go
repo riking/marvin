@@ -172,7 +172,7 @@ func (mod *AtCommandModule) DispatchResponse(rtm slack.RTMRawMessage, result mar
 func ParseArgs(raw string, match int) marvin.CommandArguments {
 	endOfLine := strings.IndexByte(raw[match:], '\n')
 	if endOfLine == -1 {
-		endOfLine = len(raw)
+		endOfLine = len(raw[match:])
 	}
 	cmdLine := raw[match:match + endOfLine]
 
