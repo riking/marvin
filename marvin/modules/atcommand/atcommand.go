@@ -807,12 +807,11 @@ func ParseArgs(raw string, startIdx int) ([]string, error) {
 				retErr = errors.Errorf("Code block indices start at &1")
 				continue
 			}
-			which--
 			if which > len(codeBlocks) {
 				retErr = errors.Errorf("Found code block ref '%s' but only %d code blocks in message", m[1], len(codeBlocks))
 				continue
 			}
-			argSplit[i] = codeBlocks[which][1]
+			argSplit[i] = codeBlocks[which - 1][1]
 		} else {
 			argSplit[i] = str
 		}
