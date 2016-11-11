@@ -777,7 +777,7 @@ func (mod *AtCommandModule) SendReplyMessages(
 }
 
 var rgxTakeCodeBlock = regexp.MustCompile(`^&amp;(\d+)$`)
-var rgxCodeBlock = regexp.MustCompile("(?m:^)```\n?(?sU:(.*))\n```(?m:$)")
+var rgxCodeBlock = regexp.MustCompile("(?m:^)```\n?(?sU:(.*))\n?```(?m:$)")
 
 func ParseArgs(raw string, startIdx int) ([]string, error) {
 	endOfLine := strings.IndexByte(raw[startIdx:], '\n')
