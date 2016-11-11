@@ -17,7 +17,6 @@ func (u UserID) Format(f fmt.State, c rune) {
 	}
 }
 
-// TODO replace channel, ts with this
 type MessageID struct {
 	ChannelID
 	MessageTS

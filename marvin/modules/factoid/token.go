@@ -1,14 +1,15 @@
 package factoid
 
 import (
+	"fmt"
 	"regexp"
 	"strconv"
-
-	"fmt"
 	"strings"
+	"time"
 
 	"github.com/pkg/errors"
 	"github.com/riking/homeapi/marvin"
+	"github.com/riking/homeapi/marvin/util"
 )
 
 type ErrUser error
@@ -16,6 +17,16 @@ type ErrSource error
 
 type Token interface {
 	Run(mod *FactoidModule, source marvin.ActionSource, args []string) (string, error)
+}
+
+var DirectiveTokenRgx = regexp.MustCompile(`^{([a-z]+)}`)
+
+type DirectiveToken struct {
+	Directive string
+}
+
+func (t DirectiveToken) Run(mod *FactoidModule, source marvin.ActionSource, args []string) (string, error) {
+	return "", nil
 }
 
 type TextToken struct {
@@ -36,21 +47,22 @@ type ParameterToken struct {
 	isRange bool
 }
 
-func NewParameterToken(match []string) Token {
-	start, startErr := strconv.Atoi(match[2])
+// Pass match[0], match[1], ... match[4]
+func NewParameterToken(rawStr, opStr, startStr, rangeStr, endStr string) Token {
+	start, startErr := strconv.Atoi(startStr)
 	if startErr != nil {
 		start = -1
 	}
-	end, endErr := strconv.Atoi(match[4])
+	end, endErr := strconv.Atoi(endStr)
 	if endErr != nil {
 		end = -1
 	}
 	return ParameterToken{
-		raw:     match[0],
-		op:      match[1],
+		raw:     rawStr,
+		op:      opStr,
 		start:   start,
 		end:     end,
-		isRange: match[3] == "-",
+		isRange: rangeStr == "-",
 	}
 }
 
@@ -80,6 +92,9 @@ func (p ParameterToken) Run(mod *FactoidModule, source marvin.ActionSource, args
 		} else {
 			return mod.team.UserName(source.UserID()), nil
 		}
+	case "args":
+		p.isRange = true
+		fallthrough
 	case "arg":
 		start := p.start
 		if start == -1 {
@@ -100,6 +115,8 @@ func (p ParameterToken) Run(mod *FactoidModule, source marvin.ActionSource, args
 			}
 			return "", ErrUser(errors.Errorf("Not enough args (wanted %d)", start+1))
 		}
+	case "date":
+		return time.Now().In(util.TZ42USA()).Format("2006-01-02"), nil
 	}
 }
 

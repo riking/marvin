@@ -164,7 +164,7 @@ func (mod *FactoidModule) CmdGet(t marvin.Team, args *marvin.CommandArguments) m
 		return marvin.CmdError(args, err, "Error retrieving factoid")
 	}
 
-	result, err := RunFactoid(factoidInfo, args.Source, factoidArgs)
+	result, err := mod.RunFactoid(factoidInfo, args.Source, factoidArgs)
 	if err != nil {
 		return marvin.CmdError(args, err, "Factoid run error")
 	}

@@ -2,8 +2,10 @@ package slack
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"regexp"
+	"strings"
 
 	"github.com/pkg/errors"
 
@@ -66,4 +68,29 @@ func IsDMChannel(channel ChannelID) bool {
 		return false
 	}
 	return channel[0] == 'D'
+}
+
+func ArchiveURL(teamDomain string, channelName string, msgID MessageID) string {
+	splitTS := strings.Split(string(msgID.MessageTS), ".")
+	stripTS := "p" + splitTS[0] + splitTS[1]
+
+	channel := msgID.ChannelID
+	if channel[0] == 'D' {
+		return fmt.Sprintf("https://%s.slack.com/archives/%s/%s",
+			teamDomain, channel, stripTS)
+	}
+	if channel[0] == 'G' {
+		if channelName != "" {
+			return fmt.Sprintf("https://%s.slack.com/archives/%s/%s",
+				teamDomain, channel, stripTS)
+		} else {
+			return fmt.Sprintf("https://%s.slack.com/archives/%s/%s",
+				teamDomain, channelName, stripTS)
+		}
+	}
+	if channel[0] == 'C' {
+		return fmt.Sprintf("https://%s.slack.com/archives/%s/%s",
+			teamDomain, channelName, stripTS)
+	}
+	panic(errors.Errorf("Invalid channel id '%s' passed to ArchiveURL", channel))
 }

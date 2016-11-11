@@ -109,7 +109,8 @@ func (e ErrConfNoDefault) Error() string {
 type AccessLevel int
 
 const (
-	AccessLevelBlacklisted AccessLevel = iota
+	AccessLevelInvalid AccessLevel = iota
+	AccessLevelBlacklisted
 	AccessLevelNormal
 	AccessLevelChannelAdmin
 	AccessLevelAdmin

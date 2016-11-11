@@ -11,7 +11,7 @@ func PCall(f func() error) (err error) {
 			} else if recStr, ok := rec.(string); ok {
 				err = errors.Errorf(recStr)
 			} else {
-				panic(errors.Errorf("Unrecognized panic object type=[%T] val=[%#v]", rec, rec))
+				err = errors.Errorf("Unrecognized panic object type=[%T] val=[%#v]", rec, rec)
 			}
 		}
 	}()

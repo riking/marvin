@@ -172,7 +172,7 @@ func (fci *FinishedCommandInfo) ChangeEmoji(mod *AtCommandModule, new []ReplyAct
 
 func (mod *AtCommandModule) janitorRecentMessages(epoch int) {
 	for mod.enabled == epoch {
-		time.Sleep(30*time.Minute)
+		time.Sleep(30 * time.Minute)
 		mod._cleanRecentMessages()
 	}
 }
@@ -180,7 +180,7 @@ func (mod *AtCommandModule) janitorRecentMessages(epoch int) {
 func (mod *AtCommandModule) _cleanRecentMessages() {
 	mod.recentCommandsLock.Lock()
 	defer mod.recentCommandsLock.Unlock()
-	threshold := time.Now().Add(-2*time.Hour)
+	threshold := time.Now().Add(-2 * time.Hour)
 	for k, v := range mod.recentCommands {
 		if v.MyTimestamp.Before(threshold) {
 			delete(mod.recentCommands, k)

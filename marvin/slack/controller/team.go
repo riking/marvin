@@ -238,22 +238,16 @@ func (t *Team) OffAllEvents(mod marvin.ModuleID) {
 // ---
 
 func (t *Team) ArchiveURL(msgID slack.MessageID) string {
-	splitTS := strings.Split(string(msgID.MessageTS), ".")
-	stripTS := "p" + splitTS[0] + splitTS[1]
-
 	channel := msgID.ChannelID
 	if channel[0] == 'D' {
-		return fmt.Sprintf("https://%s.slack.com/archives/%s/%s",
-			t.teamConfig.TeamDomain, channel, stripTS)
+		return slack.ArchiveURL(t.teamConfig.TeamDomain, "", msgID)
 	}
 	if channel[0] == 'G' {
 		info, err := t.PrivateChannelInfo(channel)
 		if err != nil || info.IsMultiIM() {
-			return fmt.Sprintf("https://%s.slack.com/archives/%s/%s",
-				t.teamConfig.TeamDomain, channel, stripTS)
+			return slack.ArchiveURL(t.teamConfig.TeamDomain, "", msgID)
 		} else {
-			return fmt.Sprintf("https://%s.slack.com/archives/%s/%s",
-				t.teamConfig.TeamDomain, info.Name, stripTS)
+			return slack.ArchiveURL(t.teamConfig.TeamDomain, info.Name, msgID)
 		}
 	}
 	if channel[0] == 'C' {
@@ -261,8 +255,7 @@ func (t *Team) ArchiveURL(msgID slack.MessageID) string {
 		if err != nil {
 			panic(errors.Wrap(err, "could not get info about public channel"))
 		}
-		return fmt.Sprintf("https://%s.slack.com/archives/%s/%s",
-			t.teamConfig.TeamDomain, info.Name, stripTS)
+		return slack.ArchiveURL(t.teamConfig.TeamDomain, info.Name, msgID)
 	}
 	panic(errors.Errorf("Invalid channel id '%s' passed to ArchiveURL", channel))
 }
