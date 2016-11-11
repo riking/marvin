@@ -776,8 +776,8 @@ func (mod *AtCommandModule) SendReplyMessages(
 	}
 }
 
-var rgxTakeCodeBlock = regexp.MustCompile(`&amp;(\d+)`)
-var rgxCodeBlock = regexp.MustCompile("(?:\n|^)```\n?(.*?)\n```(?:\n|$)")
+var rgxTakeCodeBlock = regexp.MustCompile(`^&amp;(\d+)$`)
+var rgxCodeBlock = regexp.MustCompile("(?m:^)```\n?(?sU:(.*))\n```(?m:$)")
 
 func ParseArgs(raw string, startIdx int) ([]string, error) {
 	endOfLine := strings.IndexByte(raw[startIdx:], '\n')
@@ -803,6 +803,11 @@ func ParseArgs(raw string, startIdx int) ([]string, error) {
 				retErr = errors.Errorf("Expected a code block number after &, got [%s]", m[1])
 				continue
 			}
+			if which == 0 {
+				retErr = errors.Errorf("Code block indices start at &1")
+				continue
+			}
+			which--
 			if which > len(codeBlocks) {
 				retErr = errors.Errorf("Found code block ref '%s' but only %d code blocks in message", m[1], len(codeBlocks))
 				continue
