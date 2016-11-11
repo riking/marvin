@@ -14,6 +14,7 @@ func (m RTMRawMessage) ChannelID() ChannelID { q, _ := m["channel"].(string); re
 func (m RTMRawMessage) UserID() UserID       { q, _ := m["user"].(string); return UserID(q) }
 func (m RTMRawMessage) Text() string         { q, _ := m["text"].(string); return q }
 func (m RTMRawMessage) MessageTS() MessageTS { q, _ := m["ts"].(string); return MessageTS(q) }
+func (m RTMRawMessage) EventTS() MessageTS   { q, _ := m["ts"].(string); return MessageTS(q) }
 func (m RTMRawMessage) IsHidden() bool       { q, _ := m["hidden"].(bool); return q }
 func (m RTMRawMessage) MessageID() MessageID {
 	return MessageID{ChannelID: m.ChannelID(), MessageTS: m.MessageTS()}
@@ -43,6 +44,50 @@ func (m RTMRawMessage) String() string {
 		panic(err)
 	}
 	return string(bytes)
+}
+
+func (m RTMRawMessage) AssertText() bool {
+	return m.Type() == "message" && m.Subtype() != "message_changed" && m.Subtype() != "message_deleted"
+}
+
+type EditMessage struct {
+	RTMRawMessage
+}
+
+func (m EditMessage) EditHash() map[string]interface{} {
+	q, _ := m.RTMRawMessage["message"].(map[string]interface{})
+	return q
+}
+func (m EditMessage) EditingUserID() UserID {
+	q1, _ := m.EditHash()["edited"].(map[string]interface{})
+	if q1 == nil {
+		return ""
+	}
+	q2, _ := q1["user"].(string)
+	return UserID(q2)
+}
+func (m EditMessage) UserID() UserID        { q, _ := m.EditHash()["user"].(string); return UserID(q) }
+func (m EditMessage) MessageUserID() UserID { q, _ := m.EditHash()["user"].(string); return UserID(q) }
+func (m EditMessage) Text() string          { q, _ := m.EditHash()["text"].(string); return q }
+func (m EditMessage) MessageTS() MessageTS  { q, _ := m.EditHash()["ts"].(string); return MessageTS(q) }
+func (m EditMessage) EventTS() MessageTS    { q, _ := m.RTMRawMessage["ts"].(string); return MessageTS(q) }
+func (m EditMessage) Subtype() string       { return "" }
+func (m EditMessage) MessageID() MessageID {
+	return MessageID{ChannelID: m.ChannelID(), MessageTS: m.MessageTS()}
+}
+func (m EditMessage) AssertText() bool {
+	return m.RTMRawMessage.Type() == "message" && m.RTMRawMessage.Subtype() == "message_changed"
+}
+
+type SlackTextMessage interface {
+	UserID() UserID
+	ChannelID() ChannelID
+	MessageID() MessageID
+	MessageTS() MessageTS
+	EventTS() MessageTS
+	Subtype() string
+	Text() string
+	AssertText() bool
 }
 
 type IncomingReaction struct {

@@ -15,6 +15,11 @@ type CommandArguments struct {
 	Command           string
 	Arguments         []string
 	OriginalArguments []string
+
+	IsEdit         bool
+	IsUndo         bool
+	PreviousResult *CommandResult
+	ModuleData     interface{}
 }
 
 // Pop moves the first element of Arguments to Command and returns the new
@@ -28,6 +33,11 @@ func (args *CommandArguments) Pop() string {
 // PreArgs returns the slice of all arguments that have been Pop()ped.
 func (args *CommandArguments) PreArgs() []string {
 	return args.OriginalArguments[:len(args.OriginalArguments)-len(args.Arguments)]
+}
+
+// SetModuleData is useful for editing.
+func (args *CommandArguments) SetModuleData(v interface{}) {
+	args.ModuleData = v
 }
 
 type CommandResultCode int
@@ -54,6 +64,9 @@ type CommandResult struct {
 	Code      CommandResultCode
 	ReplyType ReplyType
 	Sent      bool
+
+	CanEdit int
+	CanUndo bool
 }
 
 // CmdError includes the Err field for the CmdResultError code.
@@ -82,12 +95,27 @@ func CmdUsage(args *CommandArguments, usage string) CommandResult {
 	return CommandResult{Args: args, Message: usage, Code: CmdResultPrintUsage}
 }
 
+func (r CommandResult) WithEdit() CommandResult {
+	r.CanEdit = 1
+	return r
+}
+
+func (r CommandResult) WithNoEdit() CommandResult {
+	r.CanEdit = -1
+	return r
+}
+
 // WithReplyType explicitly sets where the response should be directed.
 //
 // The caller can override this if desired, but it will be respected for all
 // commands initiated directly by users.
 func (r CommandResult) WithReplyType(rt ReplyType) CommandResult {
 	r.ReplyType = rt
+	return r
+}
+
+func (r CommandResult) WithUndo() CommandResult {
+	r.CanUndo = true
 	return r
 }
 

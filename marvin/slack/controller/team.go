@@ -221,6 +221,10 @@ func (t *Team) OnEvent(mod marvin.ModuleID, event string, f func(slack.RTMRawMes
 	t.client.RegisterRawHandler(mod, f, event, nil)
 }
 
+func (t *Team) OnSpecialMessage(mod marvin.ModuleID, msgSubtype []string, f func(slack.RTMRawMessage)) {
+	t.client.RegisterRawHandler(mod, f, "message", msgSubtype)
+}
+
 var _filterNoSubgroup = []string{""}
 
 func (t *Team) OnNormalMessage(mod marvin.ModuleID, f func(slack.RTMRawMessage)) {

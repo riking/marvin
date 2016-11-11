@@ -123,8 +123,6 @@ type ActionSource interface {
 	MsgTimestamp() slack.MessageTS
 	AccessLevel() AccessLevel
 	ArchiveLink() string
-
-	SendCmdReply(result CommandResult) CommandResult
 }
 
 // TeamConfig is loaded from the config.ini file.
@@ -220,6 +218,7 @@ type Team interface {
 	OnEveryEvent(mod ModuleID, f func(slack.RTMRawMessage))
 	OnEvent(mod ModuleID, event string, f func(slack.RTMRawMessage))
 	OnNormalMessage(mod ModuleID, f func(slack.RTMRawMessage))
+	OnSpecialMessage(mod ModuleID, msgSubtype []string, f func(slack.RTMRawMessage))
 	OffAllEvents(mod ModuleID)
 
 	CommandRegistration

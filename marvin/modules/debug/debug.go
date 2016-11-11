@@ -66,7 +66,7 @@ func (mod *DebugModule) DebugCommandPanic(t marvin.Team, args *marvin.CommandArg
 }
 
 func (mod *DebugModule) DebugCommandFail(t marvin.Team, args *marvin.CommandArguments) marvin.CommandResult {
-	return marvin.CmdFailuref(args, "Sample failure message")
+	return marvin.CmdFailuref(args, "Sample failure message").WithEdit()
 }
 
 func (mod *DebugModule) DebugCommandUsage(t marvin.Team, args *marvin.CommandArguments) marvin.CommandResult {
@@ -82,14 +82,14 @@ func (mod *DebugModule) DebugCommandHelp(t marvin.Team, args *marvin.CommandArgu
 }
 
 func (mod *DebugModule) DebugCommandSuccess(t marvin.Team, args *marvin.CommandArguments) marvin.CommandResult {
-	return marvin.CmdSuccess(args, "Sample success")
+	return marvin.CmdSuccess(args, "Sample success").WithEdit()
 }
 
 func (mod *DebugModule) CommandEcho(t marvin.Team, args *marvin.CommandArguments) marvin.CommandResult {
 	if args.Source.AccessLevel() < marvin.AccessLevelAdmin {
 		return marvin.CmdFailuref(args, "This command is restricted to admins.")
 	}
-	return marvin.CmdSuccess(args, strings.Join(args.Arguments, " ")).WithReplyType(marvin.ReplyTypeFlagOmitUsername)
+	return marvin.CmdSuccess(args, strings.Join(args.Arguments, " ")).WithReplyType(marvin.ReplyTypeFlagOmitUsername).WithEdit()
 }
 
 func (mod *DebugModule) CommandWhoAmI(t marvin.Team, args *marvin.CommandArguments) marvin.CommandResult {

@@ -1,8 +1,8 @@
 package awake
 
 import (
-	"time"
 	"net/url"
+	"time"
 
 	"github.com/riking/homeapi/marvin"
 )
@@ -14,8 +14,8 @@ func init() {
 const Identifier = "core"
 
 type AwakeModule struct {
-	team marvin.Team
-	quit chan struct{}
+	team   marvin.Team
+	quit   chan struct{}
 	ticker *time.Ticker
 }
 
@@ -32,7 +32,7 @@ func (mod *AwakeModule) Load(t marvin.Team) {
 }
 
 func (mod *AwakeModule) Enable(t marvin.Team) {
-	mod.ticker = time.NewTicker(20*time.Minute)
+	mod.ticker = time.NewTicker(20 * time.Minute)
 	mod.quit = make(chan struct{})
 	go mod.onTick()
 }

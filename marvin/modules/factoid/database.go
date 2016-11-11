@@ -3,10 +3,11 @@ package factoid
 import (
 	"database/sql"
 
+	"sync"
+
 	"github.com/pkg/errors"
 	"github.com/riking/homeapi/marvin"
 	"github.com/riking/homeapi/marvin/slack"
-	"sync"
 )
 
 const (
@@ -87,7 +88,7 @@ type FactoidInfo struct {
 	IsForgotten bool
 
 	tokenize sync.Once
-	tokens []Token
+	tokens   []Token
 }
 
 func (mod *FactoidModule) doMigrate(t marvin.Team) {
