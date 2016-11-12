@@ -11,6 +11,7 @@ const (
 	ReplyTypeInChannel
 	ReplyTypeLog
 	ReplyTypeFlagOmitUsername
+	ReplyTypeFlagAction
 )
 
 const (

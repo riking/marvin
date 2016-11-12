@@ -2,6 +2,7 @@ package atcommand
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -268,79 +269,6 @@ func (mod *AtCommandModule) HandleMessage(_rtm slack.RTMRawMessage) {
 	mod.ProcessInitialCommandMessage(fciResult, rtm)
 }
 
-func (mod *AtCommandModule) ProcessInitialCommandMessage(fciResult *FinishedCommandInfo, rtm slack.SlackTextMessage) {
-	parseResult := fciResult.parseResult
-	source := marvin.ActionSourceUserMessage{Msg: fciResult.OriginalMsg, Team: mod.team}
-	args := &marvin.CommandArguments{
-		OriginalArguments: parseResult.argSplit,
-		Arguments:         parseResult.argSplit,
-		Command:           "",
-		Source:            source,
-		IsEdit:            false,
-		ModuleData:        nil,
-	}
-	fciResult.CommandArgs = args
-
-	var result marvin.CommandResult
-	if parseResult.splitErr != nil {
-		result = marvin.CmdFailuref(args, parseResult.splitErr.Error())
-	} else {
-		util.LogDebug("args: [", strings.Join(args.OriginalArguments, "] ["), "]")
-		result = mod.team.DispatchCommand(args)
-	}
-	fciResult.CommandResult = result
-
-	reactEmoji := mod.GetEmojiForResponse(result)
-	var wg sync.WaitGroup
-	if reactEmoji != "" {
-		wg.Add(1)
-		go func() {
-			mod.team.ReactMessage(rtm.MessageID(), reactEmoji)
-			wg.Done()
-		}()
-		fciResult.AddEmojiReaction(rtm.MessageID(), reactEmoji)
-	}
-
-	logChannel := mod.team.TeamConfig().LogChannel
-	imChannel, _ := mod.team.GetIM(rtm.UserID())
-	sendMessageChannel := func(msg string) {
-		ts, _, err := mod.team.SendMessage(rtm.ChannelID(), SanitizeForChannel(msg))
-		if err != nil {
-			util.LogError(err)
-		} else {
-			fciResult.ActionChanMsg = ReplyActionSentMessage{MessageID: slack.MsgID(rtm.ChannelID(), ts), Text: msg}
-		}
-	}
-	sendMessageIM := func(msg string) {
-		ts, _, err := mod.team.SendMessage(imChannel, SanitizeLoose(msg))
-		if err != nil {
-			util.LogError(err)
-		} else {
-			fciResult.ActionPMMsg = ReplyActionSentMessage{MessageID: slack.MsgID(imChannel, ts), Text: msg}
-		}
-	}
-	sendMessageIMLog := func(msg string) {
-		ts, _, err := mod.team.SendMessage(imChannel, SanitizeLoose(msg))
-		if err != nil {
-			util.LogError(err)
-		} else {
-			fciResult.ActionPMLogMsg = ReplyActionSentMessage{MessageID: slack.MsgID(imChannel, ts), Text: msg}
-		}
-	}
-	sendMessageLog := func(msg string) {
-		ts, _, err := mod.team.SendMessage(logChannel, SanitizeForChannel(msg))
-		if err != nil {
-			util.LogError(err)
-		} else {
-			fciResult.ActionLogMsg = ReplyActionSentMessage{MessageID: slack.MsgID(logChannel, ts), Text: msg}
-		}
-	}
-
-	mod.SendReplyMessages(result, source, rtm.ChannelID() == imChannel, sendMessageChannel, sendMessageIM, sendMessageIMLog, sendMessageLog)
-	// Done
-	wg.Wait()
-}
-
 func (mod *AtCommandModule) HandleEdit(_rtm slack.RTMRawMessage) {
 	if _rtm.Subtype() != "message_changed" {
 		return
@@ -520,10 +448,17 @@ func (mod *AtCommandModule) EditCommand(fciMeta *FinishedCommandInfo, source mar
 
 	didSendMessageChannel := false
 	didSendMessageIM := false
-	sendMessageChannel := func(msg string) {
+	sendMessageChannel := func(msg string, action bool) {
 		didSendMessageChannel = true
 		if fciMeta.ActionChanMsg.Text != "" {
 			fciMeta.ActionChanMsg.Update(mod, msg)
+		} else if action {
+			ts, err := mod.postMeMessage(source.ChannelID(), SanitizeAt(msg))
+			if err != nil {
+				util.LogError(err)
+				return
+			}
+			fciMeta.ActionChanMsg = ReplyActionSentMessage{MessageID: slack.MsgID(imChannel, ts), Text: msg}
 		} else {
 			ts, _, err := mod.team.SendMessage(source.ChannelID(), SanitizeForChannel(msg))
 			if err != nil {
@@ -636,10 +571,17 @@ func (mod *AtCommandModule) UndoCommand(fciMeta *FinishedCommandInfo, source mar
 	logChannel := mod.team.TeamConfig().LogChannel
 	didSendMessageChannel := false
 	didSendMessageIM := false
-	sendMessageChannel := func(msg string) {
+	sendMessageChannel := func(msg string, action bool) {
 		if fciMeta.ActionChanMsg.Text != "" {
 			didSendMessageChannel = true
 			fciMeta.ActionChanMsg.Update(mod, msg)
+		} else if action {
+			ts, err := mod.postMeMessage(source.ChannelID(), SanitizeAt(msg))
+			if err != nil {
+				util.LogError(err)
+				return
+			}
+			fciMeta.ActionChanMsg = ReplyActionSentMessage{MessageID: slack.MsgID(imChannel, ts), Text: msg}
 		} else {
 			ts, _, err := mod.team.SendMessage(source.ChannelID(), SanitizeForChannel(msg))
 			if err != nil {
@@ -680,11 +622,88 @@ func (mod *AtCommandModule) UndoCommand(fciMeta *FinishedCommandInfo, source mar
 	}
 }
 
+func (mod *AtCommandModule) ProcessInitialCommandMessage(fciResult *FinishedCommandInfo, rtm slack.SlackTextMessage) {
+	parseResult := fciResult.parseResult
+	source := marvin.ActionSourceUserMessage{Msg: fciResult.OriginalMsg, Team: mod.team}
+	args := &marvin.CommandArguments{
+		OriginalArguments: parseResult.argSplit,
+		Arguments:         parseResult.argSplit,
+		Command:           "",
+		Source:            source,
+		IsEdit:            false,
+		ModuleData:        nil,
+	}
+	fciResult.CommandArgs = args
+
+	var result marvin.CommandResult
+	if parseResult.splitErr != nil {
+		result = marvin.CmdFailuref(args, parseResult.splitErr.Error())
+	} else {
+		util.LogDebug("args: [", strings.Join(args.OriginalArguments, "] ["), "]")
+		result = mod.team.DispatchCommand(args)
+	}
+	fciResult.CommandResult = result
+
+	reactEmoji := mod.GetEmojiForResponse(result)
+	var wg sync.WaitGroup
+	if reactEmoji != "" {
+		wg.Add(1)
+		go mod.team.ReactMessage(rtm.MessageID(), reactEmoji)
+		fciResult.AddEmojiReaction(rtm.MessageID(), reactEmoji)
+	}
+
+	logChannel := mod.team.TeamConfig().LogChannel
+	imChannel, _ := mod.team.GetIM(rtm.UserID())
+	sendMessageChannel := func(msg string, action bool) {
+		if action {
+			ts, err := mod.postMeMessage(rtm.ChannelID(), SanitizeAt(msg))
+			if err != nil {
+				util.LogError(err)
+				return
+			}
+			fciResult.ActionChanMsg = ReplyActionSentMessage{Text: msg, MessageID: slack.MessageID{ChannelID: rtm.ChannelID(), MessageTS: ts}}
+			return
+		}
+		ts, _, err := mod.team.SendMessage(rtm.ChannelID(), SanitizeForChannel(msg))
+		if err != nil {
+			util.LogError(err)
+		} else {
+			fciResult.ActionChanMsg = ReplyActionSentMessage{Text: msg, MessageID: slack.MessageID{ChannelID: rtm.ChannelID(), MessageTS: ts}}
+		}
+	}
+	sendMessageIM := func(msg string) {
+		ts, _, err := mod.team.SendMessage(imChannel, SanitizeLoose(msg))
+		if err != nil {
+			util.LogError(err)
+		} else {
+			fciResult.ActionPMMsg = ReplyActionSentMessage{MessageID: slack.MsgID(imChannel, ts), Text: msg}
+		}
+	}
+	sendMessageIMLog := func(msg string) {
+		ts, _, err := mod.team.SendMessage(imChannel, SanitizeLoose(msg))
+		if err != nil {
+			util.LogError(err)
+		} else {
+			fciResult.ActionPMLogMsg = ReplyActionSentMessage{MessageID: slack.MsgID(imChannel, ts), Text: msg}
+		}
+	}
+	sendMessageLog := func(msg string) {
+		ts, _, err := mod.team.SendMessage(logChannel, SanitizeForChannel(msg))
+		if err != nil {
+			util.LogError(err)
+		} else {
+			fciResult.ActionLogMsg = ReplyActionSentMessage{MessageID: slack.MsgID(logChannel, ts), Text: msg}
+		}
+	}
+
+	mod.SendReplyMessages(result, source, rtm.ChannelID() == imChannel, sendMessageChannel, sendMessageIM, sendMessageIMLog, sendMessageLog)
+}
+
 func (mod *AtCommandModule) SendReplyMessages(
 	result marvin.CommandResult,
 	source marvin.ActionSource,
 	isChannelIMChannel bool,
-	sendMessageChannel, sendMessageIM, sendMessageIMLog, sendMessageLog func(string),
+	sendMessageChannel func(string, bool), sendMessageIM, sendMessageIMLog, sendMessageLog func(string),
 ) {
 	replyType := marvin.ReplyTypeInvalid
 	switch result.Code {
@@ -715,6 +734,8 @@ func (mod *AtCommandModule) SendReplyMessages(
 	// Post in the logging channel
 	replyLog := result.ReplyType&marvin.ReplyTypeLog != 0
 
+	replyAction := result.ReplyType&marvin.ReplyTypeFlagAction != 0
+
 	// Message was sent from a DM; do not include archive link
 	replyIMPrimary := false
 
@@ -741,10 +762,14 @@ func (mod *AtCommandModule) SendReplyMessages(
 			if result.ReplyType&marvin.ReplyTypeFlagOmitUsername == 0 {
 				channelMsg = fmt.Sprintf("%v: %s", source.UserID(), channelMsg)
 			}
-			sendMessageChannel(channelMsg)
+			sendMessageChannel(channelMsg, replyAction)
 		}
 		if replyIMPrimary {
-			sendMessageIM(result.Message)
+			if replyAction {
+				sendMessageChannel(result.Message, true)
+			} else {
+				sendMessageIM(result.Message)
+			}
 		}
 		if replyIM {
 			sendMessageIM(result.Message)
@@ -762,7 +787,7 @@ func (mod *AtCommandModule) SendReplyMessages(
 			if len(result.Err.Error()) > marvin.ShortReplyThreshold {
 				replyIM = true
 			}
-			sendMessageChannel(fmt.Sprintf("%s: %s", result.Message, util.PreviewString(errors.Cause(result.Err).Error(), marvin.ShortReplyThreshold)))
+			sendMessageChannel(fmt.Sprintf("%s: %s", result.Message, util.PreviewString(errors.Cause(result.Err).Error(), marvin.ShortReplyThreshold)), false)
 		}
 		if replyIMPrimary {
 			sendMessageIMLog(fmt.Sprintf("%s: %v", result.Message, result.Err))
@@ -794,7 +819,7 @@ func (mod *AtCommandModule) SendReplyMessages(
 				replyIM = true
 				msg = util.PreviewString(result.Message, marvin.LongReplyCut)
 			}
-			sendMessageChannel(msg)
+			sendMessageChannel(msg, false)
 		}
 		if replyIM || replyIMPrimary {
 			sendMessageIM(result.Message)
@@ -809,7 +834,7 @@ func (mod *AtCommandModule) SendReplyMessages(
 				replyIM = true
 				msg = util.PreviewString(result.Message, marvin.LongReplyCut)
 			}
-			sendMessageChannel(msg)
+			sendMessageChannel(msg, false)
 		}
 		if replyIM || replyIMPrimary {
 			sendMessageIM(result.Message)
@@ -905,7 +930,7 @@ func SanitizeLoose(msg string) string {
 	return msg
 }
 
-func SanitizeForChannel(msg string) string {
+func SanitizeAt(msg string) string {
 	if strings.Contains(msg, "<!channel>") {
 		// && !rtm.User().IsAdmin()
 		msg = strings.Replace(msg, "<!channel>", "@\\channel", -1)
@@ -918,7 +943,11 @@ func SanitizeForChannel(msg string) string {
 		// && !rtm.User().IsAdmin()
 		msg = strings.Replace(msg, "<!here|@here>", "@\\here", -1)
 	}
-	return SanitizeLoose(msg)
+	return msg
+}
+
+func SanitizeForChannel(msg string) string {
+	return SanitizeLoose(SanitizeAt(msg))
 }
 
 func (mod *AtCommandModule) GetEmojiForResponse(result marvin.CommandResult) string {
@@ -940,4 +969,29 @@ func (mod *AtCommandModule) GetEmojiForResponse(result marvin.CommandResult) str
 		reactEmoji, _ = mod.team.ModuleConfig(Identifier).Get(confKeyEmojiError)
 	}
 	return reactEmoji
+}
+
+func (mod *AtCommandModule) postMeMessage(channelID slack.ChannelID, msg string) (slack.MessageTS, error) {
+	form := url.Values{
+		"channel": []string{string(channelID)},
+		"text":    []string{SanitizeAt(msg)},
+	}
+	var response struct {
+		slack.APIResponse
+		ChannelID slack.ChannelID `json:"channel"`
+		TS        slack.MessageTS `json:"ts"`
+	}
+	resp, err := mod.team.SlackAPIPost("chat.meMessage", form)
+	if err != nil {
+		return "", errors.Wrap(err, "post chat.meMessage")
+	}
+	err = json.NewDecoder(resp.Body).Decode(&response)
+	resp.Body.Close()
+	if err != nil {
+		return "", errors.Wrap(err, "post chat.meMessage")
+	}
+	if !response.OK {
+		return "", errors.Wrap(err, "post chat.meMessage")
+	}
+	return response.TS, nil
 }

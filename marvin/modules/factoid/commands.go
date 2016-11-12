@@ -6,6 +6,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/pkg/errors"
 	"github.com/riking/homeapi/marvin"
 	"github.com/riking/homeapi/marvin/slack"
 	"github.com/riking/homeapi/marvin/util"
@@ -58,7 +59,7 @@ func (mod *FactoidModule) CmdRemember(t marvin.Team, args *marvin.CommandArgumen
 	factoidInfo, err := mod.GetFactoidInfo(factoidName, scopeChannel, false)
 	if err == ErrNoSuchFactoid {
 		// make a pseudo value that passes all the checks
-		factoidInfo = FactoidInfo{IsLocked: false, ScopeChannel: ""}
+		factoidInfo = Factoid{IsLocked: false, ScopeChannel: ""}
 	} else if err != nil {
 		return marvin.CmdError(args, err, "Could not check existing factoid")
 	}
@@ -84,7 +85,7 @@ func (mod *FactoidModule) CmdRemember(t marvin.Team, args *marvin.CommandArgumen
 		}
 	}
 
-	fi := FactoidInfo{
+	fi := Factoid{
 		mod:       mod,
 		RawSource: factoidSource,
 	}
@@ -109,22 +110,30 @@ func (mod *FactoidModule) CmdGet(t marvin.Team, args *marvin.CommandArguments) m
 		return marvin.CmdUsage(args, "`@marvin factoid get <name> [args...]` (args optional)")
 	}
 
-	factoidName := args.Pop()
-	factoidArgs := args.Arguments
-
-	factoidInfo, err := mod.GetFactoidBare(factoidName, args.Source.ChannelID())
+	var of OutputFlags
+	result, err := mod.RunFactoid(args.Arguments, &of, args.Source)
 	if err == ErrNoSuchFactoid {
-		return marvin.CmdFailuref(args, "No such factoid").WithEdit()
+		return marvin.CmdFailuref(args, "No such factoid %s", result).WithEdit().WithReplyType(marvin.ReplyTypeInChannel)
 	} else if err != nil {
-		return marvin.CmdError(args, err, "Error retrieving factoid")
-	}
-
-	// TODO side-effects...
-	result, err := mod.RunFactoid(factoidInfo, args.Source, factoidArgs)
-	if err != nil {
+		cErr := errors.Cause(err)
+		if _, ok := cErr.(ErrUser); ok {
+			return marvin.CmdFailuref(args, "Failed: %s", cErr).WithEdit().WithReplyType(marvin.ReplyTypeInChannel)
+		}
 		return marvin.CmdError(args, err, "Factoid run error")
 	}
-	return marvin.CmdSuccess(args, result).WithNoEdit()
+
+	cmdResult := marvin.CmdSuccess(args, result).WithEdit()
+	if of.SideEffects {
+		cmdResult = cmdResult.WithNoEdit().WithNoUndo()
+	}
+	if of.NoReply {
+		cmdResult.Message = ""
+	} else if of.Action {
+		cmdResult = cmdResult.WithReplyType(marvin.ReplyTypeFlagAction | marvin.ReplyTypeFlagOmitUsername)
+	} else if of.Say {
+		cmdResult = cmdResult.WithReplyType(marvin.ReplyTypeFlagOmitUsername)
+	}
+	return cmdResult
 }
 
 func (mod *FactoidModule) CmdSend(t marvin.Team, args *marvin.CommandArguments) marvin.CommandResult {
@@ -132,26 +141,42 @@ func (mod *FactoidModule) CmdSend(t marvin.Team, args *marvin.CommandArguments) 
 		return marvin.CmdUsage(args, "`@marvin factoid send <channel> <name> [args...]` (args optional)")
 	}
 
-	factoidName := args.Pop()
-	factoidArgs := args.Arguments
-
-	factoidInfo, err := mod.GetFactoidBare(factoidName, args.Source.ChannelID())
-	if err == ErrNoSuchFactoid {
-		return marvin.CmdFailuref(args, "No such factoid").WithEdit()
-	} else if err != nil {
-		return marvin.CmdError(args, err, "Error retrieving factoid")
+	channelName := args.Pop()
+	channelID := slack.ParseChannelID(channelName)
+	if channelID == "" {
+		userID := slack.ParseUserMention(channelName)
+		if userID != "" {
+			channelID, _ = mod.team.GetIM(userID)
+		}
+	}
+	if channelID == "" {
+		return marvin.CmdFailuref(args, "You must specify a target channel")
 	}
 
-	// TODO side-effects...
-	result, err := mod.RunFactoid(factoidInfo, args.Source, factoidArgs)
-	if err != nil {
+	var of OutputFlags
+	result, err := mod.RunFactoid(args.Arguments, &of, args.Source)
+	if err == ErrNoSuchFactoid {
+		return marvin.CmdFailuref(args, "No such factoid %s", result).WithEdit().WithReplyType(marvin.ReplyTypeInChannel)
+	} else if err != nil {
+		cErr := errors.Cause(err)
+		if _, ok := cErr.(ErrUser); ok {
+			return marvin.CmdFailuref(args, "Failed: %s", cErr).WithReplyType(marvin.ReplyTypeInChannel)
+		}
 		return marvin.CmdError(args, err, "Factoid run error")
 	}
 
 	panic("NotImplemented")
 	// TODO sending messages to other channels
 	_ = result
-	return marvin.CmdFailuref(args, "NotImplemented") // TODO
+
+	cmdResult := marvin.CmdSuccess(args, "").WithEdit()
+	if of.SideEffects {
+		cmdResult = cmdResult.WithNoEdit().WithNoUndo()
+	}
+	if of.NoReply {
+		return cmdResult
+	}
+	return cmdResult
 }
 
 func (mod *FactoidModule) CmdSource(t marvin.Team, args *marvin.CommandArguments) marvin.CommandResult {
@@ -169,4 +194,42 @@ func (mod *FactoidModule) CmdSource(t marvin.Team, args *marvin.CommandArguments
 	}
 
 	return marvin.CmdSuccess(args, fmt.Sprintf("```\n%s\n```", factoidInfo.RawSource)).WithNoEdit().WithSimpleUndo()
+}
+
+func (mod *FactoidModule) CmdInfo(t marvin.Team, args *marvin.CommandArguments) marvin.CommandResult {
+	if len(args.Arguments) < 1 {
+		return marvin.CmdUsage(args, "`@marvin factoid info [-f] <name>`")
+	}
+
+	factoidName := args.Pop()
+	withForgotten := false
+	if factoidName == "-f" {
+		withForgotten = true
+		factoidName = args.Pop()
+	}
+
+	factoidInfo, err := mod.GetFactoidInfo(factoidName, args.Source.ChannelID(), withForgotten)
+	if err == ErrNoSuchFactoid {
+		return marvin.CmdFailuref(args, "No such factoid").WithEdit()
+	} else if err != nil {
+		return marvin.CmdError(args, err, "Error retrieving factoid")
+	}
+
+	isLocal := ""
+	if factoidInfo.ScopeChannel != "" {
+		isLocal = "(local to this channel) "
+	}
+	isLocked := ""
+	if factoidInfo.IsLocked {
+		isLocked = "(locked) "
+	}
+	msg := fmt.Sprintf("`%s` %s%swas last edited by %v in %s\n[Archive link: %s]\n```%s\n```",
+		factoidName,
+		isLocal, isLocked,
+		factoidInfo.LastUser,
+		mod.team.ChannelName(factoidInfo.LastChannel),
+		mod.team.ArchiveURL(slack.MsgID(factoidInfo.LastChannel, factoidInfo.LastMessage)),
+		factoidInfo.RawSource,
+	)
+	return marvin.CmdSuccess(args, msg).WithEdit().WithSimpleUndo()
 }

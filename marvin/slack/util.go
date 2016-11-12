@@ -82,10 +82,10 @@ func ArchiveURL(teamDomain string, channelName string, msgID MessageID) string {
 	if channel[0] == 'G' {
 		if channelName != "" {
 			return fmt.Sprintf("https://%s.slack.com/archives/%s/%s",
-				teamDomain, channel, stripTS)
+				teamDomain, channelName, stripTS)
 		} else {
 			return fmt.Sprintf("https://%s.slack.com/archives/%s/%s",
-				teamDomain, channelName, stripTS)
+				teamDomain, msgID.ChannelID, stripTS)
 		}
 	}
 	if channel[0] == 'C' {

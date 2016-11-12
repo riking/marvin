@@ -9,44 +9,121 @@ import (
 	"github.com/riking/homeapi/marvin"
 )
 
-func (mod *FactoidModule) RunFactoid(info FactoidInfo, source marvin.ActionSource, args []string) (string, error) {
-	if len(info.RawSource) == 0 || strings.HasPrefix(info.RawSource, "{noreply}") {
+type OutputFlags struct {
+	NoReply     bool
+	Action      bool
+	Say         bool
+	SideEffects bool
+}
+
+// RunFactoid
+//
+// Returns the following errors (make sure to use errors.Cause()):
+//
+//   factoidName, ErrNoSuchFactoid - Factoid not found
+//   ErrUser - Something was wrong with the input. Not enough args, recursion limit reached.
+func (mod *FactoidModule) RunFactoid(line []string, of *OutputFlags, source marvin.ActionSource) (result string, err error) {
+	defer func() {
+		rec := recover()
+		if rec != nil {
+
+		}
+	}()
+	return mod.exec_alias(line, of, source)
+}
+
+func (mod *FactoidModule) exec_alias(origLine []string, of *OutputFlags, actionSource marvin.ActionSource) (string, error) {
+	// Handle alias recursion
+
+	var recursionCheck []string
+	line := origLine
+	for {
+		factoid := line[0]
+		args := line[1:]
+
+		info, err := mod.GetFactoidBare(factoid, actionSource.ChannelID())
+		if err == ErrNoSuchFactoid {
+			return factoid, err
+		}
+
+		if strings.HasPrefix(info.RawSource, "{alias}") {
+			_, tokens := info.Tokens()
+			str, err := mod.exec_processTokens(tokens, args, actionSource)
+			if err != nil {
+				return "", err
+			}
+			for _, v := range recursionCheck {
+				if v == str {
+					return "", ErrUser{errors.Errorf("Recursion limit reached. Factoid: [%s]", str)}
+				}
+			}
+			recursionCheck = append(recursionCheck, str)
+			line = strings.Split(str, " ")
+			continue
+		}
+		return mod.exec_parse(info, info.RawSource, args, of, actionSource)
+	}
+}
+
+func (mod *FactoidModule) exec_parse(f Factoid, raw string, args []string, of *OutputFlags, actionSource marvin.ActionSource) (string, error) {
+	if len(raw) == 0 {
 		return "", nil
 	}
 
-	tokens := info.Tokens()
-	// Handle only directives in the first loop
-	directiveIdx := -1
-	for i, v := range tokens {
-		if dt, ok := v.(DirectiveToken); ok {
-			directiveIdx = i
-			if dt.Directive == "noreply" {
-				return "", nil
-			}
-		} else {
-			break
+	directives, tokens := f.Tokens()
+	for _, v := range directives {
+		switch v.Directive {
+		case "say":
+			of.Say = true
+		case "action":
+			of.Action = true
+		case "noreply":
+			of.NoReply = true
+			return "", nil
 		}
 	}
-	tokens = tokens[directiveIdx+1:]
+	_ = directives
+	return mod.exec_processTokens(tokens, args, actionSource)
+}
+
+func (mod *FactoidModule) exec_processTokens(tokens []Token, args []string, actionSource marvin.ActionSource) (string, error) {
 	var buf bytes.Buffer
 	for _, v := range tokens {
-		str, err := v.Run(mod, source, args)
+		str, err := v.Run(mod, args, actionSource)
 		if err != nil {
-			return "", errors.Wrapf(err, "processing factoid")
+			return "", errors.Wrapf(err, "tokens")
 		}
 		buf.WriteString(str)
 	}
 	return buf.String(), nil
 }
 
+func (fi *Factoid) Directives() ([]DirectiveToken, string) {
+	source := fi.RawSource
+	var directives []DirectiveToken
+
+	// Get all directives
+	// Directives are anchored to beginning of factoid
+	m := DirectiveTokenRgx.FindStringSubmatchIndex(source)
+	for m != nil {
+		directive := source[m[2]:m[3]]
+		directives = append(directives, DirectiveToken{Directive: directive})
+		source = source[m[1]:]
+		m = DirectiveTokenRgx.FindStringSubmatchIndex(source)
+	}
+	return directives, source
+}
+
 // Tokens can panic, make sure it gets called with PCall() before saving a factoid to the database.
-func (fi *FactoidInfo) Tokens() []Token {
+func (fi *Factoid) Tokens() ([]DirectiveToken, []Token) {
+	directives, source := fi.Directives()
+
 	fi.tokenize.Do(func() {
-		tokens := fi.mod.collectTokenize(fi.RawSource)
+		tokens := fi.mod.collectTokenize(source)
 		fmt.Println("result:", tokens)
 		fi.tokens = tokens
 	})
-	return fi.tokens
+	return directives, fi.tokens
 }
 
 func (mod *FactoidModule) collectTokenize(source string) []Token {
@@ -63,50 +140,49 @@ func (mod *FactoidModule) collectTokenize(source string) []Token {
 func (mod *FactoidModule) tokenize(source string, recursed bool, tokenCh chan<- Token) {
 	fmt.Println("tokenizing:", source)
 
-	// Get all directives
-	// Directives are anchored to beginning of factoid
-	m := DirectiveTokenRgx.FindStringSubmatchIndex(source)
-	for recursed == false && m != nil {
-		directive := source[m[2]:m[3]]
-		tokenCh <- DirectiveToken{Directive: directive}
-		source = source[m[1]:]
-		m = DirectiveTokenRgx.FindStringSubmatchIndex(source)
-	}
 	// Function directives
-	m = FunctionTokenRgx.FindStringSubmatchIndex(source)
+	m := FunctionTokenRgx.FindStringSubmatchIndex(source)
 	for m != nil {
 		fmt.Println(m)
 		if source[m[2]:m[3]] != "" {
 			m[0]++
 		}
 		mod.tokenize(source[:m[0]], true, tokenCh)
-		func_name := source[m[4]:m[5]]
-		// TODO getFunction(func_name)
-		start := m[5]
-		end := -999
-		nesting := 0
-		for i := start; i < len(source); i++ {
-			var b byte = source[i]
-			if b == '\\' {
-				i++
-				continue
-			} else if b == '(' {
-				nesting++
-			} else if b == ')' {
-				nesting--
+		funcName := source[m[4]:m[5]]
+		funcInfo, ok := mod.functions[funcName]
+		if !ok {
+			tokenCh <- TextToken{Text: "$" + funcName}
+			source = source[m[5]:]
+		} else {
+			start := m[5]
+			end := -999
+			nesting := 0
+			for i := start; i < len(source); i++ {
+				var b byte = source[i]
+				if b == '\\' {
+					i++
+					continue
+				} else if b == '(' {
+					nesting++
+				} else if b == ')' {
+					nesting--
+				}
+				if nesting == 0 {
+					end = i
+					break
+				}
 			}
-			if nesting == 0 {
-				end = i
-				break
+			if end == -999 {
+				panic(ErrSource{errors.Errorf("Unclosed function named '%s'", funcName)})
 			}
+			params := mod.collectTokenize(source[start+1 : end])
+			if funcInfo.MultiArg {
+				tokenCh <- FunctionToken{FactoidFunction: funcInfo, params: mod.splitParams(params)}
+			} else {
+				tokenCh <- FunctionToken{FactoidFunction: funcInfo, params: [][]Token{params}}
+			}
+			source = source[end+1:]
 		}
-		if end == -999 {
-			panic(errors.Errorf("Unclosed function named '%s'", func_name))
-		}
-		params := mod.collectTokenize(source[start+1 : end])
-		// TODO if function.multi_arg
-		tokenCh <- FunctionToken{funcName: func_name, params: [][]Token{params}}
-		source = source[end+1:]
 		m = FunctionTokenRgx.FindStringSubmatchIndex(source)
 	}
 	// Parameter directives
@@ -135,4 +211,39 @@ func (mod *FactoidModule) tokenize(source string, recursed bool, tokenCh chan<- 
 	if !recursed {
 		close(tokenCh)
 	}
+}
+
+func (mod *FactoidModule) splitParams(pTokens []Token) [][]Token {
+	var fArgs [][]Token
+	var cur []Token
+
+	for _, v := range pTokens {
+		if tt, ok := v.(TextToken); ok {
+			var buf bytes.Buffer
+			o := 0
+			for i := 0; i < len(tt.Text); i++ {
+				if tt.Text[i] == '\\' {
+					i++
+				} else if tt.Text[i] == ',' {
+					if i > o {
+						cur = append(cur, TextToken{
+							Text: buf.String()})
+					}
+					fArgs = append(fArgs, cur)
+					cur = nil
+					buf.Reset()
+					o = i + 1
+				} else {
+					buf.WriteByte(tt.Text[i])
+				}
+			}
+			if buf.Len() > 0 {
+				cur = append(cur, TextToken{Text: buf.String()})
+			}
+		} else {
+			cur = append(cur, v)
+		}
+	}
+	fArgs = append(fArgs, cur)
+	return fArgs
 }

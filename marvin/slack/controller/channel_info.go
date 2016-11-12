@@ -19,13 +19,22 @@ func (t *Team) ChannelName(channel slack.ChannelID) string {
 		if err != nil {
 			return fmt.Sprintf("<!error getting channel name for %s>", string(channel))
 		}
-		return ch.Name
+		return "#" + ch.Name
 	case 'G':
 		ch, err := t.PrivateChannelInfo(channel)
 		if err != nil {
 			return fmt.Sprintf("<!error getting channel name for %s>", string(channel))
 		}
-		return ch.Name
+		if ch.IsMultiIM() {
+			return fmt.Sprintf("#[MultiIM %v]", ch.Members)
+		}
+		return "#" + ch.Name
+	case 'D':
+		otherUser := t.otherIMParty(channel)
+		if otherUser == "" {
+			return fmt.Sprintf("<!error getting other user for %s>", string(channel))
+		}
+		return fmt.Sprintf("#[IM %v]", otherUser)
 	}
 	return string(channel)
 }
@@ -160,6 +169,18 @@ func (t *Team) PrivateChannelInfo(channel slack.ChannelID) (*slack.Channel, erro
 	// TODO save result
 
 	return &response.Group, nil
+}
+
+func (t *Team) otherIMParty(im slack.ChannelID) slack.UserID {
+	t.client.MetadataLock.RLock()
+	defer t.client.MetadataLock.RUnlock()
+
+	for _, v := range t.client.Ims {
+		if v.ID == im {
+			return v.User
+		}
+	}
+	return ""
 }
 
 func (t *Team) cachedIMEntry(user slack.UserID) slack.ChannelID {

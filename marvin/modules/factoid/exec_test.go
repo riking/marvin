@@ -9,20 +9,32 @@ import (
 	"github.com/riking/homeapi/marvin/util/mock"
 )
 
+var mockFactoidModule = &FactoidModule{
+	team: nil,
+	functions: map[string]FactoidFunction{
+		"add1": {
+			F: func(args ...string) string {
+				return "1" + strings.Join(args, "")
+			},
+			MultiArg: false,
+		},
+	},
+}
+
 func MockFactoidModule() *FactoidModule {
-	return &FactoidModule{
-		team:    nil,
-		onReact: nil,
-	}
+	return mockFactoidModule
 }
 
-func testFactoidSimple(t *testing.T, rawSource string, expect string) {
-	fi := FactoidInfo{
+func testFactoidArgs(t *testing.T, rawSource string, args []string, as marvin.ActionSource, expect string) {
+	mod := MockFactoidModule()
+	fi := Factoid{
+		mod:        mod,
 		IsBareInfo: true,
 		RawSource:  rawSource,
 	}
-	as := mock.ActionSource{}
-	result, err := MockFactoidModule().RunFactoid(fi, as, nil)
+	var of OutputFlags
+	line := append([]string{"__mock_factoid_name"}, args...)
+	result, err := mod.exec_parse(fi, rawSource, line, &of, as)
 	if err != nil {
 		t.Errorf("Unexpected error running factoid [%s]: %+v", rawSource, err)
 	} else if expect != result {
@@ -30,27 +42,16 @@ func testFactoidSimple(t *testing.T, rawSource string, expect string) {
 	}
 }
 
-func testFactoidArgs(t *testing.T, rawSource string, args []string, source marvin.ActionSource, expect string) {
-	fi := FactoidInfo{
+func testFactoidArgsErr(t *testing.T, rawSource string, args []string, as marvin.ActionSource, errMatch string) {
+	mod := MockFactoidModule()
+	fi := Factoid{
+		mod:        mod,
 		IsBareInfo: true,
 		RawSource:  rawSource,
 	}
-	as := mock.ActionSource{}
-	result, err := MockFactoidModule().RunFactoid(fi, as, args)
-	if err != nil {
-		t.Errorf("Unexpected error running factoid [%s]: %+v", rawSource, err)
-	} else if expect != result {
-		t.Errorf("Wrong output running [%s]:\nEXP: %s\nGOT: %s\n", rawSource, expect, result)
-	}
-}
-
-func testFactoidArgsErr(t *testing.T, rawSource string, args []string, source marvin.ActionSource, errMatch string) {
-	fi := FactoidInfo{
-		IsBareInfo: true,
-		RawSource:  rawSource,
-	}
-	as := mock.ActionSource{}
-	_, err := MockFactoidModule().RunFactoid(fi, as, args)
+	var of OutputFlags
+	line := append([]string{"__mock_factoid_name"}, args...)
+	_, err := mod.exec_parse(fi, rawSource, line, &of, as)
 	if err == nil {
 		t.Errorf("Expected error '%s' but got none: [%s]", errMatch, rawSource)
 	} else if !strings.Contains(err.Error(), errMatch) {
@@ -59,11 +60,12 @@ func testFactoidArgsErr(t *testing.T, rawSource string, args []string, source ma
 }
 
 func TestPlainText(t *testing.T) {
-	testFactoidSimple(t, "Hello, World!", "Hello, World!")
-	testFactoidSimple(t, "Hello, {World!", "Hello, {World!")
-	testFactoidSimple(t, "{Hello, World!", "{Hello, World!")
-	testFactoidSimple(t, "Hello, {}World!", "Hello, {}World!")
-	testFactoidSimple(t, "{noreply}Hello, World!", "")
+	s := mock.ActionSource{}
+	testFactoidArgs(t, "Hello, World!", nil, s, "Hello, World!")
+	testFactoidArgs(t, "Hello, {World!", nil, s, "Hello, {World!")
+	testFactoidArgs(t, "{Hello, World!", nil, s, "{Hello, World!")
+	testFactoidArgs(t, "Hello, {}World!", nil, s, "Hello, {}World!")
+	testFactoidArgs(t, "{noreply}Hello, World!", nil, s, "")
 }
 
 func TestArgParam(t *testing.T) {
@@ -82,8 +84,10 @@ func TestArgParam(t *testing.T) {
 }
 
 func TestFunctions(t *testing.T) {
-	mod := MockFactoidModule()
-	// TODO mod.DefineFactoidFunction
+	s := mock.ActionSource{}
 
-	mod.collectTokenize("$add1($add1($add1($add1(1))))")
+	testFactoidArgs(t, "$add1($add1($add1($add1(1))))", []string{}, s, "11111")
+	testFactoidArgs(t, "$add1($notafunction($add1($add1(1))))", []string{}, s, "1$notafunction(111)")
+	testFactoidArgs(t, "$notafunction($add1($add1(1))", []string{}, s, "$notafunction(111")
+	testFactoidArgs(t, "$$$cashmoney$add1(00)$$$", []string{}, s, "$$$cashmoney100$$$")
 }

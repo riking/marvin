@@ -12,11 +12,11 @@ import (
 	"github.com/riking/homeapi/marvin/util"
 )
 
-type ErrUser error
-type ErrSource error
+type ErrUser struct{ error }
+type ErrSource struct{ error }
 
 type Token interface {
-	Run(mod *FactoidModule, source marvin.ActionSource, args []string) (string, error)
+	Run(mod *FactoidModule, args []string, actionSource marvin.ActionSource) (string, error)
 }
 
 var DirectiveTokenRgx = regexp.MustCompile(`^{([a-z]+)}`)
@@ -25,15 +25,11 @@ type DirectiveToken struct {
 	Directive string
 }
 
-func (t DirectiveToken) Run(mod *FactoidModule, source marvin.ActionSource, args []string) (string, error) {
-	return "", nil
-}
-
 type TextToken struct {
 	Text string
 }
 
-func (t TextToken) Run(mod *FactoidModule, source marvin.ActionSource, args []string) (string, error) {
+func (t TextToken) Run(mod *FactoidModule, args []string, actionSource marvin.ActionSource) (string, error) {
 	return t.Text, nil
 }
 
@@ -44,13 +40,21 @@ func (t TextToken) Run(mod *FactoidModule, source marvin.ActionSource, args []st
 var FunctionTokenRgx = regexp.MustCompile(`(^|[^\\])\$([a-zA-Z_][a-zA-Z0-9_]*)\(.*?\)`)
 
 type FunctionToken struct {
-	funcName string // TODO switch to func object
-	params   [][]Token
+	FactoidFunction
+	params [][]Token
 }
 
-func (p FunctionToken) Run(mod *FactoidModule, source marvin.ActionSource, args []string) (string, error) {
-	// TODO switch to func object
-	return fmt.Sprintf("(%%!FunctionToken.Run not implemented [%s] [%#v])", p.funcName, p.params), nil
+func (p FunctionToken) Run(mod *FactoidModule, args []string, actionSource marvin.ActionSource) (string, error) {
+	funcParams := make([]string, len(p.params))
+	var err error
+
+	for i, v := range p.params {
+		funcParams[i], err = mod.exec_processTokens(v, args, actionSource)
+		if err != nil {
+			return "", err
+		}
+	}
+	return p.F(funcParams...), nil
 }
 
 var ParameterTokenRgx = regexp.MustCompile("%([A-Za-z]+)([0-9]+)?(-)?([0-9]+)?%")
@@ -82,35 +86,32 @@ func NewParameterToken(rawStr, opStr, startStr, rangeStr, endStr string) Token {
 	}
 }
 
-func (p ParameterToken) Run(mod *FactoidModule, source marvin.ActionSource, args []string) (string, error) {
+func (p ParameterToken) Run(mod *FactoidModule, args []string, actionSource marvin.ActionSource) (string, error) {
 	switch p.op {
 	default:
 		return p.raw, nil
-	case "inp":
-		return strings.Join(args, " "), nil
 	case "bot":
 		return fmt.Sprintf("<@%s>", mod.team.BotUser()), nil
 	case "chan":
-		return fmt.Sprintf("<#%s>", source.ChannelID()), nil
+		return fmt.Sprintf("<#%s>", actionSource.ChannelID()), nil
 	case "user":
-		return fmt.Sprintf("<@%s>", source.UserID()), nil
+		return fmt.Sprintf("<@%s>", actionSource.UserID()), nil
 	case "uname":
-		return mod.team.UserName(source.UserID()), nil
+		return mod.team.UserName(actionSource.UserID()), nil
 	case "ioru":
 		if len(args) > 0 {
 			return strings.Join(args, " "), nil
 		} else {
-			return fmt.Sprintf("<@%s>", source.UserID()), nil
+			return fmt.Sprintf("<@%s>", actionSource.UserID()), nil
 		}
 	case "ioruname":
 		if len(args) > 0 {
 			return strings.Join(args, " "), nil
 		} else {
-			return mod.team.UserName(source.UserID()), nil
+			return mod.team.UserName(actionSource.UserID()), nil
 		}
-	case "args":
-		p.isRange = true
-		fallthrough
+	case "args", "inp":
+		return strings.Join(args, " "), nil
 	case "arg":
 		start := p.start
 		if start == -1 {
@@ -122,14 +123,14 @@ func (p ParameterToken) Run(mod *FactoidModule, source marvin.ActionSource, args
 				end = len(args) - 1
 			}
 			if len(args) <= max(start, end) {
-				return "", ErrUser(errors.Errorf("Not enough args (wanted %d)", max(start, end)+1))
+				return "", ErrUser{errors.Errorf("Not enough args (wanted %d)", max(start, end)+1)}
 			}
 			return strings.Join(args[start:end+1], " "), nil
 		} else {
 			if len(args) > start {
 				return args[start], nil
 			}
-			return "", ErrUser(errors.Errorf("Not enough args (wanted %d)", start+1))
+			return "", ErrUser{errors.Errorf("Not enough args (wanted %d)", start+1)}
 		}
 	case "date":
 		return time.Now().In(util.TZ42USA()).Format("2006-01-02"), nil

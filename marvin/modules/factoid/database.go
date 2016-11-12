@@ -73,7 +73,7 @@ const (
 
 var ErrNoSuchFactoid = errors.Errorf("Factoid does not exist")
 
-type FactoidInfo struct {
+type Factoid struct {
 	mod *FactoidModule
 
 	IsBareInfo   bool
@@ -107,8 +107,8 @@ func (mod *FactoidModule) doSyntaxCheck(t marvin.Team) {
 	)
 }
 
-func (mod *FactoidModule) GetFactoidInfo(name string, channel slack.ChannelID, withForgotten bool) (FactoidInfo, error) {
-	var result FactoidInfo
+func (mod *FactoidModule) GetFactoidInfo(name string, channel slack.ChannelID, withForgotten bool) (Factoid, error) {
+	var result Factoid
 	result.mod = mod
 	result.FactoidName = name
 	result.IsBareInfo = false
@@ -142,8 +142,8 @@ func (mod *FactoidModule) GetFactoidInfo(name string, channel slack.ChannelID, w
 	return result, nil
 }
 
-func (mod *FactoidModule) GetFactoidBare(name string, channel slack.ChannelID) (FactoidInfo, error) {
-	var result FactoidInfo
+func (mod *FactoidModule) GetFactoidBare(name string, channel slack.ChannelID) (Factoid, error) {
+	var result Factoid
 	result.mod = mod
 	result.FactoidName = name
 	result.IsBareInfo = true
@@ -165,7 +165,7 @@ func (mod *FactoidModule) GetFactoidBare(name string, channel slack.ChannelID) (
 }
 
 // FillInfo transforms a bare FactoidInfo into a full FactoidInfo.
-func (fi *FactoidInfo) FillInfo(channel slack.ChannelID) error {
+func (fi *Factoid) FillInfo(channel slack.ChannelID) error {
 	if !fi.IsBareInfo {
 		return nil
 	}
