@@ -129,7 +129,7 @@ type FinishedCommandInfo struct {
 	FoundCommand  bool
 	CommandArgs   *marvin.CommandArguments
 	CommandResult marvin.CommandResult
-	WasUndone     bool
+	FailedUndo    bool
 
 	ActionEmoji    []ReplyActionEmoji
 	ActionChanMsg  ReplyActionSentMessage
@@ -405,49 +405,91 @@ func (mod *AtCommandModule) HandleEdit(_rtm slack.RTMRawMessage) {
 
 	if myFoundCommand == false {
 		mod.UndoCommand(fciMeta, marvin.ActionSourceUserMessage{Team: mod.team, Msg: rtm})
-		if fciMeta.WasUndone {
-
-		}
-		fciMeta.FoundCommand = false
-		fciMeta.parseResult = parseResult
 	} else {
+		canEdit := mod.canEdit(fciMeta)
+		if !canEdit {
+			canUndo, _ := mod.canUndo(fciMeta)
+			if canUndo {
+				mod.UndoCommand(fciMeta, marvin.ActionSourceUserMessage{Team: mod.team, Msg: rtm})
+				fciMeta.FoundCommand = true
+				mod.ProcessInitialCommandMessage(fciMeta, rtm)
+			}
+		}
 		mod.EditCommand(fciMeta, marvin.ActionSourceUserMessage{Team: mod.team, Msg: rtm})
 	}
 }
 
+func (mod *AtCommandModule) canEdit(fciMeta *FinishedCommandInfo) (canEdit bool) {
+
+	if fciMeta.CommandResult.CanEdit == marvin.TriYes {
+		// Custom edit
+		return true
+	} else if fciMeta.CommandResult.CanEdit == marvin.TriNo {
+		return false
+	} else { // TriDefault
+		switch fciMeta.CommandResult.Code {
+		case marvin.CmdResultFailure:
+			return true
+		case marvin.CmdResultOK:
+			return false
+		case marvin.CmdResultError:
+			return false // error
+		case marvin.CmdResultNoSuchCommand, marvin.CmdResultPrintUsage, marvin.CmdResultPrintHelp:
+			return true
+		}
+	}
+	panic("unrecognized command result code")
+}
+
+func (mod *AtCommandModule) canUndo(fciMeta *FinishedCommandInfo) (canUndo, custom bool) {
+	if fciMeta.FailedUndo {
+		return false, false
+	}
+
+	if fciMeta.CommandResult.CanEdit == marvin.TriNo {
+		// Undo not supported
+		return false, false
+	} else if fciMeta.CommandResult.CanEdit == marvin.UndoCustom {
+		// Custom undo
+		return true, true
+	} else if fciMeta.CommandResult.CanEdit == marvin.UndoSimple {
+		return true, false
+	} else { // TriDefault
+		switch fciMeta.CommandResult.Code {
+		case marvin.CmdResultOK:
+			// Undo not supported
+			return false, false
+		case marvin.CmdResultFailure:
+			return true, false
+		case marvin.CmdResultError:
+			return false, false // error
+		case marvin.CmdResultNoSuchCommand, marvin.CmdResultPrintUsage, marvin.CmdResultPrintHelp:
+			return true, false
+		}
+	}
+	panic("unrecognized command result code")
+}
+
 func (mod *AtCommandModule) EditCommand(fciMeta *FinishedCommandInfo, source marvin.ActionSource) {
-	forbidden := false
 	imChannel, _ := mod.team.GetIM(source.UserID())
 	logChannel := mod.team.TeamConfig().LogChannel
 
-	if fciMeta.CommandResult.CanEdit == 1 {
-		// Custom edit
-	} else if fciMeta.CommandResult.CanEdit == -1 {
-		forbidden = true
-	} else {
-		// default
-		switch fciMeta.CommandResult.Code {
-		case marvin.CmdResultNoSuchCommand, marvin.CmdResultPrintUsage, marvin.CmdResultPrintHelp:
-			forbidden = false
-		case marvin.CmdResultError:
-			if fciMeta.ActionChanMsg.Text != "" {
-				mod.team.SendMessage(fciMeta.ActionChanMsg.MessageID.ChannelID, fmt.Sprintf(
-					"%v: You may not edit a command that resulted in an error. Repeat the corrected command in a new message.", source.UserID()))
-			} else {
-				mod.team.SendMessage(imChannel, fmt.Sprintf(
-					"For safety, you cannot edit a command that resulted in an error. %s", source.ArchiveLink()))
-			}
-			mod.team.ReactMessage(fciMeta.OriginalMsg.MessageID(), "x")
-			fciMeta.AddEmojiReaction(fciMeta.OriginalMsg.MessageID(), "x")
-			return
-		case marvin.CmdResultFailure:
-			forbidden = false
-		case marvin.CmdResultOK:
-			forbidden = true
+	canEdit := mod.canEdit(fciMeta)
+
+	if fciMeta.CommandResult.Code == marvin.CmdResultError {
+		if fciMeta.ActionChanMsg.Text != "" {
+			mod.team.SendMessage(fciMeta.ActionChanMsg.MessageID.ChannelID, fmt.Sprintf(
+				"%v: You may not edit a command that resulted in an error. Repeat the corrected command in a new message.", source.UserID()))
+		} else {
+			mod.team.SendMessage(imChannel, fmt.Sprintf(
+				"For safety, you cannot edit a command that resulted in an error. %s", source.ArchiveLink()))
 		}
+		mod.team.ReactMessage(fciMeta.OriginalMsg.MessageID(), "x")
+		fciMeta.AddEmojiReaction(fciMeta.OriginalMsg.MessageID(), "x")
+		return
 	}
 
-	if forbidden {
+	if !canEdit {
 		mod.team.SendMessage(imChannel, fmt.Sprintf(
 			"That command does not support editing. %s", source.ArchiveLink()))
 		mod.team.ReactMessage(fciMeta.OriginalMsg.MessageID(), "x")
@@ -529,59 +571,62 @@ func (mod *AtCommandModule) EditCommand(fciMeta *FinishedCommandInfo, source mar
 
 func (mod *AtCommandModule) UndoCommand(fciMeta *FinishedCommandInfo, source marvin.ActionSource) {
 	var newEmoji []ReplyActionEmoji
+
+	if fciMeta.FailedUndo {
+		// already notified
+		return
+	}
+
+	canUndo, customUndo := mod.canUndo(fciMeta)
+
+	if fciMeta.CommandResult.Code == marvin.CmdResultError {
+		imChannel, _ := mod.team.GetIM(source.UserID())
+		mod.team.SendMessage(imChannel, fmt.Sprintf(
+			"For safety, you cannot undo a command that resulted in an error. %s", source.ArchiveLink()))
+		fciMeta.FailedUndo = true
+		mod.team.ReactMessage(fciMeta.OriginalMsg.MessageID(), "x")
+		fciMeta.AddEmojiReaction(fciMeta.OriginalMsg.MessageID(), "x")
+		return
+	}
 	if fciMeta.parseResult.wave {
 		reactEmoji, _ := mod.team.ModuleConfig(Identifier).Get(confKeyEmojiHi)
 		newEmoji = append(newEmoji, ReplyActionEmoji{MessageID: fciMeta.OriginalMsg.MessageID(), Emoji: reactEmoji})
 	}
-
-	switch fciMeta.CommandResult.Code {
-	case marvin.CmdResultOK:
-		if fciMeta.CommandResult.CanUndo {
-			// Custom undo
-			break
-		} else {
-			imChannel, _ := mod.team.GetIM(source.UserID())
-			mod.team.SendMessage(imChannel, fmt.Sprintf(
-				"That command does not support undo. %s", source.ArchiveLink()))
-			fciMeta.WasUndone = false
-			mod.team.ReactMessage(fciMeta.OriginalMsg.MessageID(), "x")
-			fciMeta.AddEmojiReaction(fciMeta.OriginalMsg.MessageID(), "x")
-			return
-		}
-	case marvin.CmdResultFailure:
-		if fciMeta.CommandResult.CanUndo {
-			// Custom undo
-			break
-		}
-	case marvin.CmdResultError:
-		imChannel, _ := mod.team.GetIM(source.UserID())
-		mod.team.SendMessage(imChannel, fmt.Sprintf(
-			"For safety, you cannot undo a command that resulted in an error. %s", source.ArchiveLink()))
-		fciMeta.WasUndone = false
-		mod.team.ReactMessage(fciMeta.OriginalMsg.MessageID(), "x")
-		fciMeta.AddEmojiReaction(fciMeta.OriginalMsg.MessageID(), "x")
-		return
-	case marvin.CmdResultNoSuchCommand, marvin.CmdResultPrintUsage, marvin.CmdResultPrintHelp:
+	if canUndo && !customUndo {
 		fciMeta.ActionChanMsg.Update(mod, "(removed)")
 		fciMeta.ActionPMMsg.Update(mod, "(removed)")
-		fciMeta.WasUndone = true
+		newEmoji = append(newEmoji, ReplyActionEmoji{MessageID: fciMeta.OriginalMsg.MessageID(), Emoji: "leftwards_arrow_with_hook"})
 		fciMeta.ChangeEmoji(mod, newEmoji)
 		return
 	}
-
-	if !fciMeta.CommandResult.CanUndo {
-		if fciMeta.ActionChanMsg.Text != "" {
-			fciMeta.ActionChanMsg.Update(mod, "(removed)")
-		}
+	if !customUndo {
+		imChannel, _ := mod.team.GetIM(source.UserID())
+		mod.team.SendMessage(imChannel, fmt.Sprintf(
+			"That command does not support undo. %s", source.ArchiveLink()))
+		fciMeta.FailedUndo = true
+		mod.team.ReactMessage(fciMeta.OriginalMsg.MessageID(), "x")
+		fciMeta.AddEmojiReaction(fciMeta.OriginalMsg.MessageID(), "x")
+		return
 	}
 
-	fciMeta.ChangeEmoji(mod, newEmoji)
+	imChannel, _ := mod.team.GetIM(source.UserID())
+	mod.team.SendMessage(imChannel, fmt.Sprintf(
+		"TODO - custom undo support. %s", source.ArchiveLink()))
+	mod.team.ReactMessage(fciMeta.OriginalMsg.MessageID(), "x")
+	fciMeta.AddEmojiReaction(fciMeta.OriginalMsg.MessageID(), "x")
 	return // TODO
 
-	args := fciMeta.CommandArgs
-	args.IsUndo = true
-	args.PreviousResult = &fciMeta.CommandResult
-	result := mod.team.DispatchCommand(fciMeta.CommandArgs)
+	args := &marvin.CommandArguments{
+		OriginalArguments: fciMeta.CommandArgs.OriginalArguments,
+		Arguments:         fciMeta.CommandArgs.OriginalArguments,
+		Command:           "",
+		Source:            source,
+
+		PreviousResult: &fciMeta.CommandResult,
+		IsUndo:         true,
+		IsEdit:         false,
+	}
+	result := mod.team.DispatchCommand(args)
 
 	resultEmoji := mod.GetEmojiForResponse(result)
 	newEmoji = append(newEmoji, ReplyActionEmoji{MessageID: fciMeta.OriginalMsg.MessageID(), Emoji: resultEmoji})
@@ -589,7 +634,6 @@ func (mod *AtCommandModule) UndoCommand(fciMeta *FinishedCommandInfo, source mar
 	fciMeta.ChangeEmoji(mod, newEmoji)
 
 	logChannel := mod.team.TeamConfig().LogChannel
-	imChannel, _ := mod.team.GetIM(source.UserID())
 	didSendMessageChannel := false
 	didSendMessageIM := false
 	sendMessageChannel := func(msg string) {
@@ -777,7 +821,7 @@ func (mod *AtCommandModule) SendReplyMessages(
 }
 
 var rgxTakeCodeBlock = regexp.MustCompile(`^&amp;(\d+)$`)
-var rgxCodeBlock = regexp.MustCompile("(?m:^)```\n?(?sU:(.*))\n?```(?m:$)")
+var rgxCodeBlock = regexp.MustCompile("(?m:^)```\n?(?s:(.*?))\n?```()(?m:$|\\s)")
 
 func ParseArgs(raw string, startIdx int) ([]string, error) {
 	endOfLine := strings.IndexByte(raw[startIdx:], '\n')
@@ -811,7 +855,7 @@ func ParseArgs(raw string, startIdx int) ([]string, error) {
 				retErr = errors.Errorf("Found code block ref '%s' but only %d code blocks in message", m[1], len(codeBlocks))
 				continue
 			}
-			argSplit[i] = codeBlocks[which - 1][1]
+			argSplit[i] = codeBlocks[which-1][1]
 		} else {
 			argSplit[i] = str
 		}

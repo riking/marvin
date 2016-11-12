@@ -37,6 +37,22 @@ func (t TextToken) Run(mod *FactoidModule, source marvin.ActionSource, args []st
 	return t.Text, nil
 }
 
+// parenthesis matching performed separately
+// 1 = backslash check
+// 2 = name
+// do parencheck starting at end of 2, ignore end of 0
+var FunctionTokenRgx = regexp.MustCompile(`(^|[^\\])\$([a-zA-Z_][a-zA-Z0-9_]*)\(.*?\)`)
+
+type FunctionToken struct {
+	funcName string // TODO switch to func object
+	params   [][]Token
+}
+
+func (p FunctionToken) Run(mod *FactoidModule, source marvin.ActionSource, args []string) (string, error) {
+	// TODO switch to func object
+	return fmt.Sprintf("(%%!FunctionToken.Run not implemented [%s] [%#v])", p.funcName, p.params), nil
+}
+
 var ParameterTokenRgx = regexp.MustCompile("%([A-Za-z]+)([0-9]+)?(-)?([0-9]+)?%")
 
 type ParameterToken struct {

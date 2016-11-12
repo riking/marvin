@@ -39,18 +39,28 @@ func (mod *FactoidModule) RunFactoid(info FactoidInfo, source marvin.ActionSourc
 	return buf.String(), nil
 }
 
-//WRITE TESTS
-
+// Tokens can panic, make sure it gets called with PCall() before saving a factoid to the database.
 func (fi *FactoidInfo) Tokens() []Token {
 	fi.tokenize.Do(func() {
-		fi.tokens = tokenize(fi.RawSource, false)
+		tokens := fi.mod.collectTokenize(fi.RawSource)
+		fmt.Println("result:", tokens)
+		fi.tokens = tokens
 	})
 	return fi.tokens
 }
 
-func tokenize(source string, recursed bool) []Token {
+func (mod *FactoidModule) collectTokenize(source string) []Token {
 	var tokens []Token
+	tokenCh := make(chan Token)
 
+	go mod.tokenize(source, false, tokenCh)
+	for v := range tokenCh {
+		tokens = append(tokens, v)
+	}
+	return tokens
+}
+
+func (mod *FactoidModule) tokenize(source string, recursed bool, tokenCh chan<- Token) {
 	fmt.Println("tokenizing:", source)
 
 	// Get all directives
@@ -58,14 +68,50 @@ func tokenize(source string, recursed bool) []Token {
 	m := DirectiveTokenRgx.FindStringSubmatchIndex(source)
 	for recursed == false && m != nil {
 		directive := source[m[2]:m[3]]
-		tokens = append(tokens, DirectiveToken{Directive: directive})
+		tokenCh <- DirectiveToken{Directive: directive}
 		source = source[m[1]:]
 		m = DirectiveTokenRgx.FindStringSubmatchIndex(source)
+	}
+	// Function directives
+	m = FunctionTokenRgx.FindStringSubmatchIndex(source)
+	for m != nil {
+		fmt.Println(m)
+		if source[m[2]:m[3]] != "" {
+			m[0]++
+		}
+		mod.tokenize(source[:m[0]], true, tokenCh)
+		func_name := source[m[4]:m[5]]
+		// TODO getFunction(func_name)
+		start := m[5]
+		end := -999
+		nesting := 0
+		for i := start; i < len(source); i++ {
+			var b byte = source[i]
+			if b == '\\' {
+				i++
+				continue
+			} else if b == '(' {
+				nesting++
+			} else if b == ')' {
+				nesting--
+			}
+			if nesting == 0 {
+				end = i
+				break
+			}
+		}
+		if end == -999 {
+			panic(errors.Errorf("Unclosed function named '%s'", func_name))
+		}
+		params := mod.collectTokenize(source[start+1 : end])
+		// TODO if function.multi_arg
+		tokenCh <- FunctionToken{funcName: func_name, params: [][]Token{params}}
+		source = source[end+1:]
+		m = FunctionTokenRgx.FindStringSubmatchIndex(source)
 	}
 	// Parameter directives
 	m = ParameterTokenRgx.FindStringSubmatchIndex(source)
 	for m != nil {
-		fmt.Println(m)
 		var opStr, startStr, rangeStr, endStr string
 		if m[2] != -1 {
 			opStr = source[m[2]:m[3]]
@@ -80,13 +126,13 @@ func tokenize(source string, recursed bool) []Token {
 			endStr = source[m[8]:m[9]]
 		}
 		t := NewParameterToken(source[m[0]:m[1]], opStr, startStr, rangeStr, endStr)
-		prev := tokenize(source[:m[0]], true)
-		tokens = append(tokens, prev...)
-		tokens = append(tokens, t)
+		mod.tokenize(source[:m[0]], true, tokenCh)
+		tokenCh <- t
 		source = source[m[1]:]
 		m = ParameterTokenRgx.FindStringSubmatchIndex(source)
 	}
-	tokens = append(tokens, TextToken{Text: source})
-	fmt.Println(tokens)
-	return tokens
+	tokenCh <- TextToken{Text: source}
+	if !recursed {
+		close(tokenCh)
+	}
 }

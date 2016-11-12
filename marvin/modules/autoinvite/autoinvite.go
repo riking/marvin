@@ -126,8 +126,9 @@ const defaultEmoji = `white_check_mark`
 const usage = "Usage: `@marvin make-invite` [emoji = :white_check_mark:] <send_to = #channel> [message]"
 
 type postInviteResult struct {
-	MsgID slack.MessageID
-	Emoji string
+	MsgID      slack.MessageID
+	Emoji      string
+	TargetName string
 }
 
 func (mod *AutoInviteModule) PostInvite(t marvin.Team, args *marvin.CommandArguments) marvin.CommandResult {
@@ -135,14 +136,14 @@ func (mod *AutoInviteModule) PostInvite(t marvin.Team, args *marvin.CommandArgum
 
 	inviteTarget := args.Source.ChannelID()
 	if inviteTarget == "" || inviteTarget[0] != 'G' {
-		return marvin.CmdFailuref(args, "Command must be used from a private channel.").WithNoEdit()
+		return marvin.CmdFailuref(args, "Command must be used from a private channel.").WithNoEdit().WithSimpleUndo()
 	}
 	privateChannel, err := t.PrivateChannelInfo(inviteTarget)
 	if err != nil {
 		return marvin.CmdError(args, err, "Could not retrieve information about the channel")
 	}
 	if privateChannel.IsMultiIM() {
-		return marvin.CmdFailuref(args, "You cannnot invite users to a multi-party IM.").WithNoEdit()
+		return marvin.CmdFailuref(args, "You cannnot invite users to a multi-party IM.").WithNoEdit().WithSimpleUndo()
 	}
 
 	usage := func() marvin.CommandResult {
@@ -177,7 +178,11 @@ func (mod *AutoInviteModule) PostInvite(t marvin.Team, args *marvin.CommandArgum
 	// Handle edits
 
 	if args.IsEdit {
-		prev := args.PreviousResult.Args.ModuleData.(postInviteResult)
+		prev, ok := args.PreviousResult.Args.ModuleData.(postInviteResult)
+		if !ok {
+			return marvin.CmdFailuref(args, "Bad edit data").WithNoEdit().WithNoUndo()
+		}
+		args.SetModuleData(prev)
 		form := url.Values{
 			"ts":      []string{string(prev.MsgID.MessageTS)},
 			"channel": []string{string(prev.MsgID.ChannelID)},
@@ -199,9 +204,35 @@ func (mod *AutoInviteModule) PostInvite(t marvin.Team, args *marvin.CommandArgum
 			go mod.team.ReactMessage(prev.MsgID, emoji)
 			mod.team.SlackAPIPost("reactions.remove", form)
 			prev.Emoji = emoji
-			args.SetModuleData(prev)
 		}
-		return marvin.CmdSuccess(args, fmt.Sprintf("Message updated: %s", t.ArchiveURL(prev.MsgID))).WithEdit()
+		return marvin.CmdSuccess(args, fmt.Sprintf("Message updated: %s", t.ArchiveURL(prev.MsgID))).WithEdit().WithCustomUndo()
+	}
+	if args.IsUndo {
+		prev, ok := args.PreviousResult.Args.ModuleData.(postInviteResult)
+		if !ok {
+			return marvin.CmdFailuref(args, "Bad edit data").WithNoEdit().WithNoUndo()
+		}
+		args.SetModuleData(prev)
+
+		form := url.Values{
+			"name":      []string{prev.Emoji},
+			"channel":   []string{string(prev.MsgID.ChannelID)},
+			"timestamp": []string{string(prev.MsgID.MessageTS)},
+		}
+		mod.team.SlackAPIPost("reactions.remove", form)
+		form = url.Values{
+			"ts":      []string{string(prev.MsgID.MessageTS)},
+			"channel": []string{string(prev.MsgID.ChannelID)},
+			"as_user": []string{"true"},
+			"text":    []string{fmt.Sprintf("(Invite to %s retracted)", prev.TargetName)},
+			"parse":   []string{"client"},
+		}
+		resp, err := mod.team.SlackAPIPost("chat.update", form)
+		if err != nil {
+			return marvin.CmdError(args, err, "Error editing message")
+		}
+		resp.Body.Close()
+		return marvin.CmdSuccess(args, fmt.Sprintf("Invite successfully cancelled. %s", t.ArchiveURL(prev.MsgID))).WithNoEdit().WithNoUndo()
 	}
 
 	var data PendingInviteData
@@ -217,7 +248,7 @@ func (mod *AutoInviteModule) PostInvite(t marvin.Team, args *marvin.CommandArgum
 		return marvin.CmdError(args, err, "Couldn't send message")
 	}
 	msgID := slack.MsgID(messageChannel, ts)
-	args.SetModuleData(postInviteResult{MsgID: msgID, Emoji: emoji})
+	args.SetModuleData(postInviteResult{MsgID: msgID, Emoji: emoji, TargetName: privateChannel.Name})
 	err = mod.onReactAPI().ListenMessage(msgID, Identifier, dataBytes)
 	if err != nil {
 		// Failed to save, delete the message
@@ -234,5 +265,5 @@ func (mod *AutoInviteModule) PostInvite(t marvin.Team, args *marvin.CommandArgum
 		return marvin.CmdError(args, err,
 			"Couldn't post sample reaction (the message should still work)")
 	}
-	return marvin.CmdSuccess(args, fmt.Sprintf("Message posted: %s", t.ArchiveURL(msgID))).WithEdit()
+	return marvin.CmdSuccess(args, fmt.Sprintf("Message posted: %s", t.ArchiveURL(msgID))).WithEdit().WithCustomUndo()
 }
