@@ -54,7 +54,7 @@ func main() {
 			}
 		case "message":
 			if msg.Subtype() == "" {
-				fmt.Printf("[#%s] [@%s] %s\n", team.ChannelName(msg.ChannelID()), team.UserName(msg.UserID()), msg.Text())
+				fmt.Printf("[%s] [@%s] %s\n", team.ChannelName(msg.ChannelID()), team.UserName(msg.UserID()), msg.Text())
 			}
 			return
 		}

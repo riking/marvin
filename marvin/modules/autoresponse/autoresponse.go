@@ -50,8 +50,8 @@ type AutoEmojiResponse struct {
 }
 
 var responses = []AutoEmojiResponse{
-	{regexp.MustCompile("beyonc[eé]"), "hankey"},
-	{regexp.MustCompile("thank.*<@U2E00L22Y>"), "pray"},
+	{regexp.MustCompile("(?i:beyonc[eé])"), "hankey"},
+	{regexp.MustCompile("(?i:thank).*<@U2E00L22Y>"), "pray"},
 }
 
 // ---
