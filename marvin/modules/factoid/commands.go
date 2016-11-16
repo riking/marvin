@@ -227,7 +227,7 @@ func (mod *FactoidModule) CmdInfo(t marvin.Team, args *marvin.CommandArguments) 
 		factoidName,
 		isLocal, isLocked,
 		factoidInfo.LastUser,
-		mod.team.ChannelName(factoidInfo.LastChannel),
+		mod.team.FormatChannel(factoidInfo.LastChannel),
 		mod.team.ArchiveURL(slack.MsgID(factoidInfo.LastChannel, factoidInfo.LastMessage)),
 		factoidInfo.RawSource,
 	)

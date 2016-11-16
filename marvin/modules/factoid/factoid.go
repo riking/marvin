@@ -2,15 +2,12 @@ package factoid
 
 import (
 	"github.com/riking/homeapi/marvin"
-	"github.com/riking/homeapi/marvin/slack"
 )
 
 type API interface {
 	marvin.Module
 
-	RunFactoidSplit(args []string, source marvin.ActionSource)
-	RunFactoidLine(rawLine string, source marvin.ActionSource)
-	RunFactoidMessage(msg slack.RTMRawMessage)
+	RunFactoid(args []string, of *OutputFlags, source marvin.ActionSource)
 }
 
 // ---
@@ -72,7 +69,3 @@ func (mod *FactoidModule) Disable(t marvin.Team) {
 }
 
 // ---
-
-func (mod *FactoidModule) ProcessMsg(msg string, source marvin.ActionSource) {
-	// TODO !factoid
-}

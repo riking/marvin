@@ -39,6 +39,34 @@ func (t *Team) ChannelName(channel slack.ChannelID) string {
 	return string(channel)
 }
 
+func (t *Team) FormatChannel(channel slack.ChannelID) string {
+	switch channel[0] {
+	case 'C':
+		ch, err := t.PublicChannelInfo(channel)
+		if err != nil {
+			return fmt.Sprintf("<!error getting channel name for %s>", string(channel))
+		}
+		return fmt.Sprintf("<#%s|%s>", channel, ch.Name)
+	case 'G':
+		ch, err := t.PrivateChannelInfo(channel)
+		if err != nil {
+			return fmt.Sprintf("<!error getting channel name for %s>", string(channel))
+		}
+		if ch.IsMultiIM() {
+			return fmt.Sprintf("#[MultiIM %v]", ch.Members)
+		}
+		return fmt.Sprintf("<#%s|%s>", channel, ch.Name)
+	case 'D':
+		otherUser := t.otherIMParty(channel)
+		if otherUser == "" {
+			return fmt.Sprintf("<!error getting other user for %s>", string(channel))
+		}
+		return fmt.Sprintf("#[IM %v]", otherUser)
+	}
+	return string(channel)
+
+}
+
 func (t *Team) UserName(user slack.UserID) string {
 	u := t.cachedUserInfo(user)
 	if u == nil {

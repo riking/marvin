@@ -228,6 +228,7 @@ type Team interface {
 	ReportError(err error, source ActionSource)
 
 	ChannelName(channel slack.ChannelID) string
+	FormatChannel(channel slack.ChannelID) string
 	UserName(user slack.UserID) string
 	UserLevel(user slack.UserID) AccessLevel
 	GetIM(user slack.UserID) (slack.ChannelID, error)
