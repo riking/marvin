@@ -2,8 +2,11 @@ package marvin
 
 import (
 	"fmt"
+	"net"
 	"net/http"
 	"net/url"
+	"os"
+	"strings"
 
 	"gopkg.in/ini.v1"
 
@@ -135,6 +138,8 @@ type TeamConfig struct {
 	DatabaseURL  string
 	UserToken    string
 	LogChannel   slack.ChannelID
+	HTTPListen   string
+	HTTPURL      string
 }
 
 func LoadTeamConfig(sec *ini.Section) *TeamConfig {
@@ -145,7 +150,22 @@ func LoadTeamConfig(sec *ini.Section) *TeamConfig {
 	c.VerifyToken = sec.Key("VerifyToken").String()
 	c.DatabaseURL = sec.Key("DatabaseURL").String()
 	c.UserToken = sec.Key("UserToken").String()
+	c.HTTPListen = sec.Key("HTTPListen").String()
+	c.HTTPURL = sec.Key("HTTPURL").String()
 	c.LogChannel = slack.ChannelID(sec.Key("LogChannel").String())
+
+	if c.HTTPURL == "__auto" {
+		hostname, err := os.Hostname()
+		if err != nil {
+			return c
+		}
+		idx := strings.Index(hostname, ".")
+		_, port, err := net.SplitHostPort(c.HTTPListen)
+		if err != nil {
+			return c
+		}
+		c.HTTPURL = fmt.Sprintf("http://%s:%s", hostname[:idx], port)
+	}
 	return c
 }
 
@@ -225,6 +245,12 @@ type Team interface {
 	CommandRegistration
 	DispatchCommand(args *CommandArguments) CommandResult
 
+	// HandleHTTP must be called as follows:
+	//
+	//   team.HandleHTTP("/links/", module_or_other_handler)
+	HandleHTTP(folder string, handler http.Handler)
+	AbsoluteURL(path string) string
+
 	ReportError(err error, source ActionSource)
 
 	ChannelName(channel slack.ChannelID) string
@@ -234,13 +260,4 @@ type Team interface {
 	GetIM(user slack.UserID) (slack.ChannelID, error)
 	PublicChannelInfo(channel slack.ChannelID) (*slack.Channel, error)
 	PrivateChannelInfo(channel slack.ChannelID) (*slack.Channel, error)
-}
-
-type ShockyInstance interface {
-	TeamConfig(teamDomain string) TeamConfig
-	ModuleConfig(team TeamConfig) ModuleConfig
-	DB(team TeamConfig) *database.Conn
-
-	SendChannelSlack(team Team, channel string, message slack.OutgoingSlackMessage)
-	SendPrivateSlack(team Team, user string, message slack.OutgoingSlackMessage)
 }

@@ -27,7 +27,7 @@ func MockFactoidModule() *FactoidModule {
 
 func testFactoidArgs(t *testing.T, rawSource string, args []string, as marvin.ActionSource, expect string) {
 	mod := MockFactoidModule()
-	fi := Factoid{
+	fi := &Factoid{
 		mod:        mod,
 		IsBareInfo: true,
 		RawSource:  rawSource,
@@ -44,7 +44,7 @@ func testFactoidArgs(t *testing.T, rawSource string, args []string, as marvin.Ac
 
 func testFactoidArgsErr(t *testing.T, rawSource string, args []string, as marvin.ActionSource, errMatch string) {
 	mod := MockFactoidModule()
-	fi := Factoid{
+	fi := &Factoid{
 		mod:        mod,
 		IsBareInfo: true,
 		RawSource:  rawSource,

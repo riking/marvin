@@ -6,3 +6,15 @@ ClientSecret=xxxxxde4db33fxxxx
 VerifyToken=XXxxXxXXXXX
 DatabaseURL = dbname=marvin_test user=marvin_test password=marvin_test sslmode=disable
 UserToken=xoxp-xxxxx-xxxxx-xxxxx-xxxxxxxxxxxxxx
+HTTPURL=__auto
+HTTPListen=:8080
+
+[Prod]
+TeamDomain=kanetestingslack
+ClientID=xxx1234xxx.xxx1234xxx
+ClientSecret=xxxxxde4db33fxxxx
+VerifyToken=XXxxXxXXXXX
+DatabaseURL = dbname=marvin_prod user=marvin_prod password=marvin_prod sslmode=disable
+UserToken=xoxp-xxxxx-xxxxx-xxxxx-xxxxxxxxxxxxxx
+HTTPURL=https://marvin.example.com/
+HTTPListen=localhost:2007

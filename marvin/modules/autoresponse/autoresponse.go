@@ -1,11 +1,11 @@
 package autoresponse
 
 import (
+	"regexp"
+
 	"github.com/riking/homeapi/marvin"
 	"github.com/riking/homeapi/marvin/slack"
-	"regexp"
 )
-
 
 // ---
 
@@ -16,12 +16,12 @@ func init() {
 const Identifier = "autoresponse"
 
 type AutoResponseModule struct {
-	team          marvin.Team
+	team marvin.Team
 }
 
 func NewAutoResponseModule(t marvin.Team) marvin.Module {
 	mod := &AutoResponseModule{
-		team:      t,
+		team: t,
 	}
 	return mod
 }
@@ -46,7 +46,7 @@ func (mod *AutoResponseModule) Disable(team marvin.Team) {
 
 type AutoEmojiResponse struct {
 	Regexp *regexp.Regexp
-	Emoji string
+	Emoji  string
 }
 
 var responses = []AutoEmojiResponse{

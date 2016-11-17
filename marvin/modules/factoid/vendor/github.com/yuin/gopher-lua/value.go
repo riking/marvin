@@ -1,9 +1,9 @@
 package lua
 
 import (
+	"context"
 	"fmt"
 	"os"
-	"context"
 )
 
 type LValueType int

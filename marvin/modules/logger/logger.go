@@ -3,29 +3,29 @@ package logger
 import "github.com/riking/homeapi/marvin"
 
 func init() {
-	marvin.RegisterModule(NewDebugModule)
+	marvin.RegisterModule(NewLoggerModule)
 }
 
-const Identifier = "debug"
+const Identifier = "logger"
 
-type DebugModule struct {
+type LoggerModule struct {
 	team marvin.Team
 }
 
-func NewDebugModule(t marvin.Team) marvin.Module {
-	mod := &DebugModule{team: t}
+func NewLoggerModule(t marvin.Team) marvin.Module {
+	mod := &LoggerModule{team: t}
 	return mod
 }
 
-func (mod *DebugModule) Identifier() marvin.ModuleID {
+func (mod *LoggerModule) Identifier() marvin.ModuleID {
 	return Identifier
 }
 
-func (mod *DebugModule) Load(t marvin.Team) {
+func (mod *LoggerModule) Load(t marvin.Team) {
 }
 
-func (mod *DebugModule) Enable(t marvin.Team) {
+func (mod *LoggerModule) Enable(t marvin.Team) {
 }
 
-func (mod *DebugModule) Disable(t marvin.Team) {
+func (mod *LoggerModule) Disable(t marvin.Team) {
 }

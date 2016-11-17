@@ -10,6 +10,9 @@ type API interface {
 	RunFactoid(args []string, of *OutputFlags, source marvin.ActionSource)
 }
 
+type ScriptProvider interface {
+}
+
 // ---
 
 func init() {

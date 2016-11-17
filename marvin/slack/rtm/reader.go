@@ -2,12 +2,12 @@ package rtm
 
 import (
 	"encoding/json"
-	"fmt"
 
 	"github.com/pkg/errors"
 	"golang.org/x/net/websocket"
 
 	"github.com/riking/homeapi/marvin/slack"
+	"github.com/riking/homeapi/marvin/util"
 )
 
 const MsgTypeAll = "_all"
@@ -104,7 +104,7 @@ func (c *Client) dispatchMessage(msg slack.RTMRawMessage) {
 func dispatchOne(handler messageHandler, msg slack.RTMRawMessage) {
 	defer func() {
 		if err := recover(); err != nil {
-			fmt.Printf("[ERR] %+v\n", errors.Errorf("A message handler callback panicked:", err))
+			util.LogError(errors.Errorf("A message handler callback panicked: %+v", err))
 		}
 	}()
 

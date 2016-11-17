@@ -7,6 +7,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/riking/homeapi/marvin"
+	"github.com/riking/homeapi/marvin/modules/paste"
 	"github.com/riking/homeapi/marvin/slack"
 )
 
@@ -18,6 +19,8 @@ const Identifier = "debug"
 
 type DebugModule struct {
 	team marvin.Team
+
+	pasteModule marvin.Module
 }
 
 func NewDebugModule(t marvin.Team) marvin.Module {
@@ -30,9 +33,14 @@ func (mod *DebugModule) Identifier() marvin.ModuleID {
 }
 
 func (mod *DebugModule) Load(t marvin.Team) {
+	t.DependModule(mod, paste.Identifier, &mod.pasteModule)
 }
 
 func (mod *DebugModule) Enable(t marvin.Team) {
+	if mod.pasteModule != nil {
+		mod.pasteModule.(paste.API).Identifier()
+	}
+
 	parent := marvin.NewParentCommand()
 	parent.RegisterCommandFunc("panic", mod.DebugCommandPanic, "`debug panic` tests the behavior of panicking commands.")
 	parent.RegisterCommandFunc("fail", mod.DebugCommandFail, "`debug fail` tests the behavior of commands returning a failure result.")
@@ -40,6 +48,7 @@ func (mod *DebugModule) Enable(t marvin.Team) {
 	parent.RegisterCommandFunc("usage", mod.DebugCommandUsage, "`debug usage` test the behavior of commands returning a usage string.")
 	parent.RegisterCommandFunc("do_help", mod.DebugCommandHelp, "`debug do_help` tests the behavior of commands returning help text.")
 	parent.RegisterCommandFunc("success", mod.DebugCommandSuccess, "`debug success` tests the behavior of successful commands.")
+	parent.RegisterCommandFunc("paste", mod.DebugCommandPaste, "`debug paste` tests the paste module.")
 
 	whoami := parent.RegisterCommandFunc("whoami", mod.CommandWhoAmI, "`debug whoami [@user]` prints out your Slack user ID.")
 	whereami := parent.RegisterCommandFunc("whereami", mod.CommandWhereAmI, "`debug whereami` prints out the current channel ID.")
@@ -83,6 +92,15 @@ func (mod *DebugModule) DebugCommandHelp(t marvin.Team, args *marvin.CommandArgu
 
 func (mod *DebugModule) DebugCommandSuccess(t marvin.Team, args *marvin.CommandArguments) marvin.CommandResult {
 	return marvin.CmdSuccess(args, "Sample success").WithEdit()
+}
+
+func (mod *DebugModule) DebugCommandPaste(t marvin.Team, args *marvin.CommandArguments) marvin.CommandResult {
+	content := strings.Join(args.Arguments, " ")
+	id, err := mod.pasteModule.(paste.API).CreatePaste(content)
+	if err != nil {
+		return marvin.CmdError(args, err, "creating paste")
+	}
+	return marvin.CmdSuccess(args, mod.pasteModule.(paste.API).GetURL(id))
 }
 
 func (mod *DebugModule) CommandEcho(t marvin.Team, args *marvin.CommandArguments) marvin.CommandResult {

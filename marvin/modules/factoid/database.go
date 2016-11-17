@@ -107,15 +107,15 @@ func (mod *FactoidModule) doSyntaxCheck(t marvin.Team) {
 	)
 }
 
-func (mod *FactoidModule) GetFactoidInfo(name string, channel slack.ChannelID, withForgotten bool) (Factoid, error) {
-	var result Factoid
+func (mod *FactoidModule) GetFactoidInfo(name string, channel slack.ChannelID, withForgotten bool) (*Factoid, error) {
+	var result = new(Factoid)
 	result.mod = mod
 	result.FactoidName = name
 	result.IsBareInfo = false
 
 	stmt, err := mod.team.DB().Prepare(sqlFactoidInfo)
 	if err != nil {
-		return result, errors.Wrap(err, "Database error")
+		return nil, errors.Wrap(err, "Database error")
 	}
 	defer stmt.Close()
 
@@ -128,9 +128,9 @@ func (mod *FactoidModule) GetFactoidInfo(name string, channel slack.ChannelID, w
 		&result.IsLocked, &result.IsForgotten,
 	)
 	if err == sql.ErrNoRows {
-		return result, ErrNoSuchFactoid
+		return nil, ErrNoSuchFactoid
 	} else if err != nil {
-		return result, errors.Wrap(err, "Database error")
+		return nil, errors.Wrap(err, "Database error")
 	}
 
 	if scopeChannel.Valid {
@@ -142,24 +142,24 @@ func (mod *FactoidModule) GetFactoidInfo(name string, channel slack.ChannelID, w
 	return result, nil
 }
 
-func (mod *FactoidModule) GetFactoidBare(name string, channel slack.ChannelID) (Factoid, error) {
-	var result Factoid
+func (mod *FactoidModule) GetFactoidBare(name string, channel slack.ChannelID) (*Factoid, error) {
+	var result = new(Factoid)
 	result.mod = mod
 	result.FactoidName = name
 	result.IsBareInfo = true
 
 	stmt, err := mod.team.DB().Prepare(sqlGetFactoid)
 	if err != nil {
-		return result, errors.Wrap(err, "Database error")
+		return nil, errors.Wrap(err, "Database error")
 	}
 	defer stmt.Close()
 
 	row := stmt.QueryRow(name, string(channel))
 	err = row.Scan(&result.RawSource, (*string)(&result.LastUser))
 	if err == sql.ErrNoRows {
-		return result, ErrNoSuchFactoid
+		return nil, ErrNoSuchFactoid
 	} else if err != nil {
-		return result, errors.Wrap(err, "Database error")
+		return nil, errors.Wrap(err, "Database error")
 	}
 	return result, nil
 }
@@ -169,13 +169,21 @@ func (fi *Factoid) FillInfo(channel slack.ChannelID) error {
 	if !fi.IsBareInfo {
 		return nil
 	}
-	newInfo, err := fi.mod.GetFactoidInfo(fi.FactoidName, channel, false)
+	newInfo, err := fi.mod.GetFactoidInfo(fi.FactoidName, channel /* withForgotten */, false)
 	if err != nil {
 		return err
 	}
-	// I think this inspection is wrong. TODO verify
-	//noinspection GoAssignmentToReceiver
-	*fi = newInfo
+	fi.IsBareInfo = false
+
+	fi.DbID = newInfo.DbID
+	fi.FactoidName = newInfo.FactoidName
+	fi.ScopeChannel = newInfo.ScopeChannel
+	fi.IsForgotten = newInfo.IsForgotten
+	fi.IsLocked = newInfo.IsLocked
+	fi.LastChannel = newInfo.LastChannel
+	fi.LastMessage = newInfo.LastMessage
+	fi.LastUser = newInfo.LastUser
+	fi.RawSource = newInfo.RawSource
 	return nil
 }
 

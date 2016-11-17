@@ -133,7 +133,7 @@ func Dial(team marvin.Team) (*Client, error) {
 	c.conn = conn
 	c.team = team
 	cdc := SlackCodec{}
-	c.codec = websocket.Codec{cdc.Marshal, cdc.Unmarshal}
+	c.codec = websocket.Codec{Marshal: cdc.Marshal, Unmarshal: cdc.Unmarshal}
 	c.sendCbs = make(map[int]chan slack.RTMRawMessage)
 
 	var msg slack.RTMRawMessage

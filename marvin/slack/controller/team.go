@@ -3,15 +3,14 @@ package controller
 import (
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
-
-	"github.com/pkg/errors"
-
 	"sync"
 
-	"os"
+	"github.com/pkg/errors"
 
 	"github.com/riking/homeapi/marvin"
 	"github.com/riking/homeapi/marvin/database"
@@ -31,6 +30,9 @@ type Team struct {
 
 	confLock sync.Mutex
 	confMap  map[marvin.ModuleID]*DBModuleConfig
+
+	httpMux   *http.ServeMux
+	httpStrip string
 }
 
 func NewTeam(cfg *marvin.TeamConfig) (*Team, error) {
@@ -44,14 +46,25 @@ func NewTeam(cfg *marvin.TeamConfig) (*Team, error) {
 		return nil, err
 	}
 
-	return &Team{
+	t := &Team{
 		teamConfig: cfg,
 		client:     nil, // ConnectRTM()
 		db:         db,
 		commands:   marvin.NewParentCommand(),
 		modules:    nil,
 		confMap:    make(map[marvin.ModuleID]*DBModuleConfig),
-	}, nil
+		httpMux:    http.NewServeMux(),
+	}
+
+	u, err := url.Parse(cfg.HTTPURL)
+	if err != nil {
+		return nil, err
+	}
+	if u.Path != "" && u.Path != "/" {
+		t.httpStrip = u.Path
+	}
+
+	return t, nil
 }
 
 func (t *Team) ConnectRTM(c *rtm.Client) {
@@ -237,6 +250,30 @@ func (t *Team) OffAllEvents(mod marvin.ModuleID) {
 
 // ---
 
+func (t *Team) ConnectHTTP(l net.Listener) {
+	go func() {
+		err := http.Serve(l, t.httpMux)
+		if err != nil {
+			util.LogError(err)
+		}
+		os.Exit(4)
+	}()
+}
+
+// HandleHTTP must be called as follows:
+//
+//   team.HandleHTTP("/links/", module)
+func (t *Team) HandleHTTP(folder string, handler http.Handler) {
+	t.httpMux.Handle(folder, http.StripPrefix(t.httpStrip, handler))
+}
+
+// MakeURL takes a (non-rooted) path to the webserver and makes it absolute.
+func (t *Team) AbsoluteURL(path string) string {
+	return fmt.Sprintf("%s%s", t.teamConfig.HTTPURL, path)
+}
+
+// ---
+
 func (t *Team) ArchiveURL(msgID slack.MessageID) string {
 	channel := msgID.ChannelID
 	if channel[0] == 'D' {
@@ -259,8 +296,6 @@ func (t *Team) ArchiveURL(msgID slack.MessageID) string {
 	}
 	panic(errors.Errorf("Invalid channel id '%s' passed to ArchiveURL", channel))
 }
-
-// ---
 
 func (t *Team) ReportError(err error, source marvin.ActionSource) {
 	fmt.Fprintf(os.Stderr, "[ERR] From %v: %+v", source, err)

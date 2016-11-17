@@ -310,12 +310,8 @@ func (mod *AtCommandModule) HandleEdit(_rtm slack.RTMRawMessage) {
 		return
 	}
 
-	var myActionEmoji []ReplyActionEmoji
 	myFoundCommand := false
-	if parseResult.wave {
-		reactEmoji, _ := mod.team.ModuleConfig(Identifier).Get(confKeyEmojiHi)
-		myActionEmoji = append(myActionEmoji, ReplyActionEmoji{MessageID: msgID, Emoji: reactEmoji})
-	} else if parseResult.argSplit != nil || parseResult.splitErr != nil {
+	if parseResult.argSplit != nil || parseResult.splitErr != nil {
 		myFoundCommand = true
 	}
 
@@ -448,17 +444,10 @@ func (mod *AtCommandModule) EditCommand(fciMeta *FinishedCommandInfo, source mar
 
 	didSendMessageChannel := false
 	didSendMessageIM := false
-	sendMessageChannel := func(msg string, action bool) {
+	sendMessageChannel := func(msg string) {
 		didSendMessageChannel = true
 		if fciMeta.ActionChanMsg.Text != "" {
 			fciMeta.ActionChanMsg.Update(mod, msg)
-		} else if action {
-			ts, err := mod.postMeMessage(source.ChannelID(), SanitizeAt(msg))
-			if err != nil {
-				util.LogError(err)
-				return
-			}
-			fciMeta.ActionChanMsg = ReplyActionSentMessage{MessageID: slack.MsgID(imChannel, ts), Text: msg}
 		} else {
 			ts, _, err := mod.team.SendMessage(source.ChannelID(), SanitizeForChannel(msg))
 			if err != nil {
@@ -570,18 +559,10 @@ func (mod *AtCommandModule) UndoCommand(fciMeta *FinishedCommandInfo, source mar
 
 	logChannel := mod.team.TeamConfig().LogChannel
 	didSendMessageChannel := false
-	didSendMessageIM := false
-	sendMessageChannel := func(msg string, action bool) {
+	sendMessageChannel := func(msg string) {
 		if fciMeta.ActionChanMsg.Text != "" {
 			didSendMessageChannel = true
 			fciMeta.ActionChanMsg.Update(mod, msg)
-		} else if action {
-			ts, err := mod.postMeMessage(source.ChannelID(), SanitizeAt(msg))
-			if err != nil {
-				util.LogError(err)
-				return
-			}
-			fciMeta.ActionChanMsg = ReplyActionSentMessage{MessageID: slack.MsgID(imChannel, ts), Text: msg}
 		} else {
 			ts, _, err := mod.team.SendMessage(source.ChannelID(), SanitizeForChannel(msg))
 			if err != nil {
@@ -591,7 +572,6 @@ func (mod *AtCommandModule) UndoCommand(fciMeta *FinishedCommandInfo, source mar
 		}
 	}
 	sendMessageIM := func(msg string) {
-		didSendMessageIM = true
 		if fciMeta.ActionPMMsg.Text != "" {
 			fciMeta.ActionPMMsg.Update(mod, msg)
 		} else {
@@ -654,16 +634,7 @@ func (mod *AtCommandModule) ProcessInitialCommandMessage(fciResult *FinishedComm
 
 	logChannel := mod.team.TeamConfig().LogChannel
 	imChannel, _ := mod.team.GetIM(rtm.UserID())
-	sendMessageChannel := func(msg string, action bool) {
-		if action {
-			ts, err := mod.postMeMessage(rtm.ChannelID(), SanitizeAt(msg))
-			if err != nil {
-				util.LogError(err)
-				return
-			}
-			fciResult.ActionChanMsg = ReplyActionSentMessage{Text: msg, MessageID: slack.MessageID{ChannelID: rtm.ChannelID(), MessageTS: ts}}
-			return
-		}
+	sendMessageChannel := func(msg string) {
 		ts, _, err := mod.team.SendMessage(rtm.ChannelID(), SanitizeForChannel(msg))
 		if err != nil {
 			util.LogError(err)
@@ -703,7 +674,7 @@ func (mod *AtCommandModule) SendReplyMessages(
 	result marvin.CommandResult,
 	source marvin.ActionSource,
 	isChannelIMChannel bool,
-	sendMessageChannel func(string, bool), sendMessageIM, sendMessageIMLog, sendMessageLog func(string),
+	sendMessageChannel, sendMessageIM, sendMessageIMLog, sendMessageLog func(string),
 ) {
 	replyType := marvin.ReplyTypeInvalid
 	switch result.Code {
@@ -734,8 +705,6 @@ func (mod *AtCommandModule) SendReplyMessages(
 	// Post in the logging channel
 	replyLog := result.ReplyType&marvin.ReplyTypeLog != 0
 
-	replyAction := result.ReplyType&marvin.ReplyTypeFlagAction != 0
-
 	// Message was sent from a DM; do not include archive link
 	replyIMPrimary := false
 
@@ -762,14 +731,10 @@ func (mod *AtCommandModule) SendReplyMessages(
 			if result.ReplyType&marvin.ReplyTypeFlagOmitUsername == 0 {
 				channelMsg = fmt.Sprintf("%v: %s", source.UserID(), channelMsg)
 			}
-			sendMessageChannel(channelMsg, replyAction)
+			sendMessageChannel(channelMsg)
 		}
 		if replyIMPrimary {
-			if replyAction {
-				sendMessageChannel(result.Message, true)
-			} else {
-				sendMessageIM(result.Message)
-			}
+			sendMessageIM(result.Message)
 		}
 		if replyIM {
 			sendMessageIM(result.Message)
@@ -787,7 +752,7 @@ func (mod *AtCommandModule) SendReplyMessages(
 			if len(result.Err.Error()) > marvin.ShortReplyThreshold {
 				replyIM = true
 			}
-			sendMessageChannel(fmt.Sprintf("%s: %s", result.Message, util.PreviewString(errors.Cause(result.Err).Error(), marvin.ShortReplyThreshold)), false)
+			sendMessageChannel(fmt.Sprintf("%s: %s", result.Message, util.PreviewString(errors.Cause(result.Err).Error(), marvin.ShortReplyThreshold)))
 		}
 		if replyIMPrimary {
 			sendMessageIMLog(fmt.Sprintf("%s: %v", result.Message, result.Err))
@@ -819,7 +784,7 @@ func (mod *AtCommandModule) SendReplyMessages(
 				replyIM = true
 				msg = util.PreviewString(result.Message, marvin.LongReplyCut)
 			}
-			sendMessageChannel(msg, false)
+			sendMessageChannel(msg)
 		}
 		if replyIM || replyIMPrimary {
 			sendMessageIM(result.Message)
@@ -834,7 +799,7 @@ func (mod *AtCommandModule) SendReplyMessages(
 				replyIM = true
 				msg = util.PreviewString(result.Message, marvin.LongReplyCut)
 			}
-			sendMessageChannel(msg, false)
+			sendMessageChannel(msg)
 		}
 		if replyIM || replyIMPrimary {
 			sendMessageIM(result.Message)

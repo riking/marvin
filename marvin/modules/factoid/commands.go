@@ -56,21 +56,21 @@ func (mod *FactoidModule) CmdRemember(t marvin.Team, args *marvin.CommandArgumen
 	}
 
 	args.SetModuleData(flags)
-	factoidInfo, err := mod.GetFactoidInfo(factoidName, scopeChannel, false)
+	prevFactoidInfo, err := mod.GetFactoidInfo(factoidName, scopeChannel, false)
 	if err == ErrNoSuchFactoid {
 		// make a pseudo value that passes all the checks
-		factoidInfo = Factoid{IsLocked: false, ScopeChannel: ""}
+		prevFactoidInfo = &Factoid{IsLocked: false, ScopeChannel: ""}
 	} else if err != nil {
 		return marvin.CmdError(args, err, "Could not check existing factoid")
 	}
 
-	if factoidInfo.IsLocked {
+	if prevFactoidInfo.IsLocked {
 		if flags.makeLocal {
 			// Overriding a locked global with a local is OK
-			if factoidInfo.ScopeChannel != "" {
+			if prevFactoidInfo.ScopeChannel != "" {
 				flags.wasLockFailure = true
 				if args.Source.AccessLevel() < marvin.AccessLevelChannelAdmin {
-					return marvin.CmdFailuref(args, "Factoid is locked (last edited by %v)", factoidInfo.LastUser)
+					return marvin.CmdFailuref(args, "Factoid is locked (last edited by %v)", prevFactoidInfo.LastUser)
 				} else {
 					return marvin.CmdFailuref(args, "Factoid is locked; use `@marvin factoid unlock %s` to edit.", factoidName).WithEdit()
 				}
@@ -78,7 +78,7 @@ func (mod *FactoidModule) CmdRemember(t marvin.Team, args *marvin.CommandArgumen
 		} else {
 			flags.wasLockFailure = true
 			if args.Source.AccessLevel() < marvin.AccessLevelAdmin {
-				return marvin.CmdFailuref(args, "Factoid is locked (last edited by %v)", factoidInfo.LastUser)
+				return marvin.CmdFailuref(args, "Factoid is locked (last edited by %v)", prevFactoidInfo.LastUser)
 			} else {
 				return marvin.CmdFailuref(args, "Factoid is locked; use `@marvin factoid unlock %s` to edit.", factoidName).WithEdit()
 			}
@@ -128,8 +128,6 @@ func (mod *FactoidModule) CmdGet(t marvin.Team, args *marvin.CommandArguments) m
 	}
 	if of.NoReply {
 		cmdResult.Message = ""
-	} else if of.Action {
-		cmdResult = cmdResult.WithReplyType(marvin.ReplyTypeFlagAction | marvin.ReplyTypeFlagOmitUsername)
 	} else if of.Say {
 		cmdResult = cmdResult.WithReplyType(marvin.ReplyTypeFlagOmitUsername)
 	}

@@ -11,7 +11,7 @@ func init() {
 	marvin.RegisterModule(NewAwakeModule)
 }
 
-const Identifier = "core"
+const Identifier = "awake"
 
 type AwakeModule struct {
 	team   marvin.Team

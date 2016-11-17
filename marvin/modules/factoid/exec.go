@@ -2,16 +2,18 @@ package factoid
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/pkg/errors"
+
 	"github.com/riking/homeapi/marvin"
 )
 
 type OutputFlags struct {
 	NoReply     bool
-	Action      bool
 	Say         bool
 	SideEffects bool
 }
@@ -22,17 +24,19 @@ type OutputFlags struct {
 //
 //   factoidName, ErrNoSuchFactoid - Factoid not found
 //   ErrUser - Something was wrong with the input. Not enough args, recursion limit reached.
-func (mod *FactoidModule) RunFactoid(line []string, of *OutputFlags, source marvin.ActionSource) (result string, err error) {
+func (mod *FactoidModule) RunFactoid(ctx context.Context, line []string, of *OutputFlags, source marvin.ActionSource) (result string, err error) {
 	defer func() {
 		rec := recover()
 		if rec != nil {
 
 		}
 	}()
-	return mod.exec_alias(line, of, source)
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	return mod.exec_alias(ctx, line, of, source)
 }
 
-func (mod *FactoidModule) exec_alias(origLine []string, of *OutputFlags, actionSource marvin.ActionSource) (string, error) {
+func (mod *FactoidModule) exec_alias(ctx context.Context, origLine []string, of *OutputFlags, actionSource marvin.ActionSource) (string, error) {
 	// Handle alias recursion
 
 	var recursionCheck []string
@@ -61,28 +65,48 @@ func (mod *FactoidModule) exec_alias(origLine []string, of *OutputFlags, actionS
 			line = strings.Split(str, " ")
 			continue
 		}
-		return mod.exec_parse(info, info.RawSource, args, of, actionSource)
+		return mod.exec_parse(ctx, info, info.RawSource, args, of, actionSource)
 	}
 }
 
-func (mod *FactoidModule) exec_parse(f Factoid, raw string, args []string, of *OutputFlags, actionSource marvin.ActionSource) (string, error) {
+func (mod *FactoidModule) exec_parse(ctx context.Context, f *Factoid, raw string, args []string, of *OutputFlags, actionSource marvin.ActionSource) (string, error) {
 	if len(raw) == 0 {
 		return "", nil
 	}
 
-	directives, tokens := f.Tokens()
+	fmt.Println("[factoid parse] {", raw, "}")
+	var directives []DirectiveToken
+	var tokens []Token
+	if f != nil {
+		directives, tokens = f.Tokens()
+	} else {
+		var remainder string
+		directives, remainder = Directives(raw)
+		tokens = mod.Tokenize(remainder)
+	}
+
+directives_loop:
 	for _, v := range directives {
 		switch v.Directive {
 		case "say":
 			of.Say = true
-		case "action":
-			of.Action = true
 		case "noreply":
 			of.NoReply = true
 			return "", nil
+		case "skip":
+			break directives_loop
+		case "lua":
+			luaSource, err := mod.exec_processTokens(tokens, args, actionSource)
+			if err != nil {
+				return "", err
+			}
+			result, err := RunLua(ctx, mod, luaSource, args, actionSource)
+			if err != nil {
+				return "", ErrUser{err}
+			}
+			return mod.exec_parse(ctx, nil, result, args, of, actionSource)
 		}
 	}
-	_ = directives
 	return mod.exec_processTokens(tokens, args, actionSource)
 }
 
@@ -98,8 +122,7 @@ func (mod *FactoidModule) exec_processTokens(tokens []Token, args []string, acti
 	return buf.String(), nil
 }
 
-func (fi *Factoid) Directives() ([]DirectiveToken, string) {
-	source := fi.RawSource
+func Directives(source string) ([]DirectiveToken, string) {
 	var directives []DirectiveToken
 
 	// Get all directives
@@ -116,7 +139,7 @@ func (fi *Factoid) Directives() ([]DirectiveToken, string) {
 
 // Tokens can panic, make sure it gets called with PCall() before saving a factoid to the database.
 func (fi *Factoid) Tokens() ([]DirectiveToken, []Token) {
-	directives, source := fi.Directives()
+	directives, source := Directives(fi.RawSource)
 
 	fi.tokenize.Do(func() {
 		tokens := fi.mod.collectTokenize(source)
@@ -124,6 +147,10 @@ func (fi *Factoid) Tokens() ([]DirectiveToken, []Token) {
 		fi.tokens = tokens
 	})
 	return directives, fi.tokens
+}
+
+func (mod *FactoidModule) Tokenize(source string) []Token {
+	return mod.collectTokenize(source)
 }
 
 func (mod *FactoidModule) collectTokenize(source string) []Token {

@@ -6,7 +6,6 @@ import (
 	"github.com/riking/homeapi/marvin/slack"
 )
 
-
 // ---
 
 func init() {
@@ -18,13 +17,13 @@ const Identifier = "factoid-bang"
 type BangFactoidModule struct {
 	team marvin.Team
 
-	factoidModule *marvin.Module
+	factoidModule  marvin.Module
 	recentMessages map[slack.ChannelID]resultInfo
 }
 
 func NewBangFactoidModule(t marvin.Team) marvin.Module {
 	mod := &BangFactoidModule{
-		team:      t,
+		team:           t,
 		recentMessages: make(map[slack.ChannelID]resultInfo),
 	}
 	return mod
@@ -35,7 +34,9 @@ func (mod *BangFactoidModule) Identifier() marvin.ModuleID {
 }
 
 func (mod *BangFactoidModule) Load(t marvin.Team) {
-	t.DependModule(Identifier, factoid.Identifier, &mod.factoidModule)
+	if -2 == t.DependModule(mod, factoid.Identifier, &mod.factoidModule) {
+		panic("Failure in dependency")
+	}
 }
 
 func (mod *BangFactoidModule) Enable(team marvin.Team) {
@@ -50,14 +51,16 @@ func (mod *BangFactoidModule) Disable(team marvin.Team) {
 // --
 
 type resultInfo struct {
-	Response slack.MessageID
+	Response    slack.MessageID
 	SideEffects bool
 }
 
 func (mod *BangFactoidModule) OnMessage(_rtm slack.RTMRawMessage) {
 	rtm := slack.SlackTextMessage(_rtm)
+	_ = rtm
 }
 
 func (mod *BangFactoidModule) OnEdit(_rtm slack.RTMRawMessage) {
 	rtm := slack.EditMessage{_rtm}
+	_ = rtm
 }

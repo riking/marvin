@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"net"
 
 	"github.com/pkg/errors"
 	"gopkg.in/ini.v1"
@@ -39,12 +40,17 @@ func main() {
 		util.LogError(errors.Wrap(err, "NewTeam"))
 		return
 	}
+	l, err := net.Listen("tcp", teamConfig.HTTPListen)
+	if err != nil {
+		util.LogError(errors.Wrap(err, "listen tcp"))
+		return
+	}
 	client, err := rtm.Dial(team)
 	if err != nil {
 		util.LogError(errors.Wrap(err, "rtm.Dial"))
 		return
 	}
-	client.RegisterRawHandler("debug", func(msg slack.RTMRawMessage) {
+	client.RegisterRawHandler("main.go", func(msg slack.RTMRawMessage) {
 		switch msg.Type() {
 		case "user_typing", "reconnect_url", "presence_change":
 			return
@@ -63,6 +69,7 @@ func main() {
 
 	team.ConnectRTM(client)
 	team.EnableModules()
+	team.ConnectHTTP(l)
 
 	client.Start()
 

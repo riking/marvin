@@ -232,9 +232,15 @@ func (t *Team) constructModules() {
 				strings.Replace(fmt.Sprintf("%+v", err), "\n", "\t\n", -1))
 			continue
 		}
+		id := mod.Identifier()
+		for _, v := range modList {
+			if v.identifier == id {
+				panic(errors.Errorf("Duplicate identifier %s", id))
+			}
+		}
 		modList = append(modList, &moduleStatus{
 			instance:     mod,
-			identifier:   mod.Identifier(),
+			identifier:   id,
 			state:        marvin.ModuleStateConstructed,
 			Dependencies: nil,
 		})
