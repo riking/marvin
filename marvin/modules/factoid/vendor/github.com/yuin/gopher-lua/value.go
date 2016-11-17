@@ -3,6 +3,7 @@ package lua
 import (
 	"fmt"
 	"os"
+	"context"
 )
 
 type LValueType int
@@ -206,6 +207,7 @@ type LState struct {
 	Panic   func(*LState)
 	Dead    bool
 	Options Options
+	Ctx     context.Context
 
 	stop         int32
 	reg          *registry

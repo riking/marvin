@@ -20,7 +20,13 @@ func mainLoop(L *LState, baseframe *callFrame) {
 		return
 	}
 
+	doneCh := L.Ctx.Done()
 	for {
+		select {
+		case <-doneCh:
+			L.RaiseError(LString(L.Ctx.Err().Error()))
+		default:
+		}
 		cf = L.currentFrame
 		inst = cf.Fn.Proto.Code[cf.Pc]
 		cf.Pc++

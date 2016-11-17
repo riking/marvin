@@ -1,0 +1,70 @@
+From 0326a812e648243012e898b0133bb33de348ca1c Mon Sep 17 00:00:00 2001
+From: Kane York <kyork@student.42.us.org>
+Date: Wed, 16 Nov 2016 23:09:12 -0800
+Subject: [PATCH] PATCH: Add execution context to gopher-lua
+
+---
+ _vm.go   | 6 ++++++
+ value.go | 2 ++
+ vm.go    | 6 ++++++
+ 3 files changed, 14 insertions(+)
+
+diff --git a/_vm.go b/_vm.go
+index dfd83db..88ce043 100644
+--- a/_vm.go
++++ b/_vm.go
+@@ -20,7 +20,13 @@ func mainLoop(L *LState, baseframe *callFrame) {
+ 		return
+ 	}
+ 
++	doneCh := L.Ctx.Done()
+ 	for {
++		select {
++		case <-doneCh:
++			L.RaiseError(LString(L.Ctx.Err().Error()))
++		default:
++		}
+ 		cf = L.currentFrame
+ 		inst = cf.Fn.Proto.Code[cf.Pc]
+ 		cf.Pc++
+diff --git a/value.go b/value.go
+index d8dbac1..0c00798 100644
+--- a/value.go
++++ b/value.go
+@@ -3,6 +3,7 @@ package lua
+ import (
+ 	"fmt"
+ 	"os"
++	"context"
+ )
+ 
+ type LValueType int
+@@ -206,6 +207,7 @@ type LState struct {
+ 	Panic   func(*LState)
+ 	Dead    bool
+ 	Options Options
++	Ctx     context.Context
+ 
+ 	stop         int32
+ 	reg          *registry
+diff --git a/vm.go b/vm.go
+index f15df09..67c85bd 100644
+--- a/vm.go
++++ b/vm.go
+@@ -24,7 +24,13 @@ func mainLoop(L *LState, baseframe *callFrame) {
+ 		return
+ 	}
+ 
++	doneCh := L.Ctx.Done()
+ 	for {
++		select {
++		case <-doneCh:
++			L.RaiseError(LString(L.Ctx.Err().Error()))
++		default:
++		}
+ 		cf = L.currentFrame
+ 		inst = cf.Fn.Proto.Code[cf.Pc]
+ 		cf.Pc++
+-- 
+2.7.4 (Apple Git-66)
+
