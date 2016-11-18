@@ -10,6 +10,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/riking/homeapi/marvin"
+	"github.com/riking/homeapi/marvin/util"
 )
 
 type OutputFlags struct {
@@ -26,15 +27,13 @@ type OutputFlags struct {
 //   factoidName, ErrNoSuchFactoid - Factoid not found
 //   ErrUser - Something was wrong with the input. Not enough args, recursion limit reached.
 func (mod *FactoidModule) RunFactoid(ctx context.Context, line []string, of *OutputFlags, source marvin.ActionSource) (result string, err error) {
-	defer func() {
-		rec := recover()
-		if rec != nil {
-
-		}
-	}()
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
-	return mod.exec_alias(ctx, line, of, source)
+	err = util.PCall(func() error {
+		result, err = mod.exec_alias(ctx, line, of, source)
+		return err
+	})
+	return
 }
 
 func (mod *FactoidModule) exec_alias(ctx context.Context, origLine []string, of *OutputFlags, actionSource marvin.ActionSource) (string, error) {
@@ -45,6 +44,12 @@ func (mod *FactoidModule) exec_alias(ctx context.Context, origLine []string, of 
 	for {
 		factoid := line[0]
 		args := line[1:]
+
+		select {
+		case <-ctx.Done():
+			return "", ctx.Err()
+		default:
+		}
 
 		info, err := mod.GetFactoidBare(factoid, actionSource.ChannelID())
 		if err == ErrNoSuchFactoid {
@@ -73,6 +78,12 @@ func (mod *FactoidModule) exec_alias(ctx context.Context, origLine []string, of 
 func (mod *FactoidModule) exec_parse(ctx context.Context, f *Factoid, raw string, args []string, of *OutputFlags, actionSource marvin.ActionSource) (string, error) {
 	if len(raw) == 0 {
 		return "", nil
+	}
+
+	select {
+	case <-ctx.Done():
+		return "", ctx.Err()
+	default:
 	}
 
 	var directives []DirectiveToken
@@ -105,7 +116,7 @@ directives_loop:
 			}
 			result, err := RunFactoidLua(ctx, mod, luaSource, args, of, actionSource)
 			if err != nil {
-				return "", ErrUser{err}
+				return "", err
 			}
 			tokens := mod.Tokenize(result)
 			return mod.exec_processTokens(tokens, args, actionSource)
@@ -147,7 +158,6 @@ func (fi *Factoid) Tokens() ([]DirectiveToken, []Token) {
 
 	fi.tokenize.Do(func() {
 		tokens := fi.mod.collectTokenize(source)
-		fmt.Println("result:", tokens)
 		fi.tokens = tokens
 	})
 	return directives, fi.tokens
@@ -169,8 +179,6 @@ func (mod *FactoidModule) collectTokenize(source string) []Token {
 }
 
 func (mod *FactoidModule) tokenize(source string, recursed bool, tokenCh chan<- Token) {
-	fmt.Println("tokenizing:", source)
-
 	// Function directives
 	m := FunctionTokenRgx.FindStringSubmatchIndex(source)
 	for m != nil {

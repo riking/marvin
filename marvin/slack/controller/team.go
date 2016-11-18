@@ -148,6 +148,7 @@ func (t *Team) Help(args *marvin.CommandArguments) marvin.CommandResult {
 // ---
 
 func (t *Team) SendMessage(channel slack.ChannelID, message string) (slack.MessageTS, slack.RTMRawMessage, error) {
+	fmt.Printf("[%s] [@marvin] %s\n", t.ChannelName(channel), message)
 	msg, err := t.client.SendMessage(channel, message)
 	if err != nil {
 		return "", msg, err
@@ -226,10 +227,12 @@ func (t *Team) SlackAPIPostJSON(method string, form url.Values, result interface
 	if !slackResponse.OK {
 		err = slackResponse
 		util.LogBadf("Slack API %s error: %s", method, err)
+		util.LogBadf("Form for %s: %v", method, form)
 		return errors.Wrapf(err, "Slack API %s", method)
 	}
 
 	if result == nil {
+		util.LogDebug("Slack API", method, "success", slackResponse)
 		return nil // Response is just "ok"
 	}
 	err = json.Unmarshal(rawResponse, result)

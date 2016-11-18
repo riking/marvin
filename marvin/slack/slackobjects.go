@@ -37,6 +37,9 @@ func (r APIResponse) Error() string {
 	if r.Warning != "" {
 		w = fmt.Sprintf(" (warning: %s)", r.Warning)
 	}
+	if r.OK {
+		return "OK" + w
+	}
 	return fmt.Sprintf("slack API error: %s%s", r.SlackError, w)
 }
 

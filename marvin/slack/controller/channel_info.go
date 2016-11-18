@@ -114,6 +114,11 @@ func (t *Team) cachedUserInfo(user slack.UserID) *slack.User {
 }
 
 func (t *Team) UserInfo(user slack.UserID) (*slack.User, error) {
+	info := t.cachedUserInfo(user)
+	if info != nil {
+		return info, nil
+	}
+
 	form := url.Values{"user": []string{string(user)}}
 	var response struct {
 		User slack.User `json:"user"`

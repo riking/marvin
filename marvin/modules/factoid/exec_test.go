@@ -5,28 +5,34 @@ import (
 	"strings"
 	"testing"
 
+	"fmt"
+
+	"github.com/pkg/errors"
 	"github.com/riking/homeapi/marvin"
 	"github.com/riking/homeapi/marvin/util/mock"
 )
 
-var mockFactoidModule = &FactoidModule{
-	team: nil,
-	functions: map[string]FactoidFunction{
-		"add1": {
-			F: func(args ...string) string {
-				return "1" + strings.Join(args, "")
-			},
-			MultiArg: false,
-		},
-	},
+type MockFactoidModule struct {
+	*FactoidModule
 }
 
-func MockFactoidModule() *FactoidModule {
-	return mockFactoidModule
+func GetMockFactoidModule() *FactoidModule {
+	fm := &FactoidModule{
+		team: nil,
+		functions: map[string]FactoidFunction{
+			"add1": {
+				F: func(args ...string) string {
+					return "1" + strings.Join(args, "")
+				},
+				MultiArg: false,
+			},
+		},
+	}
+	return fm
 }
 
 func testFactoidArgs(t *testing.T, rawSource string, args []string, as marvin.ActionSource, expect string) {
-	mod := MockFactoidModule()
+	mod := GetMockFactoidModule()
 	fi := &Factoid{
 		mod:        mod,
 		IsBareInfo: true,
@@ -41,8 +47,12 @@ func testFactoidArgs(t *testing.T, rawSource string, args []string, as marvin.Ac
 	}
 }
 
+type stackTracer interface {
+	StackTrace() errors.StackTrace
+}
+
 func testFactoidArgsErr(t *testing.T, rawSource string, args []string, as marvin.ActionSource, errMatch string) {
-	mod := MockFactoidModule()
+	mod := GetMockFactoidModule()
 	fi := &Factoid{
 		mod:        mod,
 		IsBareInfo: true,
@@ -53,7 +63,8 @@ func testFactoidArgsErr(t *testing.T, rawSource string, args []string, as marvin
 	if err == nil {
 		t.Errorf("Expected error '%s' but got none: [%s]", errMatch, rawSource)
 	} else if !strings.Contains(err.Error(), errMatch) {
-		t.Errorf("Wrong error running [%s]:\nEXP: %s\nGOT: %s\n", rawSource, errMatch, err.Error())
+		fmt.Printf("[ERR] %#v\n", err.(stackTracer).StackTrace())
+		t.Errorf("Wrong error running [%s]:\nEXP: %s\nGOT: %s+v\n", rawSource, errMatch, err)
 	}
 }
 
@@ -98,4 +109,50 @@ func TestLua(t *testing.T) {
 	testFactoidArgs(t, `{lua}return 42`, []string{}, s, "42")
 	testFactoidArgs(t, `{lua}print("hello") print(", ") print("world")`, []string{}, s, "hello, world")
 	testFactoidArgs(t, `{lua}return "hello" .. " world"`, []string{}, s, "hello world")
+}
+
+func BenchmarkPlainFactoidParse(b *testing.B) {
+	s := mock.ActionSource{}
+	mod := GetMockFactoidModule()
+	fi := &Factoid{
+		mod:        mod,
+		IsBareInfo: true,
+		RawSource:  "Hello, World!",
+	}
+	args := []string{}
+	ctx := context.Background()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		var of OutputFlags
+		result, err := mod.exec_parse(ctx, fi, fi.RawSource, args, &of, s)
+		if err != nil {
+			b.FailNow()
+		}
+		if result != "Hello, World!" {
+			b.FailNow()
+		}
+	}
+}
+
+func BenchmarkLuaFactoid(b *testing.B) {
+	s := mock.ActionSource{}
+	mod := GetMockFactoidModule()
+	fi := &Factoid{
+		mod:        mod,
+		IsBareInfo: true,
+		RawSource:  "{lua}return \"Hello, World!\"",
+	}
+	args := []string{}
+	ctx := context.Background()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		var of OutputFlags
+		result, err := mod.exec_parse(ctx, fi, fi.RawSource, args, &of, s)
+		if err != nil {
+			b.FailNow()
+		}
+		if result != "Hello, World!" {
+			b.FailNow()
+		}
+	}
 }

@@ -61,11 +61,12 @@ func runLua(ctx context.Context, mod *FactoidModule, factoidSource string, facto
 		return "", ErrUser{errors.Wrap(err, "lua error")}
 	}
 	str := lua.LVAsString(L.ToStringMeta(L.Get(-1)))
+	isStr := lua.LVCanConvToString(L.Get(-1))
 	L.Pop(1)
-	if str != "" {
+	if str != "" && (isStr || fl.printBuf.Len() == 0) {
 		fl.printBuf.WriteString(str)
 	}
-	util.LogDebug("Lua result:", "source:", ("[" + factoidSource + "]"), "result:", ("[" + fl.printBuf.String() + "]"))
+	//util.LogDebug("Lua result:", "source:", ("[" + factoidSource + "]"), "result:", ("[" + fl.printBuf.String() + "]"))
 	return fl.printBuf.String(), nil
 }
 

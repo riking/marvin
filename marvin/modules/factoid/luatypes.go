@@ -215,11 +215,13 @@ func (LUser) SetupMetatable(L *lua.LState) {
 
 func LNewUser(flua *FactoidLua, user slack.UserID, preload bool) (lua.LValue, error) {
 	v := &LUser{flua: flua, ID: user, Info: nil}
-	v.Acc = flua.mod.team.UserLevel(user)
-	if preload {
-		err := v.LoadInfo()
-		if err != nil {
-			return nil, err
+	if flua.mod.team != nil {
+		v.Acc = flua.mod.team.UserLevel(user)
+		if preload {
+			err := v.LoadInfo()
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 

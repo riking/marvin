@@ -31,7 +31,7 @@ func LogBad(msg ...interface{}) {
 }
 
 func LogBadf(f string, v ...interface{}) {
-	fmt.Fprintln(os.Stderr, funcErr(fmt.Sprintf("%s%s", "[  ERR]", fmt.Sprintf(f, v...))))
+	fmt.Fprintln(os.Stderr, funcErr(fmt.Sprintf("%s%s", "[  ERR] ", fmt.Sprintf(f, v...))))
 }
 
 func LogWarn(msg ...interface{}) {
@@ -40,7 +40,7 @@ func LogWarn(msg ...interface{}) {
 }
 
 func LogWarnf(f string, v ...interface{}) {
-	fmt.Fprintln(os.Stderr, funcWarn(fmt.Sprintf("%s%s", "[ WARN]", fmt.Sprintf(f, v...))))
+	fmt.Fprintln(os.Stderr, funcWarn(fmt.Sprintf("%s%s", "[ WARN] ", fmt.Sprintf(f, v...))))
 }
 
 func LogDebug(msg ...interface{}) {

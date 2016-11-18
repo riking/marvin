@@ -1,6 +1,8 @@
 package factoid
 
 import (
+	"context"
+
 	"github.com/riking/homeapi/marvin"
 	"github.com/riking/homeapi/marvin/modules/paste"
 )
@@ -8,11 +10,10 @@ import (
 type API interface {
 	marvin.Module
 
-	RunFactoid(args []string, of *OutputFlags, source marvin.ActionSource)
+	RunFactoid(ctx context.Context, line []string, of *OutputFlags, source marvin.ActionSource) (result string, err error)
 }
 
-type ScriptProvider interface {
-}
+var _ API = &FactoidModule{}
 
 // ---
 
