@@ -189,6 +189,7 @@ func (f *FactoidLua) lua_printTable(L *lua.LState) int {
 			fmt.Fprint(&f.printBuf, " | ")
 		}
 		fmt.Fprintf(&f.printBuf, "%s: %s", lua.LVAsString(L.ToStringMeta(k)), lua.LVAsString(L.ToStringMeta(v)))
+		first = false
 	})
 	return 0
 }
