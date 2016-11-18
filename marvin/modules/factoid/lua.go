@@ -183,8 +183,12 @@ func (mod *FactoidModule) LuaPaste(L *lua.LState) int {
 
 func (f *FactoidLua) lua_printTable(L *lua.LState) int {
 	t := L.CheckTable(1)
+	first := true
 	t.ForEach(func(k, v lua.LValue) {
-		fmt.Fprintf(&f.printBuf, " %s: %s |", lua.LVAsString(L.ToStringMeta(k)), lua.LVAsString(L.ToStringMeta(v)))
+		if !first {
+			fmt.Fprint(&f.printBuf, " | ")
+		}
+		fmt.Fprintf(&f.printBuf, "%s: %s", lua.LVAsString(L.ToStringMeta(k)), lua.LVAsString(L.ToStringMeta(v)))
 	})
 	return 0
 }
