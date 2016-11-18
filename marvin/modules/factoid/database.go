@@ -3,10 +3,9 @@ package factoid
 import (
 	"database/sql"
 	"sync"
+	"time"
 
 	"github.com/pkg/errors"
-
-	"time"
 
 	"github.com/riking/homeapi/marvin"
 	"github.com/riking/homeapi/marvin/slack"

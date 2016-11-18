@@ -1,12 +1,11 @@
 package factoid
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"strings"
 	"sync"
-
-	"context"
 
 	"github.com/pkg/errors"
 	"github.com/riking/homeapi/marvin"

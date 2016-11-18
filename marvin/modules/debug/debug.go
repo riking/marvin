@@ -1,9 +1,8 @@
 package debug
 
 import (
-	"strings"
-
 	"fmt"
+	"strings"
 
 	"github.com/pkg/errors"
 	"github.com/riking/homeapi/marvin"

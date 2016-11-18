@@ -196,10 +196,10 @@ func luaFactoid__Set(L *lua.LState) int {
 //   user.profile.last
 //   user.profile.phone
 type LUser struct {
-	flua *FactoidLua
-	ID   slack.UserID
-	Acc  marvin.AccessLevel
-	Info *slack.User
+	flua    *FactoidLua
+	ID      slack.UserID
+	Acc     marvin.AccessLevel
+	Info    *slack.User
 	profile *lua.LTable
 }
 
@@ -241,7 +241,7 @@ func (u *LUser) LoadInfo() error {
 	return nil
 }
 
-func (u *LUser) Profile(L *lua.LState) (*lua.LTable) {
+func (u *LUser) Profile(L *lua.LState) *lua.LTable {
 	if u.profile != nil {
 		return u.profile
 	}

@@ -1,9 +1,8 @@
 package controller
 
 import (
-	"net/url"
-
 	"fmt"
+	"net/url"
 
 	"github.com/riking/homeapi/marvin"
 	"github.com/riking/homeapi/marvin/slack"

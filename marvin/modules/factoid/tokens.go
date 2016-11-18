@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+
 	"github.com/riking/homeapi/marvin"
 	"github.com/riking/homeapi/marvin/util"
 )

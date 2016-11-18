@@ -1,11 +1,9 @@
 package factoid
 
 import (
-	"testing"
-
-	"strings"
-
 	"context"
+	"strings"
+	"testing"
 
 	"github.com/riking/homeapi/marvin"
 	"github.com/riking/homeapi/marvin/util/mock"

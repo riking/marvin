@@ -2,10 +2,10 @@ package controller
 
 import (
 	"database/sql"
-
 	"fmt"
 
 	"github.com/pkg/errors"
+
 	"github.com/riking/homeapi/marvin"
 	"github.com/riking/homeapi/marvin/database"
 )

@@ -1,9 +1,8 @@
 package controller
 
 import (
-	"sort"
-
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/pkg/errors"
