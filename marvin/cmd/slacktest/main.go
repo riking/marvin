@@ -40,7 +40,7 @@ func main() {
 		util.LogError(errors.Wrap(err, "NewTeam"))
 		return
 	}
-	l, err := net.Listen("tcp", teamConfig.HTTPListen)
+	l, err := net.Listen("tcp4", teamConfig.HTTPListen)
 	if err != nil {
 		util.LogError(errors.Wrap(err, "listen tcp"))
 		return
