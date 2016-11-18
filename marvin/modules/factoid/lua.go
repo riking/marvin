@@ -3,6 +3,7 @@ package factoid
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -134,6 +135,7 @@ func (f *FactoidLua) Setup() {
 
 	f.OpenFactoid(f.L)
 	f.OpenBot(f.L)
+	f.L.SetGlobal("ptable", f.L.NewFunction(f.lua_printTable))
 }
 
 func (f *FactoidLua) SetFactoidEnv() {
@@ -149,6 +151,8 @@ func (f *FactoidLua) SetFactoidEnv() {
 		panic(err)
 	}
 	f.L.SetGlobal("user", u)
+
+	f.L.SetGlobal("_G", f.L.Get(lua.GlobalsIndex))
 
 	// TODO Channel
 }
@@ -175,4 +179,12 @@ func (mod *FactoidModule) LuaPaste(L *lua.LState) int {
 	url := mod.pasteMod.(paste.API).GetURL(id)
 	L.Push(lua.LString(url))
 	return 1
+}
+
+func (f *FactoidLua) lua_printTable(L *lua.LState) int {
+	t := L.CheckTable(1)
+	t.ForEach(func(k, v lua.LValue) {
+		fmt.Fprintf(&f.printBuf, " %s: %s |", lua.LVAsString(L.ToStringMeta(k)), lua.LVAsString(L.ToStringMeta(v)))
+	})
+	return 0
 }
