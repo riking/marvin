@@ -138,6 +138,13 @@ func (mod *FactoidModule) CmdGet(t marvin.Team, args *marvin.CommandArguments) m
 	return cmdResult
 }
 
+func (mod *FactoidModule) OnMessage(_rtm slack.RTMRawMessage) {
+	rtm := slack.SlackTextMessage(_rtm)
+	if strings.HasPrefix(rtm.Text(), "!") {
+
+	}
+}
+
 func (mod *FactoidModule) CmdSend(t marvin.Team, args *marvin.CommandArguments) marvin.CommandResult {
 	if len(args.Arguments) < 2 {
 		return marvin.CmdUsage(args, "`@marvin factoid send <channel> <name> [args...]` (args optional)")

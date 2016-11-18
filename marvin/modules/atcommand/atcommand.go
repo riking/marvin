@@ -1,7 +1,6 @@
 package atcommand
 
 import (
-	"bytes"
 	"fmt"
 	"net/url"
 	"reflect"
@@ -12,6 +11,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+
 	"github.com/riking/homeapi/marvin"
 	"github.com/riking/homeapi/marvin/slack"
 	"github.com/riking/homeapi/marvin/util"
@@ -819,7 +819,7 @@ func ParseArgs(raw string, startIdx int) ([]string, error) {
 	cmdLine := raw[startIdx : startIdx+endOfLine]
 
 	var argSplit []string
-	argSplit = shellSplit(strings.TrimLeft(cmdLine, " "))
+	argSplit = strings.Split(cmdLine, " ")
 	var codeBlocks [][]string
 	var retErr error
 
@@ -850,40 +850,6 @@ func ParseArgs(raw string, startIdx int) ([]string, error) {
 	}
 
 	return argSplit, retErr
-}
-
-// TODO(kyork) this code sucks, need to find / write replacement
-func shellSplit(s string) []string {
-	split := strings.Split(s, " ")
-
-	var result []string
-	var inquote string
-	var block bytes.Buffer
-
-	for _, i := range split {
-		if inquote == "" {
-			if strings.HasPrefix(i, "'") || strings.HasPrefix(i, "\"") {
-				inquote = string(i[0])
-				block.Reset()
-				block.WriteString(strings.TrimPrefix(i, inquote))
-				block.WriteByte(' ')
-			} else {
-				result = append(result, i)
-			}
-		} else {
-			if !strings.HasSuffix(i, inquote) {
-				block.WriteString(i)
-				block.WriteByte(' ')
-			} else {
-				block.WriteString(strings.TrimSuffix(i, inquote))
-				inquote = ""
-				result = append(result, block.String())
-				block.Reset()
-			}
-		}
-	}
-
-	return result
 }
 
 func SanitizeLoose(msg string) string {
