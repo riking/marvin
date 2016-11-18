@@ -1,10 +1,7 @@
 package controller
 
 import (
-	"encoding/json"
 	"net/url"
-
-	"github.com/pkg/errors"
 
 	"fmt"
 
@@ -70,13 +67,13 @@ func (t *Team) FormatChannel(channel slack.ChannelID) string {
 func (t *Team) UserName(user slack.UserID) string {
 	u := t.cachedUserInfo(user)
 	if u == nil {
-		return fmt.Sprintf("<!error getting channel name for %s>", string(user))
+		return fmt.Sprintf("<!error getting user name for %s>", string(user))
 	}
 	return u.Name
 }
 
 func (t *Team) UserLevel(user slack.UserID) marvin.AccessLevel {
-	if user == "U2223J70R" { // TODO store in teamconfig? database?
+	if user == t.TeamConfig().Controller {
 		return marvin.AccessLevelController
 	}
 
@@ -117,6 +114,18 @@ func (t *Team) cachedUserInfo(user slack.UserID) *slack.User {
 	return nil
 }
 
+func (t *Team) UserInfo(user slack.UserID) (*slack.User, error) {
+	form := url.Values{"user": []string{string(user)}}
+	var response struct {
+		User slack.User `json:"user"`
+	}
+	err := t.SlackAPIPostJSON("users.info", form, &response)
+	if err != nil {
+		return nil, err
+	}
+	return &response.User, nil
+}
+
 func (t *Team) cachedPublicChannelInfo(channel slack.ChannelID) *slack.Channel {
 	t.client.MetadataLock.RLock()
 	defer t.client.MetadataLock.RUnlock()
@@ -135,25 +144,29 @@ func (t *Team) PublicChannelInfo(channel slack.ChannelID) (*slack.Channel, error
 		return result, nil
 	}
 
+	var response struct {
+		Channel slack.Channel `json:"channel"`
+	}
 	form := url.Values{"channel": []string{string(channel)}}
-	resp, err := t.SlackAPIPost("channels.info", form)
+	err := t.SlackAPIPostJSON("channels.info", form, &response)
 	if err != nil {
 		return nil, err
 	}
-	var response struct {
-		slack.APIResponse
-		Channel slack.Channel `json:"channel"`
-	}
-	err = json.NewDecoder(resp.Body).Decode(&response)
-	if err != nil {
-		return nil, errors.Wrap(err, "decode json")
-	}
-	resp.Body.Close()
-	if !response.OK {
-		return nil, response.APIResponse
-	}
 
-	// TODO save result
+	t.client.MetadataLock.Lock()
+	idx := -1
+	for i, v := range t.client.Channels {
+		if v.ID == channel {
+			idx = i
+			break
+		}
+	}
+	if idx != -1 {
+		t.client.Channels[idx] = response.Channel
+	} else {
+		t.client.Channels = append(t.client.Channels, response.Channel)
+	}
+	t.client.MetadataLock.Unlock()
 
 	return &response.Channel, nil
 }
@@ -176,25 +189,14 @@ func (t *Team) PrivateChannelInfo(channel slack.ChannelID) (*slack.Channel, erro
 		return result, nil
 	}
 
+	var response struct {
+		Group slack.Channel `json:"group"`
+	}
 	form := url.Values{"channel": []string{string(channel)}}
-	resp, err := t.SlackAPIPost("groups.info", form)
+	err := t.SlackAPIPostJSON("groups.info", form, &response)
 	if err != nil {
 		return nil, err
 	}
-	var response struct {
-		slack.APIResponse
-		Group slack.Channel `json:"group"`
-	}
-	err = json.NewDecoder(resp.Body).Decode(&response)
-	if err != nil {
-		return nil, errors.Wrap(err, "decode json")
-	}
-	resp.Body.Close()
-	if !response.OK {
-		return nil, response.APIResponse
-	}
-
-	// TODO save result
 
 	return &response.Group, nil
 }
@@ -229,28 +231,15 @@ func (t *Team) GetIM(user slack.UserID) (slack.ChannelID, error) {
 		return result, nil
 	}
 
-	// TODO caching
 	form := url.Values{"user": []string{string(user)}}
-	resp, err := t.SlackAPIPost("im.open", form)
-	if err != nil {
-		return "", err
-	}
 	var response struct {
-		slack.APIResponse
 		Channel struct {
 			ID slack.ChannelID `json:"id"`
 		} `json:"channel"`
 	}
-	err = json.NewDecoder(resp.Body).Decode(&response)
+	err := t.SlackAPIPostJSON("im.open", form, &response)
 	if err != nil {
-		return "", errors.Wrap(err, "decode json")
+		return "", err
 	}
-	resp.Body.Close()
-	if !response.OK {
-		return "", response.APIResponse
-	}
-
-	// TODO save result
-
 	return response.Channel.ID, nil
 }

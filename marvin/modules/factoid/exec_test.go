@@ -5,6 +5,8 @@ import (
 
 	"strings"
 
+	"context"
+
 	"github.com/riking/homeapi/marvin"
 	"github.com/riking/homeapi/marvin/util/mock"
 )
@@ -33,8 +35,7 @@ func testFactoidArgs(t *testing.T, rawSource string, args []string, as marvin.Ac
 		RawSource:  rawSource,
 	}
 	var of OutputFlags
-	line := append([]string{"__mock_factoid_name"}, args...)
-	result, err := mod.exec_parse(fi, rawSource, line, &of, as)
+	result, err := mod.exec_parse(context.Background(), fi, rawSource, args, &of, as)
 	if err != nil {
 		t.Errorf("Unexpected error running factoid [%s]: %+v", rawSource, err)
 	} else if expect != result {
@@ -50,8 +51,7 @@ func testFactoidArgsErr(t *testing.T, rawSource string, args []string, as marvin
 		RawSource:  rawSource,
 	}
 	var of OutputFlags
-	line := append([]string{"__mock_factoid_name"}, args...)
-	_, err := mod.exec_parse(fi, rawSource, line, &of, as)
+	_, err := mod.exec_parse(context.Background(), fi, rawSource, args, &of, as)
 	if err == nil {
 		t.Errorf("Expected error '%s' but got none: [%s]", errMatch, rawSource)
 	} else if !strings.Contains(err.Error(), errMatch) {
@@ -90,4 +90,14 @@ func TestFunctions(t *testing.T) {
 	testFactoidArgs(t, "$add1($notafunction($add1($add1(1))))", []string{}, s, "1$notafunction(111)")
 	testFactoidArgs(t, "$notafunction($add1($add1(1))", []string{}, s, "$notafunction(111")
 	testFactoidArgs(t, "$$$cashmoney$add1(00)$$$", []string{}, s, "$$$cashmoney100$$$")
+}
+
+func TestLua(t *testing.T) {
+	s := mock.ActionSource{}
+
+	testFactoidArgsErr(t, `{lua}"hello"`, []string{}, s, "syntax error")
+	testFactoidArgs(t, `{lua}return "hello"`, []string{}, s, "hello")
+	testFactoidArgs(t, `{lua}return 42`, []string{}, s, "42")
+	testFactoidArgs(t, `{lua}print("hello") print(", ") print("world")`, []string{}, s, "hello, world")
+	testFactoidArgs(t, `{lua}return "hello" .. " world"`, []string{}, s, "hello world")
 }

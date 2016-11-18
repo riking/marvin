@@ -86,31 +86,20 @@ func (mod *AutoInviteModule) OnReaction(evt *on_reaction.ReactionEvent, customDa
 	if err != nil {
 		return errors.Wrap(err, "unmarshal json")
 	}
+	var response struct {
+		AlreadyInGroup bool `json:"already_in_group"`
+	}
 	form := url.Values{
 		"channel": []string{string(data.InviteTargetChannel)},
 		"user":    []string{string(evt.UserID)},
 	}
-	resp, err := mod.team.SlackAPIPost("groups.invite", form)
+	err = mod.team.SlackAPIPostJSON("groups.invite", form, &response)
 	if err != nil {
 		imChannel, err := mod.team.GetIM(evt.UserID)
 		if err == nil {
 			mod.team.SendMessage(imChannel, "Sorry, an error occured. Try again later?")
 		}
 		return errors.Wrap(err, "invite to group")
-	}
-	var response slack.APIResponse
-	err = json.NewDecoder(resp.Body).Decode(&response)
-	resp.Body.Close()
-	if err != nil {
-		return errors.Wrap(err, "decode slack API response")
-	}
-	if !response.OK {
-		// TODO logging
-		imChannel, err := mod.team.GetIM(evt.UserID)
-		if err == nil {
-			mod.team.SendMessage(imChannel, fmt.Sprintf("Sorry, an error occured: %s", response.Error()))
-		}
-		return errors.Wrap(response, "Could not invite to channel")
 	}
 	util.LogGood("Invited", mod.team.UserName(evt.UserID), "to", mod.team.ChannelName(data.InviteTargetChannel))
 	return nil
@@ -190,19 +179,18 @@ func (mod *AutoInviteModule) PostInvite(t marvin.Team, args *marvin.CommandArgum
 			"text":    []string{msg},
 			"parse":   []string{"client"},
 		}
-		resp, err := mod.team.SlackAPIPost("chat.update", form)
+		err := mod.team.SlackAPIPostJSON("chat.update", form, nil)
 		if err != nil {
 			return marvin.CmdError(args, err, "Error editing message")
 		}
-		resp.Body.Close()
 		if prev.Emoji != emoji {
 			form := url.Values{
 				"name":      []string{prev.Emoji},
 				"channel":   []string{string(prev.MsgID.ChannelID)},
 				"timestamp": []string{string(prev.MsgID.MessageTS)},
 			}
+			mod.team.SlackAPIPostJSON("reactions.remove", form, nil)
 			go mod.team.ReactMessage(prev.MsgID, emoji)
-			mod.team.SlackAPIPost("reactions.remove", form)
 			prev.Emoji = emoji
 		}
 		return marvin.CmdSuccess(args, fmt.Sprintf("Message updated: %s", t.ArchiveURL(prev.MsgID))).WithEdit().WithCustomUndo()
@@ -219,7 +207,7 @@ func (mod *AutoInviteModule) PostInvite(t marvin.Team, args *marvin.CommandArgum
 			"channel":   []string{string(prev.MsgID.ChannelID)},
 			"timestamp": []string{string(prev.MsgID.MessageTS)},
 		}
-		mod.team.SlackAPIPost("reactions.remove", form)
+		util.LogIfError(mod.team.SlackAPIPostJSON("reactions.remove", form, nil))
 		form = url.Values{
 			"ts":      []string{string(prev.MsgID.MessageTS)},
 			"channel": []string{string(prev.MsgID.ChannelID)},
@@ -227,19 +215,18 @@ func (mod *AutoInviteModule) PostInvite(t marvin.Team, args *marvin.CommandArgum
 			"text":    []string{fmt.Sprintf("(Invite to %s retracted)", prev.TargetName)},
 			"parse":   []string{"client"},
 		}
-		resp, err := mod.team.SlackAPIPost("chat.update", form)
+		err := mod.team.SlackAPIPostJSON("chat.update", form, nil)
 		if err != nil {
 			return marvin.CmdError(args, err, "Error editing message")
 		}
-		resp.Body.Close()
 		return marvin.CmdSuccess(args, fmt.Sprintf("Invite successfully cancelled. %s", t.ArchiveURL(prev.MsgID))).WithNoEdit().WithNoUndo()
 	}
 
-	var data PendingInviteData
-	data.InviteTargetChannel = inviteTarget
-	dataBytes, err := json.Marshal(data)
+	var callbackData PendingInviteData
+	callbackData.InviteTargetChannel = inviteTarget
+	callbackBytes, err := json.Marshal(callbackData)
 	if err != nil {
-		return marvin.CmdError(args, err, "error marshal json")
+		return marvin.CmdError(args, err, "error marshal callback")
 	}
 
 	util.LogDebug("sending invite to", messageChannel, "text:", msg)
@@ -249,15 +236,17 @@ func (mod *AutoInviteModule) PostInvite(t marvin.Team, args *marvin.CommandArgum
 	}
 	msgID := slack.MsgID(messageChannel, ts)
 	args.SetModuleData(postInviteResult{MsgID: msgID, Emoji: emoji, TargetName: privateChannel.Name})
-	err = mod.onReactAPI().ListenMessage(msgID, Identifier, dataBytes)
+	err = mod.onReactAPI().ListenMessage(msgID, Identifier, callbackBytes)
 	if err != nil {
 		// Failed to save, delete the message
 		form := url.Values{
 			"ts":      []string{string(msgID.MessageTS)},
 			"channel": []string{string(msgID.ChannelID)},
 			"as_user": []string{"true"},
+			"text":    []string{fmt.Sprintf("(Invite to %s cancelled due to internal error)", inviteTarget)},
+			"parse":   []string{"client"},
 		}
-		slack.SlackAPILog(t.SlackAPIPost("chat.delete", form))
+		util.LogIfError(t.SlackAPIPostJSON("chat.delete", form, nil))
 		return marvin.CmdError(args, err, "Error saving message")
 	}
 	err = t.ReactMessage(msgID, emoji)

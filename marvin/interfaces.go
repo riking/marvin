@@ -140,6 +140,7 @@ type TeamConfig struct {
 	LogChannel   slack.ChannelID
 	HTTPListen   string
 	HTTPURL      string
+	Controller   slack.UserID
 }
 
 func LoadTeamConfig(sec *ini.Section) *TeamConfig {
@@ -153,6 +154,7 @@ func LoadTeamConfig(sec *ini.Section) *TeamConfig {
 	c.HTTPListen = sec.Key("HTTPListen").String()
 	c.HTTPURL = sec.Key("HTTPURL").String()
 	c.LogChannel = slack.ChannelID(sec.Key("LogChannel").String())
+	c.Controller = slack.UserID(sec.Key("Controller").String())
 
 	if c.HTTPURL == "__auto" {
 		hostname, err := os.Hostname()
@@ -188,7 +190,7 @@ type HTTPDoer interface {
 
 type SendMessage interface {
 	SendMessage(channelID slack.ChannelID, message string) (slack.MessageTS, slack.RTMRawMessage, error)
-	SendComplexMessage(channelID slack.ChannelID, message url.Values) (slack.MessageTS, error)
+	SendComplexMessage(channelID slack.ChannelID, message url.Values) (slack.MessageID, slack.RTMRawMessage, error)
 }
 
 // Team represents a Slack team, and is the "god object" for Marvin.
@@ -232,7 +234,8 @@ type Team interface {
 	ReactMessage(msgID slack.MessageID, emojiName string) error
 	// SlackAPIPost makes a Slack API call by adding the token to the form.
 	// TODO could do more for the caller, like unmarshalling
-	SlackAPIPost(method string, form url.Values) (*http.Response, error)
+	SlackAPIPostRaw(method string, form url.Values) (*http.Response, error)
+	SlackAPIPostJSON(method string, form url.Values, result interface{}) error
 
 	ArchiveURL(msgID slack.MessageID) string
 
@@ -260,4 +263,5 @@ type Team interface {
 	GetIM(user slack.UserID) (slack.ChannelID, error)
 	PublicChannelInfo(channel slack.ChannelID) (*slack.Channel, error)
 	PrivateChannelInfo(channel slack.ChannelID) (*slack.Channel, error)
+	UserInfo(user slack.UserID) (*slack.User, error)
 }

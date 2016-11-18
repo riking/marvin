@@ -28,7 +28,7 @@ func mainLoop(L *LState, baseframe *callFrame) {
 	for {
 		select {
 		case <-doneCh:
-			L.RaiseError(LString(L.Ctx.Err().Error()))
+			L.RaiseError(L.Ctx.Err().Error())
 		default:
 		}
 		cf = L.currentFrame
@@ -716,6 +716,9 @@ func init() {
 						prev = uv
 					}
 				}
+			}
+			if callable == nil {
+				L.RaiseError("call a non-function: [%s]", lv.String())
 			}
 			if callable.IsG {
 				luaframe := cf

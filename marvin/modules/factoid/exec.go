@@ -15,6 +15,7 @@ import (
 type OutputFlags struct {
 	NoReply     bool
 	Say         bool
+	Pre         bool
 	SideEffects bool
 }
 
@@ -74,7 +75,6 @@ func (mod *FactoidModule) exec_parse(ctx context.Context, f *Factoid, raw string
 		return "", nil
 	}
 
-	fmt.Println("[factoid parse] {", raw, "}")
 	var directives []DirectiveToken
 	var tokens []Token
 	if f != nil {
@@ -90,6 +90,9 @@ directives_loop:
 		switch v.Directive {
 		case "say":
 			of.Say = true
+		case "pre":
+			of.Pre = true
+			break directives_loop
 		case "noreply":
 			of.NoReply = true
 			return "", nil
@@ -100,11 +103,12 @@ directives_loop:
 			if err != nil {
 				return "", err
 			}
-			result, err := RunLua(ctx, mod, luaSource, args, actionSource)
+			result, err := RunFactoidLua(ctx, mod, luaSource, args, of, actionSource)
 			if err != nil {
 				return "", ErrUser{err}
 			}
-			return mod.exec_parse(ctx, nil, result, args, of, actionSource)
+			tokens := mod.Tokenize(result)
+			return mod.exec_processTokens(tokens, args, actionSource)
 		}
 	}
 	return mod.exec_processTokens(tokens, args, actionSource)

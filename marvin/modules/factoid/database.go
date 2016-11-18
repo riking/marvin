@@ -6,6 +6,8 @@ import (
 
 	"github.com/pkg/errors"
 
+	"time"
+
 	"github.com/riking/homeapi/marvin"
 	"github.com/riking/homeapi/marvin/slack"
 )
@@ -44,7 +46,7 @@ const (
 
 	// $1 = name $2 = scopeChannel $3 = includeForgotten
 	sqlFactoidInfo = `
-	SELECT id, rawtext, channel_only, last_set_user, last_set_channel, last_set_ts, locked, forgotten
+	SELECT id, rawtext, channel_only, last_set_user, last_set_channel, last_set_ts, last_set, locked, forgotten
 	FROM module_factoid_factoids
 	WHERE name = $1 AND (channel_only IS NULL OR channel_only = $2)
 	AND ($3 OR forgotten = FALSE)
@@ -82,9 +84,10 @@ type Factoid struct {
 	RawSource    string
 	ScopeChannel slack.ChannelID
 
-	LastUser    slack.UserID
-	LastChannel slack.ChannelID
-	LastMessage slack.MessageTS
+	LastUser      slack.UserID
+	LastChannel   slack.ChannelID
+	LastMessage   slack.MessageTS
+	LastTimestamp time.Time
 
 	IsLocked    bool
 	IsForgotten bool
@@ -125,6 +128,7 @@ func (mod *FactoidModule) GetFactoidInfo(name string, channel slack.ChannelID, w
 	err = row.Scan(
 		&result.DbID, &result.RawSource, &scopeChannel,
 		(*string)(&result.LastUser), (*string)(&result.LastChannel), (*string)(&result.LastMessage),
+		&result.LastTimestamp,
 		&result.IsLocked, &result.IsForgotten,
 	)
 	if err == sql.ErrNoRows {
@@ -183,6 +187,7 @@ func (fi *Factoid) FillInfo(channel slack.ChannelID) error {
 	fi.LastChannel = newInfo.LastChannel
 	fi.LastMessage = newInfo.LastMessage
 	fi.LastUser = newInfo.LastUser
+	fi.LastTimestamp = newInfo.LastTimestamp
 	fi.RawSource = newInfo.RawSource
 	return nil
 }

@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/riking/homeapi/marvin"
+	"github.com/riking/homeapi/marvin/util"
 )
 
 func init() {
@@ -47,7 +48,7 @@ func (mod *AwakeModule) onTick() {
 	for {
 		select {
 		case <-mod.ticker.C:
-			mod.team.SlackAPIPost("users.setActive", url.Values{})
+			util.LogIfError(mod.team.SlackAPIPostJSON("users.setActive", url.Values{}, nil))
 		case <-mod.quit:
 			return
 		}

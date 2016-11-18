@@ -155,29 +155,21 @@ func (t *Team) SendMessage(channel slack.ChannelID, message string) (slack.Messa
 	return msg.MessageTS(), msg, err
 }
 
-func (t *Team) SendComplexMessage(channelID slack.ChannelID, message url.Values) (slack.MessageTS, error) {
-	message.Set("channel", string(channelID))
-	message.Set("token", t.teamConfig.UserToken)
-	message.Set("as_user", "true")
+func (t *Team) SendComplexMessage(channelID slack.ChannelID, form url.Values) (slack.MessageID, slack.RTMRawMessage, error) {
+	form.Set("channel", string(channelID))
+	form.Set("token", t.teamConfig.UserToken)
+	form.Set("as_user", "true")
 
-	resp, err := t.SlackAPIPost(`https://slack.com/api/chat.postMessage`, message)
-	if err != nil {
-		return "", errors.Wrap(err, "post slack chat.postMessage")
-	}
 	var response struct {
-		slack.APIResponse
-		TS      slack.MessageTS `json:"ts"`
-		Channel slack.ChannelID `json:"channel"`
+		TS      slack.MessageTS     `json:"ts"`
+		Channel slack.ChannelID     `json:"channel"`
+		Message slack.RTMRawMessage `json:"message"`
 	}
-	err = json.NewDecoder(resp.Body).Decode(&response)
+	err := t.SlackAPIPostJSON("chat.postMessage", form, &response)
 	if err != nil {
-		return "", errors.Wrap(err, "decode json")
+		return slack.MessageID{}, nil, err
 	}
-	resp.Body.Close()
-	if !response.OK {
-		return "", response.APIResponse
-	}
-	return response.TS, nil
+	return slack.MsgID(response.Channel, response.TS), response.Message, nil
 }
 
 func (t *Team) ReactMessage(msgID slack.MessageID, emojiName string) error {
@@ -186,23 +178,10 @@ func (t *Team) ReactMessage(msgID slack.MessageID, emojiName string) error {
 		"channel":   []string{string(msgID.ChannelID)},
 		"timestamp": []string{string(msgID.MessageTS)},
 	}
-	resp, err := t.SlackAPIPost("reactions.add", form)
-	var response struct {
-		slack.APIResponse
-	}
-	err = json.NewDecoder(resp.Body).Decode(&response)
-	if err != nil {
-		return errors.Wrap(err, "failed to decode json from reactions.add")
-	}
-	if !response.OK {
-		return errors.Wrap(response.APIResponse, "Error calling reactions.add")
-	}
-	return nil
+	return t.SlackAPIPostJSON("reactions.add", form, nil)
 }
 
-func (t *Team) SlackAPIPost(method string, form url.Values) (*http.Response, error) {
-	util.LogDebug("Slack API request", method, form)
-
+func (t *Team) SlackAPIPostRaw(method string, form url.Values) (*http.Response, error) {
 	var url string
 	if strings.HasPrefix(method, "https://slack.com") {
 		url = method
@@ -213,15 +192,53 @@ func (t *Team) SlackAPIPost(method string, form url.Values) (*http.Response, err
 
 	req, err := http.NewRequest("POST", url, strings.NewReader(form.Encode()))
 	if err != nil {
-		return nil, err
+		panic(err)
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Set("User-Agent", "marvin-slackbot (+https://github.com/riking/homeapi/tree/shocky)")
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return resp, errors.Wrapf(err, "Slack API %s", method)
+		return nil, err
 	}
 	return resp, nil
+}
+
+func (t *Team) SlackAPIPostJSON(method string, form url.Values, result interface{}) error {
+	var rawResponse json.RawMessage
+	var slackResponse slack.APIResponse
+
+	resp, err := t.SlackAPIPostRaw(method, form)
+	if err != nil {
+		util.LogBadf("Slack API %s error: %s", method, err)
+		return errors.Wrapf(err, "Slack API %s: contact Slack", method)
+	}
+	err = json.NewDecoder(resp.Body).Decode(&rawResponse)
+	resp.Body.Close()
+	if err != nil {
+		util.LogBadf("Slack API %s error: %s", method, err)
+		return errors.Wrapf(err, "Slack API %s: decode json", method)
+	}
+	err = json.Unmarshal(rawResponse, &slackResponse)
+	if err != nil {
+		util.LogBadf("Slack API %s error: %s", method, err)
+		return errors.Wrapf(err, "Slack API %s: decode json", method)
+	}
+	if !slackResponse.OK {
+		err = slackResponse
+		util.LogBadf("Slack API %s error: %s", method, err)
+		return errors.Wrapf(err, "Slack API %s", method)
+	}
+
+	if result == nil {
+		return nil // Response is just "ok"
+	}
+	err = json.Unmarshal(rawResponse, result)
+	if err != nil {
+		util.LogBadf("Slack API %s error: %s", method, err)
+		return errors.Wrapf(err, "Slack API %s: decode json", method)
+	}
+	util.LogDebug("Slack API", method, "success", result)
+	return nil
 }
 
 // ---

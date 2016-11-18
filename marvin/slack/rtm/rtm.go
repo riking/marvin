@@ -3,7 +3,6 @@ package rtm
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/url"
 	"sync"
 	"sync/atomic"
@@ -91,30 +90,18 @@ func Dial(team marvin.Team) (*Client, error) {
 	data.Set("no-unreads", "true")
 	data.Set("mipm-aware", "true")
 	var startResponse struct {
-		*slack.APIResponse
 		URL            string
 		CacheVersion   string `json:"cache_version"`
 		CacheTsVersion string `json:"cache_ts_version"`
 		*Client
 	}
-	resp, err := team.SlackAPIPost(startAPIURL, data)
+	err := team.SlackAPIPostJSON(startAPIURL, data, &startResponse)
 	if err != nil {
-		return nil, errors.Wrap(err, "slack post rtm.start")
-	}
-	respBytes, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, errors.Wrap(err, "slack post rtm.start read body")
-	}
-	err = json.Unmarshal(respBytes, &startResponse)
-	if err != nil {
-		return nil, errors.Wrap(err, "slack post rtm.start unmarshal")
-	}
-	if !startResponse.OK {
-		return nil, errors.Wrap(startResponse.APIResponse, "slack post rtm.start error")
+		return nil, err
 	}
 	wsURL, err := url.Parse(startResponse.URL)
 	if err != nil {
-		return nil, errors.Wrap(err, "slack post rtm.start - could not parse URL")
+		return nil, errors.Wrap(err, "start RTM - could not parse URL")
 	}
 	originURL, err := url.Parse(fmt.Sprintf("https://%s.slack.com", team.Domain()))
 	if err != nil {

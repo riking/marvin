@@ -2,6 +2,7 @@ package factoid
 
 import (
 	"github.com/riking/homeapi/marvin"
+	"github.com/riking/homeapi/marvin/modules/paste"
 )
 
 type API interface {
@@ -25,6 +26,7 @@ type FactoidModule struct {
 	team marvin.Team
 
 	functions map[string]FactoidFunction
+	pasteMod  marvin.Module
 }
 
 func NewFactoidModule(t marvin.Team) marvin.Module {
@@ -44,6 +46,7 @@ func (mod *FactoidModule) Load(t marvin.Team) {
 	mod.doSyntaxCheck(t)
 
 	setupFunctions(mod)
+	t.DependModule(mod, paste.Identifier, &mod.pasteMod) // TODO - softdepend?
 }
 
 func (mod *FactoidModule) Enable(team marvin.Team) {

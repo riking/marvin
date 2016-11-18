@@ -6,6 +6,8 @@ import (
 	"strings"
 	"sync"
 
+	"context"
+
 	"github.com/pkg/errors"
 	"github.com/riking/homeapi/marvin"
 	"github.com/riking/homeapi/marvin/slack"
@@ -111,7 +113,7 @@ func (mod *FactoidModule) CmdGet(t marvin.Team, args *marvin.CommandArguments) m
 	}
 
 	var of OutputFlags
-	result, err := mod.RunFactoid(args.Arguments, &of, args.Source)
+	result, err := mod.RunFactoid(context.Background(), args.Arguments, &of, args.Source)
 	if err == ErrNoSuchFactoid {
 		return marvin.CmdFailuref(args, "No such factoid %s", result).WithEdit().WithReplyType(marvin.ReplyTypeInChannel)
 	} else if err != nil {
@@ -125,6 +127,9 @@ func (mod *FactoidModule) CmdGet(t marvin.Team, args *marvin.CommandArguments) m
 	cmdResult := marvin.CmdSuccess(args, result).WithEdit()
 	if of.SideEffects {
 		cmdResult = cmdResult.WithNoEdit().WithNoUndo()
+	}
+	if of.Pre {
+		cmdResult.Message = fmt.Sprintf("```\n%s\n```", cmdResult.Message)
 	}
 	if of.NoReply {
 		cmdResult.Message = ""
@@ -152,7 +157,7 @@ func (mod *FactoidModule) CmdSend(t marvin.Team, args *marvin.CommandArguments) 
 	}
 
 	var of OutputFlags
-	result, err := mod.RunFactoid(args.Arguments, &of, args.Source)
+	result, err := mod.RunFactoid(context.Background(), args.Arguments, &of, args.Source)
 	if err == ErrNoSuchFactoid {
 		return marvin.CmdFailuref(args, "No such factoid %s", result).WithEdit().WithReplyType(marvin.ReplyTypeInChannel)
 	} else if err != nil {

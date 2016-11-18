@@ -9,6 +9,8 @@ type FileID string
 type FileCommentID string
 type MessageTS string
 
+func (u UserID) ToAtForm() string { return fmt.Sprintf("<@%s>", string(u)) }
+
 func (u UserID) Format(f fmt.State, c rune) {
 	if c == 'v' {
 		fmt.Fprintf(f, "<@%s>", string(u))
@@ -81,17 +83,19 @@ type User struct {
 	TzLabel  string      `json:"tz_label"`
 	TzOffset int         `json:"tz_offset"`
 	Profile  struct {
-		AvatarHash         string      `json:"avatar_hash"`
-		RealName           string      `json:"real_name"`
-		RealNameNormalized string      `json:"real_name_normalized"`
-		Email              string      `json:"email"`
-		Image24            string      `json:"image_24"`
-		Image32            string      `json:"image_32"`
-		Image48            string      `json:"image_48"`
-		Image72            string      `json:"image_72"`
-		Image192           string      `json:"image_192"`
-		Image512           string      `json:"image_512"`
-		Fields             interface{} `json:"fields"`
+		RealName           string `json:"real_name"`
+		RealNameNormalized string `json:"real_name_normalized"`
+		FirstName          string `json:"first_name"`
+		LastName           string `json:"last_name"`
+		Email              string `json:"email"`
+		Phone              string `json:"phone"`
+		Title              string `json:"title"`
+		Image24            string `json:"image_24"`
+		Image32            string `json:"image_32"`
+		Image48            string `json:"image_48"`
+		Image72            string `json:"image_72"`
+		Image192           string `json:"image_192"`
+		Image512           string `json:"image_512"`
 	} `json:"profile"`
 	IsAdmin           bool   `json:"is_admin"`
 	IsOwner           bool   `json:"is_owner"`

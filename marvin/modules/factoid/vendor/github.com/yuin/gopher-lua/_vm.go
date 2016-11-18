@@ -24,7 +24,7 @@ func mainLoop(L *LState, baseframe *callFrame) {
 	for {
 		select {
 		case <-doneCh:
-			L.RaiseError(LString(L.Ctx.Err().Error()))
+			L.RaiseError(L.Ctx.Err().Error())
 		default:
 		}
 		cf = L.currentFrame

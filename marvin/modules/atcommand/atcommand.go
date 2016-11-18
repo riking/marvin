@@ -2,9 +2,7 @@ package atcommand
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
-	"net/http"
 	"net/url"
 	"reflect"
 	"regexp"
@@ -92,13 +90,13 @@ type ReplyActionEmoji struct {
 	Emoji     string
 }
 
-func (rae ReplyActionEmoji) Undo(mod *AtCommandModule) (*http.Response, error) {
+func (rae ReplyActionEmoji) Undo(mod *AtCommandModule) {
 	form := url.Values{
 		"name":      []string{rae.Emoji},
 		"channel":   []string{string(rae.MessageID.ChannelID)},
 		"timestamp": []string{string(rae.MessageID.MessageTS)},
 	}
-	return mod.team.SlackAPIPost("reactions.remove", form)
+	util.LogIfError(mod.team.SlackAPIPostJSON("reactions.remove", form, nil))
 }
 
 type ReplyActionSentMessage struct {
@@ -106,9 +104,9 @@ type ReplyActionSentMessage struct {
 	Text      string
 }
 
-func (rsm ReplyActionSentMessage) Update(mod *AtCommandModule, newText string) (*http.Response, error) {
+func (rsm ReplyActionSentMessage) Update(mod *AtCommandModule, newText string) error {
 	if rsm.Text == "" {
-		return nil, nil
+		return nil
 	}
 	form := url.Values{
 		"channel": []string{string(rsm.MessageID.ChannelID)},
@@ -116,7 +114,7 @@ func (rsm ReplyActionSentMessage) Update(mod *AtCommandModule, newText string) (
 		"text":    []string{newText},
 		"parse":   []string{"client"},
 	}
-	return mod.team.SlackAPIPost("chat.update", form)
+	return util.LogIfError(mod.team.SlackAPIPostJSON("chat.update", form, nil))
 }
 
 type FinishedCommandInfo struct {
@@ -934,29 +932,4 @@ func (mod *AtCommandModule) GetEmojiForResponse(result marvin.CommandResult) str
 		reactEmoji, _ = mod.team.ModuleConfig(Identifier).Get(confKeyEmojiError)
 	}
 	return reactEmoji
-}
-
-func (mod *AtCommandModule) postMeMessage(channelID slack.ChannelID, msg string) (slack.MessageTS, error) {
-	form := url.Values{
-		"channel": []string{string(channelID)},
-		"text":    []string{SanitizeAt(msg)},
-	}
-	var response struct {
-		slack.APIResponse
-		ChannelID slack.ChannelID `json:"channel"`
-		TS        slack.MessageTS `json:"ts"`
-	}
-	resp, err := mod.team.SlackAPIPost("chat.meMessage", form)
-	if err != nil {
-		return "", errors.Wrap(err, "post chat.meMessage")
-	}
-	err = json.NewDecoder(resp.Body).Decode(&response)
-	resp.Body.Close()
-	if err != nil {
-		return "", errors.Wrap(err, "post chat.meMessage")
-	}
-	if !response.OK {
-		return "", errors.Wrap(err, "post chat.meMessage")
-	}
-	return response.TS, nil
 }

@@ -14,6 +14,13 @@ var (
 	funcDebug = ansi.ColorFunc("black+h")
 )
 
+func LogIfError(err error) error {
+	if err != nil {
+		LogError(err)
+	}
+	return err
+}
+
 func LogError(err error) {
 	fmt.Fprintln(os.Stderr, funcErr(fmt.Sprintf("[  ERR] %+v\n", err)))
 }

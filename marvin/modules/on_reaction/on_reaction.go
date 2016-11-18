@@ -27,16 +27,12 @@ To start listening for reactions, call ListenMessage with the channel/timestamp.
 package on_reaction
 
 import (
-	"fmt"
-
-	"sync"
-
 	"net/url"
+	"sync"
 	"time"
 
-	"encoding/json"
-
 	"github.com/pkg/errors"
+
 	"github.com/riking/homeapi/marvin"
 	"github.com/riking/homeapi/marvin/slack"
 	"github.com/riking/homeapi/marvin/util"
@@ -298,18 +294,7 @@ func (mod *OnReactionModule) backfillReactions(which slack.MessageID, handler Re
 		"timestamp": []string{string(which.MessageTS)},
 		"full":      []string{"true"},
 	}
-	resp, err := mod.team.SlackAPIPost("reactions.get", form)
-	if err != nil {
-		if retries >= 5 {
-			fmt.Printf("[ERR] %+v\n", errors.Wrap(err, "cannot contact slack API"))
-			return
-		} else {
-			time.Sleep(3 * time.Second)
-			mod.backfillReactions(which, handler, data, retries+1)
-		}
-	}
 	var response struct {
-		slack.APIResponse
 		Channel slack.ChannelID `json:"channel"`
 		Message struct {
 			Reactions []struct {
@@ -319,19 +304,14 @@ func (mod *OnReactionModule) backfillReactions(which slack.MessageID, handler Re
 			} `json:"reactions"`
 		} `json:"message"`
 	}
-	err = json.NewDecoder(resp.Body).Decode(&response)
-	resp.Body.Close()
+	err := mod.team.SlackAPIPostJSON("reactions.get", form, &response)
 	if err != nil {
 		if retries >= 5 {
-			fmt.Printf("[ERR] %+v\n", errors.Wrap(err, "cannot contact slack API"))
-			return
+			util.LogError(err)
 		} else {
 			time.Sleep(3 * time.Second)
 			mod.backfillReactions(which, handler, data, retries+1)
 		}
-	}
-	if !response.OK {
-		fmt.Printf("[ERR] %+v\n", errors.Wrap(response, "Slack API returned error: reactions.get"))
 		return
 	}
 
