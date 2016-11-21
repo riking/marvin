@@ -63,6 +63,7 @@ func main() {
 				break
 			}
 			fmt.Printf("[%s] [@%s] %s\n", team.ChannelName(msg.ChannelID()), team.UserName(msg.UserID()), msg.Text())
+			return
 		case "reaction_added":
 			item, ok := msg["item"].(map[string]interface{})
 			if !ok {
