@@ -143,7 +143,9 @@ func (mod *BangFactoidModule) Process(rtm slack.SlackTextMessage) (string, facto
 	source := &marvin.ActionSourceUserMessage{Team: mod.team, Msg: rtm}
 
 	result, err := mod.factoidModule.(factoid.API).RunFactoid(ctx, line, &of, source)
-	if err != nil {
+	if err == factoid.ErrNoSuchFactoid {
+		return "", of
+	} else if err != nil {
 		result = fmt.Sprintf("Error: %s", err)
 	} else if of.NoReply {
 		return "", of

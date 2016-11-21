@@ -8,6 +8,7 @@ import (
 )
 
 //region LFactoid
+var _ = 1
 
 // LFactoid has the following API, where `factoid` is the global of the same name:
 //

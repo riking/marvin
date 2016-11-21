@@ -53,7 +53,11 @@ func (mod *FactoidModule) exec_alias(ctx context.Context, origLine []string, of 
 
 		info, err := mod.GetFactoidBare(factoid, actionSource.ChannelID())
 		if err == ErrNoSuchFactoid {
-			return factoid, err
+			if len(recursionCheck) == 0 {
+				return factoid, err
+			} else {
+				return factoid, ErrUser{err}
+			}
 		}
 
 		if strings.HasPrefix(info.RawSource, "{alias}") {
