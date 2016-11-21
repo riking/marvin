@@ -59,9 +59,22 @@ func main() {
 				return
 			}
 		case "message":
-			if msg.Subtype() == "" {
-				fmt.Printf("[%s] [@%s] %s\n", team.ChannelName(msg.ChannelID()), team.UserName(msg.UserID()), msg.Text())
+			if msg.Subtype() != "" {
+				break
 			}
+			fmt.Printf("[%s] [@%s] %s\n", team.ChannelName(msg.ChannelID()), team.UserName(msg.UserID()), msg.Text())
+		case "reaction_added":
+			item, ok := msg["item"].(map[string]interface{})
+			if !ok {
+				break
+			}
+			if item["type"].(string) != "message" {
+				break
+			}
+			ts := slack.MessageTS(item["ts"].(string))
+			fmt.Printf("[%s] :%s: @%s -> @%s %s\n", team.ChannelName(msg.ChannelID()),
+				msg.StringField("reaction"), team.UserName(msg.UserID()),
+				team.UserName(msg.StringField("item_user")), team.ArchiveURL(slack.MsgID(msg.ChannelID(), ts)))
 			return
 		}
 		util.LogDebug("main.go rtm message:", msg)
