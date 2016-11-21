@@ -131,4 +131,9 @@ func (mod *DebugModule) CommandConfigSet(t marvin.Team, args *marvin.CommandArgu
 	}
 
 	panic("NotImplemented")
+	switch len(args.Arguments) {
+	case 0:
+
+	}
+	return marvin.CmdSuccess(args, "hi")
 }

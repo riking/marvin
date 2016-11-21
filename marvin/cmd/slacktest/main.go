@@ -74,7 +74,7 @@ func main() {
 			ts := slack.MessageTS(item["ts"].(string))
 			fmt.Printf("[%s] :%s: @%s -> @%s %s\n", team.ChannelName(msg.ChannelID()),
 				msg.StringField("reaction"), team.UserName(msg.UserID()),
-				team.UserName(msg.StringField("item_user")), team.ArchiveURL(slack.MsgID(msg.ChannelID(), ts)))
+				team.UserName(slack.UserID(msg.StringField("item_user"))), team.ArchiveURL(slack.MsgID(msg.ChannelID(), ts)))
 			return
 		}
 		util.LogDebug("main.go rtm message:", msg)
