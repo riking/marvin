@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"net"
@@ -62,6 +63,30 @@ func main() {
 		case "message":
 			switch msg.Subtype() {
 			case "", "channel_leave", "channel_join", "group_join", "group_leave":
+				break
+			case "message_changed":
+				type structMessage struct {
+					Edited struct {
+						TS   slack.MessageTS `json:"ts"`
+						User slack.UserID    `json:"user"`
+					}
+					Text string
+					TS   slack.MessageTS `json:"ts"`
+					User slack.UserID    `json:"user"`
+					Type string
+				}
+				var msgStruct struct {
+					Channel     slack.ChannelID `json:"channel"`
+					EventTS     slack.MessageTS `json:"event_ts"`
+					Message     structMessage   `json:"message"`
+					PrevMessage structMessage   `json:"previous_message"`
+					Subtype     string          `json:"subtype"`
+					Type        string          `json:"type"`
+					TS          slack.MessageTS `json:"ts"`
+				}
+				json.Unmarshal(msg.Original(), &msgStruct)
+				fmt.Printf("[%s] [EDIT BY %s] [@%s] %s\n", team.ChannelName(msgStruct.Channel), team.UserName(msgStruct.Message.Edited.User), team.UserName(msgStruct.Message.User), msgStruct.Message.Text)
+				return
 			default:
 				break typeswitch
 			}
