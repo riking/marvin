@@ -863,18 +863,16 @@ func SanitizeLoose(msg string) string {
 	return msg
 }
 
+var regexSanitizeChannel = regexp.MustCompile(`<!(channel|group).*?>`)
+var regexSanitizeEveryone = regexp.MustCompile(`<!(everyone).*?>`)
+var regexSanitizeHere = regexp.MustCompile(`<!(here).*?>`)
+
 func SanitizeAt(msg string) string {
-	if strings.Contains(msg, "<!channel>") {
-		// && !rtm.User().IsAdmin()
-		msg = strings.Replace(msg, "<!channel>", "@\\channel", -1)
-	}
-	if strings.Contains(msg, "<!everyone>") {
-		// && !rtm.User().IsAdmin()
-		msg = strings.Replace(msg, "<!everyone>", "@\\everyone", -1)
-	}
-	if strings.Contains(msg, "<!here|@here>") {
-		// && !rtm.User().IsAdmin()
-		msg = strings.Replace(msg, "<!here|@here>", "@\\here", -1)
+	for _, v := range []regexp.Regexp{regexSanitizeChannel, regexSanitizeEveryone, regexSanitizeHere} {
+		m := v.FindAllStringSubmatch(msg, -1)
+		for _, match := range m {
+			msg = strings.Replace(msg, match[0], fmt.Sprintf("@\\%s", match[1]), 1)
+		}
 	}
 	return msg
 }
