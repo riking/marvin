@@ -18,6 +18,8 @@ type OutputFlags struct {
 	Say         bool
 	Pre         bool
 	SideEffects bool
+
+	DisallowLua bool
 }
 
 // RunFactoid
@@ -122,8 +124,8 @@ directives_loop:
 			if err != nil {
 				return "", err
 			}
-			tokens := mod.Tokenize(result)
-			return mod.exec_processTokens(tokens, args, actionSource)
+			of.DisallowLua = true
+			return mod.exec_parse(ctx, nil, result, args, of, actionSource)
 		}
 	}
 	return mod.exec_processTokens(tokens, args, actionSource)
