@@ -1,6 +1,8 @@
 package factoid
 
 import (
+	"fmt"
+
 	"github.com/yuin/gopher-lua"
 
 	"github.com/riking/homeapi/marvin"
@@ -218,11 +220,11 @@ func LNewUser(flua *FactoidLua, user slack.UserID, preload bool) (lua.LValue, er
 	v := &LUser{flua: flua, ID: user, Info: nil}
 	if flua.mod.team != nil {
 		v.Acc = flua.mod.team.UserLevel(user)
-		if preload {
-			err := v.LoadInfo()
-			if err != nil {
-				return nil, err
-			}
+	}
+	if preload {
+		err := v.LoadInfo()
+		if err != nil {
+			return nil, err
 		}
 	}
 
@@ -285,7 +287,7 @@ func luaUser__ToString(L *lua.LState) int {
 	}
 	u, ok := L.CheckUserData(1).Value.(*LUser)
 	if !ok {
-		L.RaiseError("user__tostring() with wrong type for self")
+		L.RaiseError("user__tostring() with wrong type for self, got %T", L.CheckUserData(1).Value)
 	}
 	L.Push(lua.LString(u.ID.ToAtForm()))
 	return 1
@@ -298,7 +300,7 @@ func luaUser__Index(L *lua.LState) int {
 	ud := L.CheckUserData(1)
 	u, ok := ud.Value.(*LUser)
 	if !ok {
-		L.RaiseError("user__tostring() with wrong type for self")
+		L.RaiseError("user__index() with wrong type for self, got %T", ud.Value)
 	}
 	key := L.CheckString(2)
 	switch key {
@@ -386,18 +388,23 @@ var _ = 1
 //   ch.im_other: slack.UserID
 //   ch.users: []slack.UserID
 //   ch.topic: string
-//   ch.topic = string
+//   ch.topic_user: LUser
+//   ch.topic_changed: unixMillis
+//   ch.topic = string TODO determine if this is a good idea
 //   ch.purpose: string
+//   ch.purpose_user: LUser
+//   ch.purpose_changed: unixMillis
 //   ch.purpose = string
 type LChannel struct {
-	flua    *FactoidLua
-	ID      slack.ChannelID
+	flua     *FactoidLua
+	ID       slack.ChannelID
 	IsPublic bool
-	IsGroup bool
-	IsIM bool
-	Info    *slack.Channel
-
-	IMOtherUser slack.UserID
+	IsGroup  bool
+	IsIM     bool
+	IMOther  lua.LValue
+	Info     *slack.Channel
+	Creator  lua.LValue
+	Users    *lua.LTable
 }
 
 const metatableLChannel = "_metatable_LChannel"
@@ -407,10 +414,10 @@ func (LChannel) SetupMetatable(L *lua.LState) {
 	tab.RawSetString("__tostring", L.NewFunction(luaChannel__ToString))
 	tab.RawSetString("__eq", L.NewFunction(luaChannel__Eq))
 	tab.RawSetString("__index", L.NewFunction(luaChannel__Index))
-	L.SetGlobal(metatableLUser, tab)
+	L.SetGlobal(metatableLChannel, tab)
 }
 
-func LNewChannel(flua *FactoidLua, ch slack.ChannelID) (lua.LValue, error) {
+func LNewChannel(flua *FactoidLua, ch slack.ChannelID) lua.LValue {
 	v := &LChannel{flua: flua, ID: ch, Info: nil}
 	if ch[0] == 'C' {
 		v.IsPublic = true
@@ -428,13 +435,15 @@ func LNewChannel(flua *FactoidLua, ch slack.ChannelID) (lua.LValue, error) {
 		v.Info = info
 	} else if ch[0] == 'D' {
 		v.IsIM = true
-		flua.mod.team.GetIM(flua.ActSource.UserID())
+		otherUID, _ := flua.mod.team.GetIMOtherUser(flua.ActSource.ChannelID())
+		u, _ := LNewUser(flua, otherUID, false)
+		v.IMOther = u
 	}
 
 	u := flua.L.NewUserData()
 	u.Value = v
-	u.Metatable = flua.L.GetGlobal(metatableLUser)
-	return u, nil
+	u.Metatable = flua.L.GetGlobal(metatableLChannel)
+	return u
 }
 
 func luaChannel__ToString(L *lua.LState) int {
@@ -476,11 +485,84 @@ func luaChannel__Index(L *lua.LState) int {
 		return 1
 	case "type":
 		if lc.IsPublic {
-			return "public"
+			L.Push(lua.LString("public"))
 		} else if lc.IsGroup && lc.Info.IsMultiIM() {
-
+			L.Push(lua.LString("mpim"))
+		} else if lc.IsGroup {
+			L.Push(lua.LString("group"))
+		} else {
+			L.Push(lua.LString("im"))
 		}
+		return 1
+	case "name":
+		if lc.IsIM {
+			otherUser, _ := lc.flua.mod.team.GetIMOtherUser(lc.ID)
+			L.Push(lua.LString(fmt.Sprintf("[IM with %v]", otherUser)))
+			return 1
+		}
+		L.Push(lua.LString(lc.Info.Name))
+		return 1
+	case "im_other":
+		if lc.IsIM {
+			otherUser, _ := lc.flua.mod.team.GetIMOtherUser(lc.ID)
+			L.Push(lua.LString(otherUser))
+			return 1
+		}
+		return 0
+	case "creator":
+		if lc.Creator == nil {
+			u, _ := LNewUser(lc.flua, lc.Info.Creator, false)
+			if u == nil {
+				return 0
+			}
+			lc.Creator = u
+		}
+		L.Push(lc.Creator)
+		return 1
+	case "users":
+		if lc.Users == nil {
+			tab := L.NewTable()
+			for i, v := range lc.Info.Members {
+				u, _ := LNewUser(lc.flua, v, false)
+				tab.RawSetInt(i, u)
+			}
+			lc.Users = tab
+		}
+		L.Push(lc.Users)
+		return 1
+	case "mention":
+		L.Push(lua.LString(lc.flua.mod.team.FormatChannel(lc.ID)))
+		return 1
+	case "topic", "purpose":
+		var s string
+		if key == "topic" {
+			s = lc.Info.Topic.Value
+		} else {
+			s = lc.Info.Purpose.Value
+		}
+		L.Push(lua.LString(s))
+		return 1
+	case "topic_changed", "purpose_changed":
+		var s float64
+		if key == "topic" {
+			s = lc.Info.Topic.LastSet
+		} else {
+			s = lc.Info.Purpose.LastSet
+		}
+		L.Push(lua.LNumber(s))
+		return 1
+	case "topic_user", "purpose_user":
+		var s slack.UserID
+		if key == "topic" {
+			s = lc.Info.Topic.Creator
+		} else {
+			s = lc.Info.Purpose.Creator
+		}
+		u, _ := LNewUser(lc.flua, s, false)
+		L.Push(u)
+		return 1
 	default:
-		L.RaiseError("no such member %s in Channel", key)
+		L.RaiseError("no such member %s in Channel (have: id type name mention topic purpose)", key)
+		return 0
 	}
 }

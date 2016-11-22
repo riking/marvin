@@ -103,8 +103,11 @@ func (f *FactoidLua) OpenFactoid(L *lua.LState) int {
 	u.Value = f
 	u.Metatable = tab
 	L.SetGlobal("factoid", u)
+
 	LFactoid{}.SetupMetatable(L)
 	LUser{}.SetupMetatable(L)
+	LChannel{}.SetupMetatable(L)
+
 	return 0
 }
 
@@ -151,7 +154,8 @@ func (f *FactoidLua) SetFactoidEnv() {
 		panic(err)
 	}
 	f.L.SetGlobal("user", u)
-
+	c := LNewChannel(f, f.ActSource.ChannelID())
+	f.L.SetGlobal("channel", c)
 	f.L.SetGlobal("_G", f.L.Get(lua.GlobalsIndex))
 
 	// TODO Channel
