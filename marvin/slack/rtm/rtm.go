@@ -144,6 +144,8 @@ func Dial(team marvin.Team) (*Client, error) {
 
 func (c *Client) Start() {
 	c.RegisterRawHandler("__internal", c.onChannelCreate, "channel_created", nil)
+	c.RegisterRawHandler("__internal", c.onTopicChange, "message", []string{"channel_topic", "group_topic"})
+	c.RegisterRawHandler("__internal", c.onPurposeChange, "message", []string{"channel_purpose", "group_purpose"})
 
 	c.started = true
 	go c.pump()

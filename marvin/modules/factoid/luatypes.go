@@ -524,7 +524,7 @@ func luaChannel__Index(L *lua.LState) int {
 			tab := L.NewTable()
 			for i, v := range lc.Info.Members {
 				u, _ := LNewUser(lc.flua, v, false)
-				tab.RawSetInt(i, u)
+				tab.RawSetInt(i+1, u)
 			}
 			lc.Users = tab
 		}

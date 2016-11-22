@@ -111,6 +111,12 @@ type User struct {
 	Has2Fa            bool   `json:"has_2fa,omitempty"`
 }
 
+type ChannelTopicPurpose struct {
+	Value   string
+	Creator UserID
+	LastSet float64 `json:"last_set"`
+}
+
 type Channel struct {
 	ID         ChannelID
 	Name       string
@@ -132,16 +138,8 @@ type Channel struct {
 
 	LastRead string `json:"last_read"`
 	Latest   LatestMsg
-	Topic    struct {
-		Value   string
-		Creator UserID
-		LastSet float64 `json:"last_set"`
-	}
-	Purpose struct {
-		Value   string
-		Creator UserID
-		LastSet float64 `json:"last_set"`
-	}
+	Topic    ChannelTopicPurpose
+	Purpose  ChannelTopicPurpose
 }
 
 type ChannelDM struct {
