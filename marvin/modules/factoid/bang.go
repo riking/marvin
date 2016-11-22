@@ -116,7 +116,7 @@ func (mod *BangFactoidModule) OnEdit(_rtm slack.RTMRawMessage) {
 	form := url.Values{
 		"channel": []string{string(record.Response.ChannelID)},
 		"ts":      []string{string(record.Response.MessageTS)},
-		"text":    []string{result},
+		"text":    []string{atcommand.SanitizeForChannel(result)},
 		"parse":   []string{"client"},
 	}
 	util.LogIfError(mod.team.SlackAPIPostJSON("chat.update", form, nil))

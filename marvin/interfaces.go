@@ -261,6 +261,7 @@ type Team interface {
 	UserName(user slack.UserID) string
 	UserLevel(user slack.UserID) AccessLevel
 	GetIM(user slack.UserID) (slack.ChannelID, error)
+	GetIMOtherUser(channel slack.ChannelID) (slack.UserID, error)
 	PublicChannelInfo(channel slack.ChannelID) (*slack.Channel, error)
 	PrivateChannelInfo(channel slack.ChannelID) (*slack.Channel, error)
 	UserInfo(user slack.UserID) (*slack.User, error)

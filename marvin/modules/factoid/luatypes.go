@@ -100,7 +100,7 @@ func luaFactoid__Index(L *lua.LState) int {
 			L.Push(lua.LTrue)
 		}
 		return 1
-	case "src", "author":
+	case "src", "raw", "author":
 		finfo, err := lfv.flua.mod.GetFactoidBare(lfv.Name, lfv.flua.ActSource.ChannelID())
 		if err == ErrNoSuchFactoid {
 			L.RaiseError("No such factoid %s", lfv.Name)
@@ -108,7 +108,7 @@ func luaFactoid__Index(L *lua.LState) int {
 			L.RaiseError("err %s.src: %s")
 		}
 
-		if method == "src" {
+		if method == "src" || method == "raw" {
 			L.Push(lua.LString(finfo.RawSource))
 		} else if method == "author" {
 			u, err := LNewUser(lfv.flua, finfo.LastUser, true)
@@ -389,7 +389,6 @@ var _ = 1
 //   ch.topic = string
 //   ch.purpose: string
 //   ch.purpose = string
-/*
 type LChannel struct {
 	flua    *FactoidLua
 	ID      slack.ChannelID
@@ -429,7 +428,7 @@ func LNewChannel(flua *FactoidLua, ch slack.ChannelID) (lua.LValue, error) {
 		v.Info = info
 	} else if ch[0] == 'D' {
 		v.IsIM = true
-		flua.mod.team.
+		flua.mod.team.GetIM(flua.ActSource.UserID())
 	}
 
 	u := flua.L.NewUserData()
@@ -437,4 +436,51 @@ func LNewChannel(flua *FactoidLua, ch slack.ChannelID) (lua.LValue, error) {
 	u.Metatable = flua.L.GetGlobal(metatableLUser)
 	return u, nil
 }
-*/
+
+func luaChannel__ToString(L *lua.LState) int {
+	ud := L.CheckUserData(1)
+	lc := ud.Value.(*LChannel)
+	L.Push(lua.LString(lc.flua.mod.team.FormatChannel(lc.ID)))
+	return 1
+}
+
+func luaChannel__Eq(L *lua.LState) int {
+	if L.GetTop() != 2 {
+		L.RaiseError("__eq() takes two arguments")
+	}
+	ud1 := L.CheckUserData(1)
+	ud2 := L.CheckUserData(2)
+	lc1 := ud1.Value.(*LChannel)
+	lc2 := ud2.Value.(*LChannel)
+	if lc1.ID == lc2.ID {
+		L.Push(lua.LTrue)
+	} else {
+		L.Push(lua.LFalse)
+	}
+	return 1
+}
+
+func luaChannel__Index(L *lua.LState) int {
+	if L.GetTop() != 2 {
+		L.RaiseError("__index() requires 2 arguments")
+	}
+	ud := L.CheckUserData(1)
+	lc, ok := ud.Value.(*LChannel)
+	if !ok {
+		L.RaiseError("user__tostring() with wrong type for self")
+	}
+	key := L.CheckString(2)
+	switch key {
+	case "id":
+		L.Push(lua.LString(lc.ID))
+		return 1
+	case "type":
+		if lc.IsPublic {
+			return "public"
+		} else if lc.IsGroup && lc.Info.IsMultiIM() {
+
+		}
+	default:
+		L.RaiseError("no such member %s in Channel", key)
+	}
+}
