@@ -868,7 +868,7 @@ var regexSanitizeEveryone = regexp.MustCompile(`<!(everyone).*?>`)
 var regexSanitizeHere = regexp.MustCompile(`<!(here).*?>`)
 
 func SanitizeAt(msg string) string {
-	for _, v := range []regexp.Regexp{regexSanitizeChannel, regexSanitizeEveryone, regexSanitizeHere} {
+	for _, v := range []*regexp.Regexp{regexSanitizeChannel, regexSanitizeEveryone, regexSanitizeHere} {
 		m := v.FindAllStringSubmatch(msg, -1)
 		for _, match := range m {
 			msg = strings.Replace(msg, match[0], fmt.Sprintf("@\\%s", match[1]), 1)
