@@ -236,6 +236,10 @@ func (mod *AtCommandModule) HandleMessage(_rtm slack.RTMRawMessage) {
 	if !rtm.AssertText() {
 		return
 	}
+	factoidChars, _ := mod.team.ModuleConfig("factoid").Get("factoid-char")
+	if strings.ContainsAny(rtm.Text()[:1], factoidChars) {
+		return
+	}
 
 	parseResult := mod.ParseMessage(rtm)
 	fciResult.parseResult = parseResult

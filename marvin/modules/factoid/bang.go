@@ -1,4 +1,4 @@
-package bang
+package factoid
 
 import (
 	"context"
@@ -10,7 +10,6 @@ import (
 
 	"github.com/riking/homeapi/marvin"
 	"github.com/riking/homeapi/marvin/modules/atcommand"
-	"github.com/riking/homeapi/marvin/modules/factoid"
 	"github.com/riking/homeapi/marvin/slack"
 	"github.com/riking/homeapi/marvin/util"
 )
@@ -21,7 +20,7 @@ func init() {
 	marvin.RegisterModule(NewBangFactoidModule)
 }
 
-const Identifier = "factoid-bang"
+const BangIdentifier = "factoid-bang"
 
 type BangFactoidModule struct {
 	team marvin.Team
@@ -40,23 +39,23 @@ func NewBangFactoidModule(t marvin.Team) marvin.Module {
 }
 
 func (mod *BangFactoidModule) Identifier() marvin.ModuleID {
-	return Identifier
+	return BangIdentifier
 }
 
 func (mod *BangFactoidModule) Load(t marvin.Team) {
-	if -2 == t.DependModule(mod, factoid.Identifier, &mod.factoidModule) {
+	if -2 == t.DependModule(mod, Identifier, &mod.factoidModule) {
 		panic("Failure in dependency")
 	}
 	t.ModuleConfig(Identifier).Add("factoid-char", "!")
 }
 
 func (mod *BangFactoidModule) Enable(team marvin.Team) {
-	team.OnNormalMessage(Identifier, mod.OnMessage)
-	team.OnSpecialMessage(Identifier, []string{"message_changed"}, mod.OnEdit)
+	team.OnNormalMessage(BangIdentifier, mod.OnMessage)
+	team.OnSpecialMessage(BangIdentifier, []string{"message_changed"}, mod.OnEdit)
 }
 
 func (mod *BangFactoidModule) Disable(team marvin.Team) {
-	team.OffAllEvents(Identifier)
+	team.OffAllEvents(BangIdentifier)
 }
 
 // --
@@ -123,8 +122,8 @@ func (mod *BangFactoidModule) OnEdit(_rtm slack.RTMRawMessage) {
 	util.LogIfError(mod.team.SlackAPIPostJSON("chat.update", form, nil))
 }
 
-func (mod *BangFactoidModule) Process(rtm slack.SlackTextMessage) (string, factoid.OutputFlags) {
-	var of factoid.OutputFlags
+func (mod *BangFactoidModule) Process(rtm slack.SlackTextMessage) (string, OutputFlags) {
+	var of OutputFlags
 
 	if len(rtm.Text()) == 0 {
 		return "", of
@@ -142,8 +141,8 @@ func (mod *BangFactoidModule) Process(rtm slack.SlackTextMessage) (string, facto
 
 	source := &marvin.ActionSourceUserMessage{Team: mod.team, Msg: rtm}
 
-	result, err := mod.factoidModule.(factoid.API).RunFactoid(ctx, line, &of, source)
-	if err == factoid.ErrNoSuchFactoid {
+	result, err := mod.factoidModule.(API).RunFactoid(ctx, line, &of, source)
+	if err == ErrNoSuchFactoid {
 		return "", of
 	} else if err != nil {
 		result = fmt.Sprintf("Error: %s", err)
