@@ -75,6 +75,7 @@ type TeamInfo struct {
 }
 
 type User struct {
+	CacheTS  float64     `json:"cache_ts"`
 	ID       UserID      `json:"id"`
 	TeamID   TeamID      `json:"team_id"`
 	Name     string      `json:"name"`

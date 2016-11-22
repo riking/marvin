@@ -99,6 +99,12 @@ func Dial(team marvin.Team) (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
+	if startResponse.CacheTsVersion != "v1-cat" {
+		panic(errors.Errorf("Unexpected CacheTSVersion %s", startResponse.CacheTsVersion))
+	}
+	if startResponse.CacheVersion != "v13-tiger" {
+		panic(errors.Errorf("Unexpected CacheVersion %s", startResponse.CacheVersion))
+	}
 	wsURL, err := url.Parse(startResponse.URL)
 	if err != nil {
 		return nil, errors.Wrap(err, "start RTM - could not parse URL")

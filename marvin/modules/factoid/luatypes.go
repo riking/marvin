@@ -374,3 +374,67 @@ func luaUser__Index(L *lua.LState) int {
 }
 
 //endregion
+//region LChannel
+var _ = 1
+
+// LChannel ...
+//
+//   ch.id: slack.ChannelID
+//   ch.type: "public", "group", "mpim", or "im"
+//   ch.name: string
+//   ch.creator: LUser
+//   ch.im_other: slack.UserID
+//   ch.users: []slack.UserID
+//   ch.topic: string
+//   ch.topic = string
+//   ch.purpose: string
+//   ch.purpose = string
+/*
+type LChannel struct {
+	flua    *FactoidLua
+	ID      slack.ChannelID
+	IsPublic bool
+	IsGroup bool
+	IsIM bool
+	Info    *slack.Channel
+
+	IMOtherUser slack.UserID
+}
+
+const metatableLChannel = "_metatable_LChannel"
+
+func (LChannel) SetupMetatable(L *lua.LState) {
+	tab := L.NewTable()
+	tab.RawSetString("__tostring", L.NewFunction(luaChannel__ToString))
+	tab.RawSetString("__eq", L.NewFunction(luaChannel__Eq))
+	tab.RawSetString("__index", L.NewFunction(luaChannel__Index))
+	L.SetGlobal(metatableLUser, tab)
+}
+
+func LNewChannel(flua *FactoidLua, ch slack.ChannelID) (lua.LValue, error) {
+	v := &LChannel{flua: flua, ID: ch, Info: nil}
+	if ch[0] == 'C' {
+		v.IsPublic = true
+		info, err := flua.mod.team.PublicChannelInfo(ch)
+		if err != nil {
+			flua.L.RaiseError("could not get public channel info: %s", err)
+		}
+		v.Info = info
+	} else if ch[0] == 'G' {
+		v.IsGroup = true
+		info, err := flua.mod.team.PrivateChannelInfo(ch)
+		if err != nil {
+			flua.L.RaiseError("could not get private channel info: %s", err)
+		}
+		v.Info = info
+	} else if ch[0] == 'D' {
+		v.IsIM = true
+		flua.mod.team.
+	}
+
+	u := flua.L.NewUserData()
+	u.Value = v
+	u.Metatable = flua.L.GetGlobal(metatableLUser)
+	return u, nil
+}
+*/

@@ -51,6 +51,7 @@ func main() {
 		return
 	}
 	client.RegisterRawHandler("main.go", func(msg slack.RTMRawMessage) {
+	typeswitch:
 		switch msg.Type() {
 		case "user_typing", "reconnect_url", "presence_change":
 			return
@@ -59,8 +60,10 @@ func main() {
 				return
 			}
 		case "message":
-			if msg.Subtype() != "" {
-				break
+			switch msg.Subtype() {
+			case "", "channel_leave", "channel_join", "group_join", "group_leave":
+			default:
+				break typeswitch
 			}
 			fmt.Printf("[%s] [@%s] %s\n", team.ChannelName(msg.ChannelID()), team.UserName(msg.UserID()), msg.Text())
 			return
