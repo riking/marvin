@@ -64,6 +64,9 @@ func (t *Team) FormatChannel(channel slack.ChannelID) string {
 }
 
 func (t *Team) UserName(user slack.UserID) string {
+	if user == "" {
+		return "<empty>"
+	}
 	u := t.cachedUserInfo(user)
 	if u == nil {
 		return fmt.Sprintf("<!error getting user name for %s>", string(user))
