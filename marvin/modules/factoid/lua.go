@@ -7,10 +7,12 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
+	"github.com/yuin/gopher-lua"
+
 	"github.com/riking/homeapi/marvin"
+	"github.com/riking/homeapi/marvin/modules/factoid/lualib"
 	"github.com/riking/homeapi/marvin/modules/paste"
 	"github.com/riking/homeapi/marvin/util"
-	"github.com/yuin/gopher-lua"
 )
 
 type FactoidLua struct {
@@ -135,6 +137,7 @@ func (f *FactoidLua) Setup() {
 	lua.OpenString(f.L)
 	lua.OpenMath(f.L)
 	lua.OpenDebug(f.L)
+	lualib.OpenBit(f.L)
 
 	f.OpenFactoid(f.L)
 	f.OpenBot(f.L)
