@@ -138,7 +138,7 @@ func Dial(team marvin.Team) (*Client, error) {
 		return nil, errors.Errorf("Wrong type for first message, expected 'hello' got %s: %v", msg.Type(), msg)
 	}
 	c.sendChan = make(chan []byte)
-	fmt.Println(c)
+	go fmt.Println(c)
 	return c, nil
 }
 
