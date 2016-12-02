@@ -99,7 +99,7 @@ func (f *FactoidLua) luaPrint(L *lua.LState) int {
 }
 
 func (f *FactoidLua) OpenFactoid(L *lua.LState) int {
-	tab := L.NewTable()
+	tab := L.NewTypeMetatable("_metatable_FactoidModule")
 	tab.RawSetString("__index", L.NewFunction(luaFactoidModule__index))
 	u := L.NewUserData()
 	u.Value = f

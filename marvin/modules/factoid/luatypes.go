@@ -35,18 +35,17 @@ type LFactoid struct {
 const metatableLFactoid = "_metatable_LFactoid"
 
 func (LFactoid) SetupMetatable(L *lua.LState) {
-	tab := L.NewTable()
+	tab := L.NewTypeMetatable(metatableLFactoid)
 	tab.RawSetString("__index", L.NewFunction(luaFactoid__Index))
 	tab.RawSetString("__newindex", L.NewFunction(luaFactoid__Set))
 	tab.RawSetString("__call", L.NewFunction(luaFactoid__Call))
-	L.SetGlobal(metatableLFactoid, tab)
 }
 
 func LNewFactoid(flua *FactoidLua, name string) lua.LValue {
 	v := &LFactoid{flua: flua, Name: name}
 	u := flua.L.NewUserData()
 	u.Value = v
-	u.Metatable = flua.L.GetGlobal(metatableLFactoid)
+	u.Metatable = flua.L.GetTypeMetatable(metatableLFactoid)
 	return u
 }
 
@@ -209,11 +208,10 @@ type LUser struct {
 const metatableLUser = "_metatable_LUser"
 
 func (LUser) SetupMetatable(L *lua.LState) {
-	tab := L.NewTable()
+	tab := L.NewTypeMetatable(metatableLUser)
 	tab.RawSetString("__tostring", L.NewFunction(luaUser__ToString))
 	tab.RawSetString("__eq", L.NewFunction(luaUser__Eq))
 	tab.RawSetString("__index", L.NewFunction(luaUser__Index))
-	L.SetGlobal(metatableLUser, tab)
 }
 
 func LNewUser(flua *FactoidLua, user slack.UserID, preload bool) (lua.LValue, error) {
@@ -230,7 +228,7 @@ func LNewUser(flua *FactoidLua, user slack.UserID, preload bool) (lua.LValue, er
 
 	u := flua.L.NewUserData()
 	u.Value = v
-	u.Metatable = flua.L.GetGlobal(metatableLUser)
+	u.Metatable = flua.L.GetTypeMetatable(metatableLUser)
 	return u, nil
 }
 
@@ -410,11 +408,10 @@ type LChannel struct {
 const metatableLChannel = "_metatable_LChannel"
 
 func (LChannel) SetupMetatable(L *lua.LState) {
-	tab := L.NewTable()
+	tab := L.NewTypeMetatable(metatableLChannel)
 	tab.RawSetString("__tostring", L.NewFunction(luaChannel__ToString))
 	tab.RawSetString("__eq", L.NewFunction(luaChannel__Eq))
 	tab.RawSetString("__index", L.NewFunction(luaChannel__Index))
-	L.SetGlobal(metatableLChannel, tab)
 }
 
 func LNewChannel(flua *FactoidLua, ch slack.ChannelID) lua.LValue {
@@ -442,7 +439,7 @@ func LNewChannel(flua *FactoidLua, ch slack.ChannelID) lua.LValue {
 
 	u := flua.L.NewUserData()
 	u.Value = v
-	u.Metatable = flua.L.GetGlobal(metatableLChannel)
+	u.Metatable = flua.L.GetTypeMetatable(metatableLChannel)
 	return u
 }
 
