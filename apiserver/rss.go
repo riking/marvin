@@ -41,12 +41,12 @@ func (f *infoFileFmt) ItemOffset() int {
 }
 
 func (f *infoFileFmt) FeedLastUpdated() string {
-	offset := f.ItemOffset() * 24 * time.Hour
+	offset := time.Duration(f.ItemOffset()) * (24 * time.Hour)
 	return f.StartAt.Add(offset).Format(http.TimeFormat)
 }
 
 func (f *infoFileFmt) TTL() string {
-	nextOffset := (1 + f.ItemOffset()) * 24 * time.Hour
+	nextOffset := time.Duration(1 + f.ItemOffset()) * (24 * time.Hour)
 	untilNextOffset := f.StartAt.Add(nextOffset).Sub(f.Now)
 	if untilNextOffset < 30*time.Minute {
 		untilNextOffset = 30*time.Minute
