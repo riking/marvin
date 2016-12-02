@@ -40,6 +40,20 @@ func (f *infoFileFmt) ItemOffset() int {
 	return int(float64(days) * f.PerDay)
 }
 
+func (f *infoFileFmt) FeedLastUpdated() string {
+	offset := f.ItemOffset() * 24 * time.Hour
+	return f.StartAt.Add(offset).Format(http.TimeFormat)
+}
+
+func (f *infoFileFmt) TTL() string {
+	nextOffset := (1 + f.ItemOffset()) * 24 * time.Hour
+	untilNextOffset := f.StartAt.Add(nextOffset).Sub(f.Now)
+	if untilNextOffset < 30*time.Minute {
+		untilNextOffset = 30*time.Minute
+	}
+	return fmt.Sprintf("%d", untilNextOffset/time.Second)
+}
+
 var rgxRSSName = regexp.MustCompile(`^[a-z0-9A-Z_-]+$`)
 var rssTmpl = template.Must(template.New("rss.xml").Parse(string(rss_data.MustAsset("rss.xml"))))
 
