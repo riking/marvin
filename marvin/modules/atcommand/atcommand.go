@@ -240,6 +240,9 @@ func (mod *AtCommandModule) HandleMessage(_rtm slack.RTMRawMessage) {
 	if strings.ContainsAny(rtm.Text()[:1], factoidChars) {
 		return
 	}
+	if rtm.UserID() == "USLACKBOT" {
+		return
+	}
 
 	parseResult := mod.ParseMessage(rtm)
 	fciResult.parseResult = parseResult
