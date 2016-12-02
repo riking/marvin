@@ -12,15 +12,22 @@ import (
 	"github.com/riking/homeapi/apiserver/rss-data"
 )
 
-type rssFileFormat []struct {
-	URL   string
-	Title string
-}
-
 type rssItem struct {
 	URL      string
 	Title    string
+	Desc  string `json:"description"`
 	CustDate time.Time
+}
+
+func (f rssItem) Description() string {
+	if f.Desc != "" {
+		return f.Desc
+	}
+	return f.Title
+}
+
+func (f rssItem) Date() string {
+	return f.CustDate.Format(http.TimeFormat)
 }
 
 type infoFileFmt struct {
@@ -31,7 +38,8 @@ type infoFileFmt struct {
 	StartAt time.Time `json:"start_at"`
 	PerDay  float64   `json:"per_day"`
 
-	Items []rssItem `json:"-"`
+	RawItems []rssItem `json:"-"`
+	Items    []rssItem `json:"-"`
 	Now   time.Time `json:"-"`
 }
 
@@ -40,14 +48,17 @@ func (f *infoFileFmt) ItemOffset() int {
 	return int(float64(days) * f.PerDay)
 }
 
+func (f *infoFileFmt) TimeForOffset(offset int) time.Time {
+	offDur := time.Duration(offset) * (24 * time.Hour)
+	return f.StartAt.Add(offDur)
+}
+
 func (f *infoFileFmt) FeedLastUpdated() string {
-	offset := time.Duration(f.ItemOffset()) * (24 * time.Hour)
-	return f.StartAt.Add(offset).Format(http.TimeFormat)
+	return f.TimeForOffset(f.ItemOffset()).Format(http.TimeFormat)
 }
 
 func (f *infoFileFmt) TTL() string {
-	nextOffset := time.Duration(1 + f.ItemOffset()) * (24 * time.Hour)
-	untilNextOffset := f.StartAt.Add(nextOffset).Sub(f.Now)
+	untilNextOffset := f.TimeForOffset(f.ItemOffset() + 1).Sub(f.Now)
 	if untilNextOffset < 30*time.Minute {
 		untilNextOffset = 30*time.Minute
 	}
@@ -98,7 +109,7 @@ func HTTPRSSBinge(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "feed not found (content.json)", http.StatusNotFound)
 		return
 	}
-	err = json.NewDecoder(itemF).Decode(&infoFile.Items)
+	err = json.NewDecoder(itemF).Decode(&infoFile.RawItems)
 	itemF.Close()
 	if err != nil {
 		fmt.Println(err)
@@ -109,6 +120,21 @@ func HTTPRSSBinge(w http.ResponseWriter, r *http.Request) {
 	switch parts[1] {
 	case "rss.xml":
 		w.Header().Set("Content-Type", "text/xml; charset=UTF-8")
+
+		lastItemIdx := infoFile.ItemOffset()
+		if lastItemIdx >= len(infoFile.RawItems) {
+			lastItemIdx = len(infoFile.RawItems) - 1
+		}
+		firstItemIdx := lastItemIdx - 10
+		if firstItemIdx < 0 {
+			firstItemIdx = 0
+		}
+
+		infoFile.Items = infoFile.RawItems[firstItemIdx:lastItemIdx+1]
+		for i := firstItemIdx; i <= lastItemIdx; i++ {
+			infoFile.RawItems[i].CustDate = infoFile.TimeForOffset(i)
+		}
+
 		err = rssTmpl.Execute(w, &infoFile)
 		if err != nil {
 			fmt.Println(err)

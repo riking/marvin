@@ -12,7 +12,7 @@
             <title>{{.Title}}</title>
             <description>{{.Description}}</description>
             <link>{{.URL}}</link>
-            <pubDate>{{.CustDate}}</pubDate>
+            <pubDate>{{.Date}}</pubDate>
         </item>
     {{end}}{{end}}
 </channel>
