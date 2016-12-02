@@ -109,7 +109,11 @@ func HTTPRSSBinge(w http.ResponseWriter, r *http.Request) {
 	switch parts[1] {
 	case "rss.xml":
 		w.Header().Set("Content-Type", "text/xml; charset=UTF-8")
-		rssTmpl.Execute(w, infoFile)
+		err = rssTmpl.Execute(w, infoFile)
+		if err != nil {
+			fmt.Println(err)
+			fmt.Fprintf(w, "\n\nERROR: %s", err)
+		}
 	default:
 		http.Error(w, "unknown request", http.StatusNotFound)
 	}
