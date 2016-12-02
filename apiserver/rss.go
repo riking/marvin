@@ -51,12 +51,12 @@ func HTTPRSSBinge(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "wrong number of slashes in path.\nshould be: /rssbinge/feedname/rss.xml", http.StatusBadRequest)
 		return
 	}
-	if !rgxRSSName.MatchString(parts[1]) {
+	if !rgxRSSName.MatchString(parts[0]) {
 		http.Error(w, "bad rss feed name", http.StatusBadRequest)
 		return
 	}
 
-	infoF, err := os.Open(fmt.Sprintf(rssDataDir+"/%s/info.json", parts[1]))
+	infoF, err := os.Open(fmt.Sprintf(rssDataDir+"/%s/info.json", parts[0]))
 	if err != nil {
 		http.Error(w, "feed not found", http.StatusNotFound)
 		return
@@ -78,7 +78,7 @@ func HTTPRSSBinge(w http.ResponseWriter, r *http.Request) {
 	}
 	infoFile.Now = curTime
 
-	itemF, err := os.Open(fmt.Sprintf(rssDataDir+"/%s/content.json", parts[1]))
+	itemF, err := os.Open(fmt.Sprintf(rssDataDir+"/%s/content.json", parts[0]))
 	if err != nil {
 		http.Error(w, "feed not found (content.json)", http.StatusNotFound)
 		return
@@ -90,6 +90,11 @@ func HTTPRSSBinge(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "text/xml; charset=UTF-8")
-	rssTmpl.Execute(w, infoFile)
+	switch parts[1] {
+	case "rss.xml":
+		w.Header().Set("Content-Type", "text/xml; charset=UTF-8")
+		rssTmpl.Execute(w, infoFile)
+	default:
+		http.Error(w, "unknown request", http.StatusNotFound)
+	}
 }
