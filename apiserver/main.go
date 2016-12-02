@@ -27,6 +27,8 @@ func main() {
 	minecraftModFS.BaseDir = "/tank/home/mcserver"
 	apiMux.Handle("/minecraftmods/", http.StripPrefix("/minecraftmods/", minecraftModFS.Setup()))
 
+	apiMux.Handle("/rssbinge/", http.StripPrefix("/rssbinge/", http.HandlerFunc(HTTPRSSBinge)))
+
 	oauthMux := http.NewServeMux()
 	oauthMux.HandleFunc("/discourse", intra.HTTPDiscourseSSO)
 	oauthMux.HandleFunc("/callback", intra.HTTPOauthCallback)

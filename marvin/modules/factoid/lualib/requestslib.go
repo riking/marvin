@@ -37,7 +37,7 @@ func requestsHelperNoBody(method string) func(L *lua.LState) int {
 		L.Push(url)
 		L.Push(headers)
 		L.Push(lua.LNil)
-		L.Push(method)
+		L.Push(lua.LString(method))
 		L.Push(options)
 		L.Call(5, 2)
 		return 2
@@ -51,7 +51,7 @@ func requestsHelperBody(method string) func(L *lua.LState) int {
 		L.Push(url)
 		L.Push(headers)
 		L.Push(data)
-		L.Push(method)
+		L.Push(lua.LString(method))
 		L.Push(options)
 		L.Call(5, 2)
 		return 2
@@ -62,7 +62,7 @@ func luaToStringArray(L *lua.LState, lv lua.LValue) []string {
 	switch v := lv.(type) {
 	case lua.LString:
 		return []string{string(v)}
-	case lua.LTable:
+	case *lua.LTable:
 		r := make([]string, v.Len())
 		for i := 1; i <= v.Len(); i++ {
 			r[i-1] = lua.LVAsString(L.ToStringMeta(v.RawGetInt(i)))
@@ -165,10 +165,14 @@ func LNewResponse(L *lua.LState, resp *http.Response) *lua.LUserData {
 
 	headers := L.NewTable()
 	for k, v := range resp.Header {
-		headers.RawSetString(k, strings.Join(v, ","))
+		headers.RawSetString(k, lua.LString(strings.Join(v, ",")))
 	}
 	mt.RawSetString("headers", headers)
-
+	mt.RawSetString("text", L.NewFunction(luaResponseText))
+	mt.RawSetString("json", L.NewFunction(luaResponseJson))
+	mt.RawSetString("statuscode", lua.LNumber(resp.StatusCode))
+	mt.RawSetString("status", lua.LString(resp.Status))
+	mt.RawSetString("proto", lua.LString(resp.Proto))
 }
 
 func luaResponseText(L *lua.LState) int {
@@ -210,4 +214,5 @@ func luaResponseJson(L *lua.LState) int {
 		}
 	}
 
+	L.RaiseError("NotImplemented") // TODO
 }
