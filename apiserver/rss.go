@@ -3,19 +3,20 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"html/template"
 	"net/http"
 	"os"
 	"regexp"
 	"strings"
 	"time"
-	"html/template"
+
 	"github.com/riking/homeapi/apiserver/rss-data"
 )
 
 type rssItem struct {
 	URL      string
 	Title    string
-	Desc  string `json:"description"`
+	Desc     string `json:"description"`
 	CustDate time.Time
 }
 
@@ -40,7 +41,7 @@ type infoFileFmt struct {
 
 	RawItems []rssItem `json:"-"`
 	Items    []rssItem `json:"-"`
-	Now   time.Time `json:"-"`
+	Now      time.Time `json:"-"`
 }
 
 func (f *infoFileFmt) ItemOffset() int {
@@ -60,7 +61,7 @@ func (f *infoFileFmt) FeedLastUpdated() string {
 func (f *infoFileFmt) TTL() string {
 	untilNextOffset := f.TimeForOffset(f.ItemOffset() + 1).Sub(f.Now)
 	if untilNextOffset < 30*time.Minute {
-		untilNextOffset = 30*time.Minute
+		untilNextOffset = 30 * time.Minute
 	}
 	return fmt.Sprintf("%d", untilNextOffset/time.Second)
 }
@@ -130,7 +131,7 @@ func HTTPRSSBinge(w http.ResponseWriter, r *http.Request) {
 			firstItemIdx = 0
 		}
 
-		infoFile.Items = infoFile.RawItems[firstItemIdx:lastItemIdx+1]
+		infoFile.Items = infoFile.RawItems[firstItemIdx : lastItemIdx+1]
 		for i := firstItemIdx; i <= lastItemIdx; i++ {
 			infoFile.RawItems[i].CustDate = infoFile.TimeForOffset(i)
 		}
