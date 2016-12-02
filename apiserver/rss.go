@@ -65,7 +65,8 @@ func HTTPRSSBinge(w http.ResponseWriter, r *http.Request) {
 	err = json.NewDecoder(infoF).Decode(&infoFile)
 	infoF.Close()
 	if err != nil {
-		http.Error(w, "bad info.json content", http.StatusInternalServerError)
+		fmt.Println(err)
+		http.Error(w, fmt.Sprint("bad info.json content: ", err), http.StatusInternalServerError)
 		return
 	}
 
@@ -86,7 +87,8 @@ func HTTPRSSBinge(w http.ResponseWriter, r *http.Request) {
 	err = json.NewDecoder(itemF).Decode(&infoFile.Items)
 	itemF.Close()
 	if err != nil {
-		http.Error(w, "bad content.json content", http.StatusInternalServerError)
+		fmt.Println(err)
+		http.Error(w, fmt.Sprint("bad content.json content: ", err), http.StatusInternalServerError)
 		return
 	}
 
