@@ -41,8 +41,7 @@ func UnescapeText(msg string) string {
 			}
 			return fmt.Sprintf("@/%s", rhs)
 		case "#":
-			// mid contains channel ID
-			return fmt.Sprintf("<#%s>", rhs)
+			return entity
 		default:
 			if strings.HasPrefix(mid, "mailto") {
 				return entity

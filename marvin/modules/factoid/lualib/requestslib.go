@@ -12,7 +12,8 @@ import (
 func OpenRequests(L *lua.LState) int {
 	mod := L.RegisterModule("requests", requestsFuncs).(*lua.LTable)
 
-	respMeta := L.NewTypeMetatable("requests.response")
+	L.Push(mod)
+	return 1
 }
 
 var requestsFuncs = map[string]lua.LGFunction{
@@ -148,6 +149,7 @@ func luaRequest(L *lua.LState) int {
 		v := luaToStringArray(L, value)
 		req.Header[k] = v
 	})
+	_ = options
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -173,6 +175,8 @@ func LNewResponse(L *lua.LState, resp *http.Response) *lua.LUserData {
 	mt.RawSetString("statuscode", lua.LNumber(resp.StatusCode))
 	mt.RawSetString("status", lua.LString(resp.Status))
 	mt.RawSetString("proto", lua.LString(resp.Proto))
+	ud.Metatable = mt
+	return ud
 }
 
 func luaResponseText(L *lua.LState) int {
@@ -190,7 +194,7 @@ func luaResponseText(L *lua.LState) int {
 		bytes, err := ioutil.ReadAll(resp.Body)
 		resp.Body.Close()
 		if err != nil {
-			ud.Metatable.(*lua.LTable).RawSetString("_bodyErr", err.Error())
+			ud.Metatable.(*lua.LTable).RawSetString("_bodyErr", lua.LString(err.Error()))
 			L.Error(L.GetField(ud.Metatable, "_bodyErr"), 1)
 		}
 		text = lua.LString(string(bytes))
@@ -208,11 +212,20 @@ func luaResponseJson(L *lua.LState) int {
 	}
 	json := L.GetField(ud.Metatable, "_bodyJson")
 	if json == lua.LNil {
-		text := L.GetField(ud.Metatable, "_bodyText")
-		if text.Type() != lua.LTString {
-			L.RaiseError("bad type for _bodyText: %s", text.Type())
-		}
+		idx := L.GetTop()
+		L.Push(L.GetField(ud.Metatable, "text"))
+		L.Push(ud)
+		L.Call(1, 1)
+		txtV := L.Get(idx + 1)
+		L.Pop(1)
+		jsonLoad := L.GetTable(L.GetGlobal("json"), lua.LString("load"))
+		L.Push(jsonLoad)
+		L.Push(txtV)
+		L.Call(1, 1)
+		json = L.Get(idx + 1)
+		L.SetField(ud.Metatable, "_bodyJson", json)
+		return 1
 	}
-
-	L.RaiseError("NotImplemented") // TODO
+	L.Push(json)
+	return 1
 }

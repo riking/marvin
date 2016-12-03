@@ -132,7 +132,7 @@ func (mod *BangFactoidModule) Process(rtm slack.SlackTextMessage) (string, Outpu
 	if !strings.ContainsAny(rtm.Text()[:1], fchars) {
 		return "", of
 	}
-	text := rtm.Text()[1:]
+	text := slack.UnescapeText(rtm.Text()[1:])
 	line := strings.Split(text, " ")
 
 	ctx := context.Background()
@@ -151,5 +151,6 @@ func (mod *BangFactoidModule) Process(rtm slack.SlackTextMessage) (string, Outpu
 	} else if of.Pre {
 		result = fmt.Sprintf("```\n%s\n```", result)
 	}
+	util.LogGood(fmt.Sprintf("Factoid result:\n%s\n%s", line, result))
 	return result, of
 }

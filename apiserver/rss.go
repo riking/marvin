@@ -62,6 +62,8 @@ func (f *infoFileFmt) TTL() string {
 	untilNextOffset := f.TimeForOffset(f.ItemOffset() + 1).Sub(f.Now)
 	if untilNextOffset < 30*time.Minute {
 		untilNextOffset = 30 * time.Minute
+	} else {
+		untilNextOffset += 30 * time.Minute
 	}
 	return fmt.Sprintf("%d", untilNextOffset/time.Second)
 }

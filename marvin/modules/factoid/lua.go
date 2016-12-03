@@ -138,6 +138,8 @@ func (f *FactoidLua) Setup() {
 	lua.OpenMath(f.L)
 	lua.OpenDebug(f.L)
 	lualib.OpenBit(f.L)
+	lualib.OpenJson(f.L)
+	lualib.OpenRequests(f.L)
 
 	f.OpenFactoid(f.L)
 	f.OpenBot(f.L)
@@ -160,8 +162,6 @@ func (f *FactoidLua) SetFactoidEnv() {
 	c := LNewChannel(f, f.ActSource.ChannelID())
 	f.L.SetGlobal("channel", c)
 	f.L.SetGlobal("_G", f.L.Get(lua.GlobalsIndex))
-
-	// TODO Channel
 }
 
 func (f *FactoidLua) OpenBot(L *lua.LState) int {
