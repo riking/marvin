@@ -39,6 +39,8 @@ const (
 	helpSource   = "`factoid source <name>` views the source of a factoid."
 	helpInfo     = "`factoid info [-f] <name>` views detailed information about a factoid."
 	helpList     = "`factoid list [pattern]` lists all factoids with `pattern` in their name."
+	helpForget   = "`factoid forget <name>` forgets a factoid."
+	helpUnforget = "`factoid forget <name>` un-forgets a previously forgotten factoid."
 )
 
 func (mod *FactoidModule) CmdRemember(t marvin.Team, args *marvin.CommandArguments) marvin.CommandResult {
@@ -291,4 +293,32 @@ func (mod *FactoidModule) CmdList(t marvin.Team, args *marvin.CommandArguments) 
 		fmt.Fprintf(&buf, "`%s` ", v)
 	}
 	return marvin.CmdSuccess(args, buf.String())
+}
+
+func (mod *FactoidModule) CmdForget(t marvin.Team, args *marvin.CommandArguments) marvin.CommandResult {
+	if len(args.Arguments) != 1 {
+		return marvin.CmdUsage(args, helpForget)
+	}
+
+	factoidName := args.Pop()
+	if len(factoidName) > FactoidNameMaxLen {
+		return marvin.CmdFailuref(args, "Factoid name too long")
+	}
+
+	factoidInfo, err := mod.GetFactoidInfo(factoidName, args.Source.ChannelID(), false)
+	if err == ErrNoSuchFactoid {
+		return marvin.CmdFailuref(args, "No such factoid").WithEdit()
+	} else if err != nil {
+		return marvin.CmdError(args, err, "Error retrieving factoid")
+	}
+
+	if factoidInfo.IsLocked {
+		return marvin.CmdFailuref(args, "A locked factoid cannot be forgotten.")
+	}
+
+	err = mod.ForgetFactoid(factoidInfo.DbID, true)
+	if err != nil {
+		return marvin.CmdError(args, err, "Error forgetting factoid")
+	}
+	return marvin.CmdSuccess(args, fmt.Sprintf("Forgot `%s` with database ID %d", factoidName, factoidInfo.DbID))
 }
