@@ -244,10 +244,14 @@ func (mod *FactoidModule) CmdInfo(t marvin.Team, args *marvin.CommandArguments) 
 	if factoidInfo.IsLocked {
 		isLocked = "(locked) "
 	}
-	msg := fmt.Sprintf("`%s` %s%swas last edited by %v in %s\n[Archive link: %s]\n```%s\n```",
+	isForgotten := ""
+	if factoidInfo.IsForgotten {
+		isForgotten = "(forgotten) "
+	}
+	msg := fmt.Sprintf("`%s` %s%s%swas last edited by %v in %s. DB ID: %d.\n[Archive link: %s]\n```%s\n```",
 		factoidName,
-		isLocal, isLocked,
-		factoidInfo.LastUser,
+		isLocal, isLocked, isForgotten,
+		factoidInfo.LastUser, factoidInfo.DbID,
 		mod.team.FormatChannel(factoidInfo.LastChannel),
 		mod.team.ArchiveURL(slack.MsgID(factoidInfo.LastChannel, factoidInfo.LastMessage)),
 		factoidInfo.RawSource,
