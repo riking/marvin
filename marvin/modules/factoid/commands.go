@@ -1,6 +1,7 @@
 package factoid
 
 import (
+	"bytes"
 	"context"
 	"flag"
 	"fmt"
@@ -30,7 +31,14 @@ func makeRememberArgs() interface{} {
 
 var rememberArgsPool = sync.Pool{New: makeRememberArgs}
 
-const rememberHelp = "Usage: `@marvin [--local] [name] [contents...]`"
+const (
+	helpRemember = "`@marvin remember [--local] [name] [value]` (alias `r`) saves a factoid."
+	helpGet      = "`factoid get <name> [args...]` runs a factoid with the standard argument parsing instead of the factoid argument parsing."
+	helpSend     = "`factoid send <channel> <name> [args...]` sends the result of a factoid to another channel."
+	helpSource   = "`factoid source <name>` views the source of a factoid."
+	helpInfo     = "`factoid info [-f] <name>` views detailed information about a factoid."
+	helpList     = "`factoid list [pattern]` lists all factoids with `pattern` in their name."
+)
 
 func (mod *FactoidModule) CmdRemember(t marvin.Team, args *marvin.CommandArguments) marvin.CommandResult {
 	flags := rememberArgsPool.Get().(*rememberArgs)
@@ -42,7 +50,7 @@ func (mod *FactoidModule) CmdRemember(t marvin.Team, args *marvin.CommandArgumen
 	}
 
 	if flags.wantHelp {
-		return marvin.CmdUsage(args, rememberHelp).WithNoEdit().WithSimpleUndo()
+		return marvin.CmdUsage(args, helpRemember).WithNoEdit().WithSimpleUndo()
 	}
 
 	factoidName := flags.flagSet.Arg(0)
@@ -108,7 +116,7 @@ func (mod *FactoidModule) CmdRemember(t marvin.Team, args *marvin.CommandArgumen
 
 func (mod *FactoidModule) CmdGet(t marvin.Team, args *marvin.CommandArguments) marvin.CommandResult {
 	if len(args.Arguments) < 1 {
-		return marvin.CmdUsage(args, "`@marvin factoid get <name> [args...]` (args optional)")
+		return marvin.CmdUsage(args, helpGet)
 	}
 
 	var of OutputFlags
@@ -140,7 +148,7 @@ func (mod *FactoidModule) CmdGet(t marvin.Team, args *marvin.CommandArguments) m
 
 func (mod *FactoidModule) CmdSend(t marvin.Team, args *marvin.CommandArguments) marvin.CommandResult {
 	if len(args.Arguments) < 2 {
-		return marvin.CmdUsage(args, "`@marvin factoid send <channel> <name> [args...]` (args optional)")
+		return marvin.CmdUsage(args, helpSend)
 	}
 
 	channelName := args.Pop()
@@ -183,10 +191,14 @@ func (mod *FactoidModule) CmdSend(t marvin.Team, args *marvin.CommandArguments) 
 
 func (mod *FactoidModule) CmdSource(t marvin.Team, args *marvin.CommandArguments) marvin.CommandResult {
 	if len(args.Arguments) < 1 {
-		return marvin.CmdUsage(args, "`@marvin factoid source <name>`")
+		return marvin.CmdUsage(args, helpSource)
 	}
 
 	factoidName := args.Pop()
+
+	if len(factoidName) > FactoidNameMaxLen {
+		return marvin.CmdFailuref(args, "Factoid name too long")
+	}
 
 	factoidInfo, err := mod.GetFactoidBare(factoidName, args.Source.ChannelID())
 	if err == ErrNoSuchFactoid {
@@ -200,7 +212,7 @@ func (mod *FactoidModule) CmdSource(t marvin.Team, args *marvin.CommandArguments
 
 func (mod *FactoidModule) CmdInfo(t marvin.Team, args *marvin.CommandArguments) marvin.CommandResult {
 	if len(args.Arguments) < 1 {
-		return marvin.CmdUsage(args, "`@marvin factoid info [-f] <name>`")
+		return marvin.CmdUsage(args, helpInfo)
 	}
 
 	factoidName := args.Pop()
@@ -208,6 +220,10 @@ func (mod *FactoidModule) CmdInfo(t marvin.Team, args *marvin.CommandArguments) 
 	if factoidName == "-f" {
 		withForgotten = true
 		factoidName = args.Pop()
+	}
+
+	if len(factoidName) > FactoidNameMaxLen {
+		return marvin.CmdFailuref(args, "Factoid name too long")
 	}
 
 	factoidInfo, err := mod.GetFactoidInfo(factoidName, args.Source.ChannelID(), withForgotten)
@@ -234,4 +250,38 @@ func (mod *FactoidModule) CmdInfo(t marvin.Team, args *marvin.CommandArguments) 
 		factoidInfo.RawSource,
 	)
 	return marvin.CmdSuccess(args, msg).WithEdit().WithSimpleUndo()
+}
+
+func (mod *FactoidModule) CmdList(t marvin.Team, args *marvin.CommandArguments) marvin.CommandResult {
+	var match = ""
+
+	if len(args.Arguments) > 1 {
+		return marvin.CmdUsage(args, helpList)
+	} else if len(args.Arguments) == 1 {
+		match = args.Pop()
+	}
+
+	if len(match) > FactoidNameMaxLen {
+		return marvin.CmdFailuref(args, "Factoid name too long")
+	}
+
+	factoids, err := mod.ListFactoids(match, args.Source.ChannelID())
+	if err != nil {
+		return marvin.CmdError(args, err, "Error listing factoids")
+	}
+
+	var buf bytes.Buffer
+	if match != "" {
+		fmt.Fprint(&buf, "List of factoids:\n")
+	} else {
+		fmt.Fprintf(&buf, "List of factoids matching `*%s*`:\n", match)
+	}
+	for _, v := range factoids {
+		if v.IsChannel {
+			fmt.Fprintf(&buf, "`%s`\\* ", v.Name)
+		} else {
+			fmt.Fprintf(&buf, "`%s` ", v.Name)
+		}
+	}
+	return marvin.CmdSuccess(args, buf.String())
 }

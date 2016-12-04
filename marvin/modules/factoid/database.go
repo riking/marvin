@@ -59,6 +59,14 @@ const (
 	VALUES
 	($1,   $2,           $3,      $4,            $5,               $6, CURRENT_TIMESTAMP)`
 
+	sqlListMatches = `
+	SELECT DISTINCT name, channel_only IS NOT NULL
+	FROM module_factoid_factoids
+	WHERE name LIKE '%' || $1 || '%'
+	AND (channel_only IS NULL OR channel_only = $2)
+	AND (forgotten = FALSE)
+	ORDER BY channel_only DESC, last_set DESC`
+
 	// $1 = isLocked $2 = dbID
 	sqlLockFactoid = `
 	UPDATE module_factoid_factoids
@@ -104,6 +112,7 @@ func (mod *FactoidModule) doSyntaxCheck(t marvin.Team) {
 		sqlGetFactoid,
 		sqlFactoidInfo,
 		sqlMakeFactoid,
+		sqlListMatches,
 		sqlLockFactoid,
 		sqlForgetFactoid,
 	)
@@ -211,6 +220,45 @@ func (mod *FactoidModule) SaveFactoid(name string, channel slack.ChannelID, rawS
 		return errors.Wrap(err, "Database error")
 	}
 	return nil
+}
+
+type factoidNameAndIsChannel struct {
+	Name      string
+	IsChannel bool
+}
+
+func (mod *FactoidModule) ListFactoids(match string, channel slack.ChannelID) ([]factoidNameAndIsChannel, error) {
+	if len(match) > FactoidNameMaxLen {
+		return nil, errors.Errorf("Factoid name is too long (%d > %d)", len(match), FactoidNameMaxLen)
+	}
+	stmt, err := mod.team.DB().Prepare(sqlListMatches)
+	if err != nil {
+		return nil, errors.Wrap(err, "Database error")
+	}
+	defer stmt.Close()
+
+	scopeChannel := sql.NullString{Valid: channel != "", String: string(channel)}
+
+	cursor, err := stmt.Query(
+		match, scopeChannel,
+	)
+	if err != nil {
+		return nil, errors.Wrap(err, "Database error")
+	}
+	var result []factoidNameAndIsChannel
+	var item factoidNameAndIsChannel
+
+	for cursor.Next() {
+		err = cursor.Scan(&item.Name, &item.IsChannel)
+		if err != nil {
+			return nil, errors.Wrap(err, "Database error")
+		}
+		result = append(result, item)
+	}
+	if cursor.Err() != nil {
+		return nil, errors.Wrap(cursor.Err(), "Database error")
+	}
+	return result, nil
 }
 
 func (mod *FactoidModule) ForgetFactoid(dbID int64, isForgotten bool) error {

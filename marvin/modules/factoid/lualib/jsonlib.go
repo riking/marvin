@@ -126,7 +126,8 @@ func jsonFromLua(L *lua.LState, obj lua.LValue) interface{} {
 			r[lua.LVAsString(L.ToStringMeta(key))] = jsonFromLua(L, value)
 		})
 		return r
-	case lua.LTThread, lua.LTFunction, lua.LTChannel: fallthrough
+	case lua.LTThread, lua.LTFunction, lua.LTChannel:
+		fallthrough
 	default:
 		L.RaiseError("Can't encode value of type %s", L.Type().String())
 		return nil
