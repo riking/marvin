@@ -65,7 +65,7 @@ const (
 	WHERE name LIKE '%' || $1 || '%'
 	AND (channel_only IS NULL OR channel_only = $2)
 	AND (forgotten = FALSE)
-	ORDER BY channel_only DESC, last_set DESC`
+	GROUP BY name, channel_only`
 
 	// $1 = isLocked $2 = dbID
 	sqlLockFactoid = `
@@ -222,18 +222,13 @@ func (mod *FactoidModule) SaveFactoid(name string, channel slack.ChannelID, rawS
 	return nil
 }
 
-type factoidNameAndIsChannel struct {
-	Name      string
-	IsChannel bool
-}
-
-func (mod *FactoidModule) ListFactoids(match string, channel slack.ChannelID) ([]factoidNameAndIsChannel, error) {
+func (mod *FactoidModule) ListFactoids(match string, channel slack.ChannelID) (channelOnly, global []string, err error) {
 	if len(match) > FactoidNameMaxLen {
-		return nil, errors.Errorf("Factoid name is too long (%d > %d)", len(match), FactoidNameMaxLen)
+		return nil, nil, errors.Errorf("Factoid name is too long (%d > %d)", len(match), FactoidNameMaxLen)
 	}
 	stmt, err := mod.team.DB().Prepare(sqlListMatches)
 	if err != nil {
-		return nil, errors.Wrap(err, "Database error")
+		return nil, nil, errors.Wrap(err, "Database error")
 	}
 	defer stmt.Close()
 
@@ -243,22 +238,26 @@ func (mod *FactoidModule) ListFactoids(match string, channel slack.ChannelID) ([
 		match, scopeChannel,
 	)
 	if err != nil {
-		return nil, errors.Wrap(err, "Database error")
+		return nil, nil, errors.Wrap(err, "Database error")
 	}
-	var result []factoidNameAndIsChannel
-	var item factoidNameAndIsChannel
+	var name string
+	var isChannelScope bool
 
 	for cursor.Next() {
-		err = cursor.Scan(&item.Name, &item.IsChannel)
+		err = cursor.Scan(&name, &isChannelScope)
 		if err != nil {
-			return nil, errors.Wrap(err, "Database error")
+			return nil, nil, errors.Wrap(err, "Database error")
 		}
-		result = append(result, item)
+		if isChannelScope {
+			channelOnly = append(channelOnly, name)
+		} else {
+			global = append(global, name)
+		}
 	}
 	if cursor.Err() != nil {
-		return nil, errors.Wrap(cursor.Err(), "Database error")
+		return nil, nil, errors.Wrap(cursor.Err(), "Database error")
 	}
-	return result, nil
+	return channelOnly, global, nil
 }
 
 func (mod *FactoidModule) ForgetFactoid(dbID int64, isForgotten bool) error {

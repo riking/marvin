@@ -5,6 +5,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"sort"
 	"strings"
 	"sync"
 
@@ -265,23 +266,29 @@ func (mod *FactoidModule) CmdList(t marvin.Team, args *marvin.CommandArguments) 
 		return marvin.CmdFailuref(args, "Factoid name too long")
 	}
 
-	factoids, err := mod.ListFactoids(match, args.Source.ChannelID())
+	channelScoped, global, err := mod.ListFactoids(match, args.Source.ChannelID())
 	if err != nil {
 		return marvin.CmdError(args, err, "Error listing factoids")
 	}
 
+	sort.Strings(channelScoped)
+	sort.Strings(global)
+
 	var buf bytes.Buffer
-	if match != "" {
+	if match == "" {
 		fmt.Fprint(&buf, "List of factoids:\n")
 	} else {
 		fmt.Fprintf(&buf, "List of factoids matching `*%s*`:\n", match)
 	}
-	for _, v := range factoids {
-		if v.IsChannel {
-			fmt.Fprintf(&buf, "`%s`\\* ", v.Name)
-		} else {
-			fmt.Fprintf(&buf, "`%s` ", v.Name)
-		}
+
+	for _, v := range channelScoped {
+		fmt.Fprintf(&buf, "`%s`\\* ", v)
+	}
+	if len(channelScoped) != 0 {
+		fmt.Fprint(&buf, "\n")
+	}
+	for _, v := range global {
+		fmt.Fprintf(&buf, "`%s` ", v)
 	}
 	return marvin.CmdSuccess(args, buf.String())
 }
