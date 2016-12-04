@@ -307,23 +307,24 @@ func (mod *FactoidModule) CmdForget(t marvin.Team, args *marvin.CommandArguments
 
 	factoidName := args.Pop()
 	if len(factoidName) > FactoidNameMaxLen {
-		return marvin.CmdFailuref(args, "Factoid name too long")
+		return marvin.CmdFailuref(args, "Factoid name too long").WithEdit().WithSimpleUndo()
 	}
 
 	factoidInfo, err := mod.GetFactoidInfo(factoidName, args.Source.ChannelID(), false)
 	if err == ErrNoSuchFactoid {
-		return marvin.CmdFailuref(args, "No such factoid").WithEdit()
+		return marvin.CmdFailuref(args, "No such factoid").WithEdit().WithSimpleUndo()
 	} else if err != nil {
 		return marvin.CmdError(args, err, "Error retrieving factoid")
 	}
 
 	if factoidInfo.IsLocked {
-		return marvin.CmdFailuref(args, "A locked factoid cannot be forgotten.")
+		return marvin.CmdFailuref(args, "A locked factoid cannot be forgotten.").WithEdit().WithSimpleUndo()
 	}
 
 	err = mod.ForgetFactoid(factoidInfo.DbID, true)
 	if err != nil {
 		return marvin.CmdError(args, err, "Error forgetting factoid")
 	}
-	return marvin.CmdSuccess(args, fmt.Sprintf("Forgot `%s` with database ID %d", factoidName, factoidInfo.DbID))
+	return marvin.CmdSuccess(args, fmt.Sprintf("Forgot `%s` with database ID %d", factoidName, factoidInfo.DbID,
+			)).WithNoEdit().WithNoUndo()
 }
