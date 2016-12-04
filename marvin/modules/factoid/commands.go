@@ -251,8 +251,9 @@ func (mod *FactoidModule) CmdInfo(t marvin.Team, args *marvin.CommandArguments) 
 	msg := fmt.Sprintf("`%s` %s%s%swas last edited by %v in %s. DB ID: %d.\n[Archive link: %s]\n```%s\n```",
 		factoidName,
 		isLocal, isLocked, isForgotten,
-		factoidInfo.LastUser, factoidInfo.DbID,
+		factoidInfo.LastUser,
 		mod.team.FormatChannel(factoidInfo.LastChannel),
+		factoidInfo.DbID,
 		mod.team.ArchiveURL(slack.MsgID(factoidInfo.LastChannel, factoidInfo.LastMessage)),
 		factoidInfo.RawSource,
 	)
