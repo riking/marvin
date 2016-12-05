@@ -47,11 +47,7 @@ func (mod *AutoInviteModule) Load(t marvin.Team) {
 
 func (mod *AutoInviteModule) Enable(t marvin.Team) {
 	mod.onReactAPI().RegisterHandler(mod, Identifier)
-	t.RegisterCommandFunc("make-invite", marvin.SubCommandFunc(mod.PostInvite),
-		"`make-invite` posts a message to another channel that functions as a private channel invitation. "+
-			"Any team member can react to the message to be added to the private channel."+
-			"\n"+usage,
-	)
+	t.RegisterCommandFunc("make-invite", marvin.SubCommandFunc(mod.PostInvite), inviteHelp)
 }
 
 func (mod *AutoInviteModule) Disable(t marvin.Team) {
@@ -66,6 +62,9 @@ func (mod *AutoInviteModule) onReactAPI() on_reaction.API {
 }
 
 // ---
+
+const inviteHelp = "`@marvin make-invite [:emoji:] <#channel> [message]` posts a message to another channel that functions as a private channel invitation. "+
+	"Any team member can react to the message to be added to the private channel."
 
 type PendingInviteData struct {
 	InviteTargetChannel slack.ChannelID
@@ -111,9 +110,6 @@ const defaultInviteText = `%v has invited everybody to the #%s channel%s%s
 const andSaid = ", saying:\n>"
 const defaultEmoji = `white_check_mark`
 
-// TODO - support timeouts
-const usage = "Usage: `@marvin make-invite` [emoji = :white_check_mark:] <send_to = #channel> [message]"
-
 type postInviteResult struct {
 	MsgID      slack.MessageID
 	Emoji      string
@@ -122,6 +118,10 @@ type postInviteResult struct {
 
 func (mod *AutoInviteModule) PostInvite(t marvin.Team, args *marvin.CommandArguments) marvin.CommandResult {
 	util.LogDebug("PostInvite", args.Arguments)
+
+	if len(args.Arguments) < 1 {
+		return marvin.CmdUsage(args, inviteHelp)
+	}
 
 	inviteTarget := args.Source.ChannelID()
 	if inviteTarget == "" || inviteTarget[0] != 'G' {
@@ -136,7 +136,7 @@ func (mod *AutoInviteModule) PostInvite(t marvin.Team, args *marvin.CommandArgum
 	}
 
 	usage := func() marvin.CommandResult {
-		return marvin.CmdUsage(args, usage)
+		return marvin.CmdUsage(args, inviteHelp)
 	}
 
 	if len(args.Arguments) < 1 {
