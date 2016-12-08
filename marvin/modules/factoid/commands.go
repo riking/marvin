@@ -98,7 +98,7 @@ func (mod *FactoidModule) CmdRemember(t marvin.Team, args *marvin.CommandArgumen
 	}
 
 	fi := Factoid{
-		mod:       mod,
+		Mod:       mod,
 		RawSource: factoidSource,
 	}
 	err = util.PCall(func() error {

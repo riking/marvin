@@ -81,3 +81,7 @@ func (mod *FactoidModule) Disable(t marvin.Team) {
 }
 
 // ---
+
+func (mod *FactoidModule) Team() marvin.Team {
+	return mod.team
+}

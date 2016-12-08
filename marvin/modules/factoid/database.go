@@ -2,6 +2,7 @@ package factoid
 
 import (
 	"database/sql"
+	"strings"
 	"sync"
 	"time"
 
@@ -100,7 +101,7 @@ const (
 var ErrNoSuchFactoid = errors.Errorf("Factoid does not exist")
 
 type Factoid struct {
-	mod *FactoidModule
+	Mod *FactoidModule
 
 	IsBareInfo   bool
 	DbID         int64
@@ -138,7 +139,7 @@ func (mod *FactoidModule) doSyntaxCheck(t marvin.Team) {
 
 func (mod *FactoidModule) GetFactoidInfo(name string, channel slack.ChannelID, withForgotten bool) (*Factoid, error) {
 	var result = new(Factoid)
-	result.mod = mod
+	result.Mod = mod
 	result.FactoidName = name
 	result.IsBareInfo = false
 
@@ -174,7 +175,7 @@ func (mod *FactoidModule) GetFactoidInfo(name string, channel slack.ChannelID, w
 
 func (mod *FactoidModule) GetFactoidBare(name string, channel slack.ChannelID) (*Factoid, error) {
 	var result = new(Factoid)
-	result.mod = mod
+	result.Mod = mod
 	result.FactoidName = name
 	result.IsBareInfo = true
 
@@ -199,7 +200,7 @@ func (fi *Factoid) FillInfo(channel slack.ChannelID) error {
 	if !fi.IsBareInfo {
 		return nil
 	}
-	newInfo, err := fi.mod.GetFactoidInfo(fi.FactoidName, channel /* withForgotten */, false)
+	newInfo, err := fi.Mod.GetFactoidInfo(fi.FactoidName, channel /* withForgotten */, false)
 	if err != nil {
 		return err
 	}
@@ -221,6 +222,9 @@ func (fi *Factoid) FillInfo(channel slack.ChannelID) error {
 func (mod *FactoidModule) SaveFactoid(name string, channel slack.ChannelID, rawSource string, source marvin.ActionSource) error {
 	if len(name) > FactoidNameMaxLen {
 		return errors.Errorf("Factoid name is too long (%d > %d)", len(name), FactoidNameMaxLen)
+	}
+	if strings.ContainsAny(name, ` \n/"`) {
+		return errors.Errorf("Factoid name contains prohibited characters (space, newline, forward slash, double quote)")
 	}
 	stmt, err := mod.team.DB().Prepare(sqlMakeFactoid)
 	if err != nil {

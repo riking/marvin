@@ -163,7 +163,7 @@ func (fi *Factoid) Tokens() ([]DirectiveToken, []Token) {
 	directives, source := Directives(fi.RawSource)
 
 	fi.tokenize.Do(func() {
-		tokens := fi.mod.collectTokenize(source)
+		tokens := fi.Mod.collectTokenize(source)
 		fi.tokens = tokens
 	})
 	return directives, fi.tokens

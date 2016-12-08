@@ -18,7 +18,7 @@ type MockFactoidModule struct {
 
 func GetMockFactoidModule() *FactoidModule {
 	fm := &FactoidModule{
-		team: nil,
+		Team: nil,
 		functions: map[string]FactoidFunction{
 			"add1": {
 				F: func(args ...string) string {
@@ -34,7 +34,7 @@ func GetMockFactoidModule() *FactoidModule {
 func testFactoidArgs(t *testing.T, rawSource string, args []string, as marvin.ActionSource, expect string) {
 	mod := GetMockFactoidModule()
 	fi := &Factoid{
-		mod:        mod,
+		Mod:        mod,
 		IsBareInfo: true,
 		RawSource:  rawSource,
 	}
@@ -54,7 +54,7 @@ type stackTracer interface {
 func testFactoidArgsErr(t *testing.T, rawSource string, args []string, as marvin.ActionSource, errMatch string) {
 	mod := GetMockFactoidModule()
 	fi := &Factoid{
-		mod:        mod,
+		Mod:        mod,
 		IsBareInfo: true,
 		RawSource:  rawSource,
 	}
@@ -115,7 +115,7 @@ func BenchmarkPlainFactoidParse(b *testing.B) {
 	s := mock.ActionSource{}
 	mod := GetMockFactoidModule()
 	fi := &Factoid{
-		mod:        mod,
+		Mod:        mod,
 		IsBareInfo: true,
 		RawSource:  "Hello, World!",
 	}
@@ -138,7 +138,7 @@ func BenchmarkLuaFactoid(b *testing.B) {
 	s := mock.ActionSource{}
 	mod := GetMockFactoidModule()
 	fi := &Factoid{
-		mod:        mod,
+		Mod:        mod,
 		IsBareInfo: true,
 		RawSource:  "{lua}return \"Hello, World!\"",
 	}

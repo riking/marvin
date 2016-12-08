@@ -3,6 +3,9 @@ package factoid
 import (
 	"html/template"
 	"net/http"
+	"regexp"
+
+	"github.com/pkg/errors"
 
 	"github.com/riking/homeapi/marvin/modules/weblogin"
 	"github.com/riking/homeapi/marvin/slack"
@@ -46,10 +49,9 @@ func (mod *FactoidModule) HTTPListFactoids(w http.ResponseWriter, r *http.Reques
 		tmplListFactoids.ExecuteTemplate(w, "layout", lc))
 }
 
-var tmplShowFactoid = template.Must(weblogin.LayoutTemplateCopy().Parse(`
-{{define "content"}}
-Coming soon
-{{end}}`))
+var tmplShowFactoid = template.Must(weblogin.LayoutTemplateCopy().Parse(string(weblogin.MustAsset("templates/factoid-info.html"))))
+
+var rgxShowFactoid = regexp.MustCompile(`/factoids/(C[A-Z0-9]+|_)/([^/]*)`)
 
 func (mod *FactoidModule) HTTPShowFactoid(w http.ResponseWriter, r *http.Request) {
 	lc, err := weblogin.NewLayoutContent(mod.team, w, r, weblogin.NavSectionFactoids)
@@ -57,6 +59,30 @@ func (mod *FactoidModule) HTTPShowFactoid(w http.ResponseWriter, r *http.Request
 		mod.team.GetModule(weblogin.Identifier).(weblogin.API).HTTPError(w, r, err)
 		return
 	}
+
+	m := rgxShowFactoid.FindStringSubmatch(r.URL.Path)
+	if m == nil {
+		err = errors.Errorf("Bad URL format")
+		mod.team.GetModule(weblogin.Identifier).(weblogin.API).HTTPError(w, r, err)
+		return
+	}
+
+	scopeChannel := m[1]
+	if scopeChannel == "_" {
+		scopeChannel = ""
+	}
+	name := m[2]
+
+	factoid, err := mod.GetFactoidInfo(name, slack.ChannelID(scopeChannel), false)
+	if err == ErrNoSuchFactoid {
+		mod.team.GetModule(weblogin.Identifier).(weblogin.API).HTTPError(w, r, nil)
+		return
+	} else if err != nil {
+		mod.team.GetModule(weblogin.Identifier).(weblogin.API).HTTPError(w, r, err)
+		return
+	}
+
+	lc.BodyData = factoid
 
 	util.LogIfError(
 		tmplShowFactoid.ExecuteTemplate(w, "layout", lc))

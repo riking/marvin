@@ -1,0 +1,17 @@
+{{define "styles"}}
+<style>
+
+</style>
+{{end}}
+{{define "content"}}
+<div class="container">
+<div class="page-header">
+    <h1>Factoid: {{.FactoidName}}</h1>
+</div>
+
+    <p>Locked: {{if .IsLocked}}yes{{else}}no{{end}}</p>
+    <p>Last edit: {{.LastUser}} in {{.LastChannel}} at {{.LastTimestamp}}</p>
+
+    <pre class="source"><code>{{.RawSource}}</code></pre>
+</div>
+{{end}}

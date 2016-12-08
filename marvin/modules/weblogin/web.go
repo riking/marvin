@@ -27,6 +27,7 @@ var NavbarContent = []struct {
 }
 
 type LayoutContent struct {
+	Team        marvin.Team
 	Title       string
 	CurrentUser *slack.User
 
@@ -49,6 +50,7 @@ func NewLayoutContent(team marvin.Team, w http.ResponseWriter, r *http.Request, 
 		err = errors.Wrap(err, "getting user info for layout")
 	}
 	return &LayoutContent{
+		Team:          team,
 		NavbarCurrent: navSection,
 		CurrentUser:   user,
 	}, err
@@ -61,7 +63,16 @@ func (w *LayoutContent) NavbarItems() interface{} {
 	return NavbarContent
 }
 
-var tmplLayout = template.Must(template.New("layout").Parse(string(MustAsset("layout.html.tmpl"))))
+var tmplLayout = template.Must(template.New("layout").Parse(string(MustAsset("layout.html.tmpl")))).Funcs(tmplFuncs)
+
+var tmplFuncs = template.FuncMap{
+	"user": func(team marvin.Team, userID slack.UserID) (*slack.User, error) {
+		return team.UserInfo(slack.UserID(userID))
+	},
+	"channel_name": func(team marvin.Team, channelID slack.ChannelID) string {
+		return team.ChannelName(slack.ChannelID(channelID))
+	},
+}
 
 func LayoutTemplateCopy() *template.Template {
 	return template.Must(tmplLayout.Clone())
