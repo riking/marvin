@@ -131,16 +131,17 @@ type ActionSource interface {
 
 // TeamConfig is loaded from the config.ini file.
 type TeamConfig struct {
-	TeamDomain   string
-	ClientID     string
-	ClientSecret string
-	VerifyToken  string
-	DatabaseURL  string
-	UserToken    string
-	LogChannel   slack.ChannelID
-	HTTPListen   string
-	HTTPURL      string
-	Controller   slack.UserID
+	TeamDomain      string
+	ClientID        string
+	ClientSecret    string
+	CookieSecretKey string
+	VerifyToken     string
+	DatabaseURL     string
+	UserToken       string
+	LogChannel      slack.ChannelID
+	HTTPListen      string
+	HTTPURL         string
+	Controller      slack.UserID
 }
 
 func LoadTeamConfig(sec *ini.Section) *TeamConfig {
@@ -148,6 +149,7 @@ func LoadTeamConfig(sec *ini.Section) *TeamConfig {
 	c.TeamDomain = sec.Key("TeamDomain").String()
 	c.ClientID = sec.Key("ClientID").String()
 	c.ClientSecret = sec.Key("ClientSecret").String()
+	c.CookieSecretKey = sec.Key("CookieSecretKey").String()
 	c.VerifyToken = sec.Key("VerifyToken").String()
 	c.DatabaseURL = sec.Key("DatabaseURL").String()
 	c.UserToken = sec.Key("UserToken").String()
@@ -205,6 +207,8 @@ type Team interface {
 
 	// BotUser returns the user ID that Marvin is signed in as.
 	BotUser() slack.UserID
+	// TeamID returns the Slack Team ID of the connected Slack team.
+	TeamID() slack.TeamID
 
 	// EnableModules loads every module and attempts to transition them to
 	// the state listed in the configuration.
@@ -232,8 +236,9 @@ type Team interface {
 
 	SendMessage
 	ReactMessage(msgID slack.MessageID, emojiName string) error
+
 	// SlackAPIPost makes a Slack API call by adding the token to the form.
-	// TODO could do more for the caller, like unmarshalling
+	// If the token parameter is already defined, the existing value is used.
 	SlackAPIPostRaw(method string, form url.Values) (*http.Response, error)
 	SlackAPIPostJSON(method string, form url.Values, result interface{}) error
 

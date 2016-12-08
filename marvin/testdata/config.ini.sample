@@ -8,6 +8,7 @@ DatabaseURL = dbname=marvin_test user=marvin_test password=marvin_test sslmode=d
 UserToken=xoxp-xxxxx-xxxxx-xxxxx-xxxxxxxxxxxxxx
 HTTPURL=__auto
 HTTPListen=:8080
+CookieSecretKey=907ba145111111111111111111111111
 
 [Prod]
 TeamDomain=kanetestingslack
@@ -18,3 +19,4 @@ DatabaseURL = dbname=marvin_prod user=marvin_prod password=marvin_prod sslmode=d
 UserToken=xoxp-xxxxx-xxxxx-xxxxx-xxxxxxxxxxxxxx
 HTTPURL=https://marvin.example.com/
 HTTPListen=localhost:2007
+CookieSecretKey=907ba145111111111111111111111111

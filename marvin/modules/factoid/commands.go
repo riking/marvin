@@ -325,6 +325,5 @@ func (mod *FactoidModule) CmdForget(t marvin.Team, args *marvin.CommandArguments
 	if err != nil {
 		return marvin.CmdError(args, err, "Error forgetting factoid")
 	}
-	return marvin.CmdSuccess(args, fmt.Sprintf("Forgot `%s` with database ID %d", factoidName, factoidInfo.DbID,
-			)).WithNoEdit().WithNoUndo()
+	return marvin.CmdSuccess(args, fmt.Sprintf("Forgot `%s` with database ID %d", factoidName, factoidInfo.DbID)).WithNoEdit().WithNoUndo()
 }

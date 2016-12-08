@@ -12,4 +12,5 @@ import (
 	_ "github.com/riking/homeapi/marvin/modules/logger"
 	_ "github.com/riking/homeapi/marvin/modules/on_reaction"
 	_ "github.com/riking/homeapi/marvin/modules/paste"
+	_ "github.com/riking/homeapi/marvin/modules/weblogin"
 )

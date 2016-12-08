@@ -63,7 +63,7 @@ func (mod *AutoInviteModule) onReactAPI() on_reaction.API {
 
 // ---
 
-const inviteHelp = "`@marvin make-invite [:emoji:] <#channel> [message]` posts a message to another channel that functions as a private channel invitation. "+
+const inviteHelp = "`@marvin make-invite [:emoji:] <#channel> [message]` posts a message to another channel that functions as a private channel invitation. " +
 	"Any team member can react to the message to be added to the private channel."
 
 type PendingInviteData struct {
