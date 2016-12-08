@@ -45,10 +45,24 @@ func (mod *AwakeModule) Disable(t marvin.Team) {
 }
 
 func (mod *AwakeModule) onTick() {
+	var retryChan <-chan time.Time
+
+	run := func() {
+		err := mod.team.SlackAPIPostJSON("users.setActive", url.Values{}, nil)
+		if err != nil {
+			util.LogError(err)
+			retryChan = time.After(5 * time.Minute)
+		} else {
+			retryChan = nil
+		}
+	}
+
 	for {
 		select {
 		case <-mod.ticker.C:
-			util.LogIfError(mod.team.SlackAPIPostJSON("users.setActive", url.Values{}, nil))
+			run()
+		case <-retryChan:
+			run()
 		case <-mod.quit:
 			return
 		}

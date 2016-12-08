@@ -250,6 +250,7 @@ type Team interface {
 	OnNormalMessage(mod ModuleID, f func(slack.RTMRawMessage))
 	OnSpecialMessage(mod ModuleID, msgSubtype []string, f func(slack.RTMRawMessage))
 	OffAllEvents(mod ModuleID)
+	GetRTMClient() interface{}
 
 	CommandRegistration
 	DispatchCommand(args *CommandArguments) CommandResult

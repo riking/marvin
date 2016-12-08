@@ -1,9 +1,15 @@
 package logger
 
 import (
+	"database/sql"
+	"encoding/json"
+	"fmt"
+	"net/url"
+
 	"github.com/pkg/errors"
 	"github.com/riking/homeapi/marvin"
 	"github.com/riking/homeapi/marvin/slack"
+	"github.com/riking/homeapi/marvin/slack/rtm"
 	"github.com/riking/homeapi/marvin/util"
 )
 
@@ -32,11 +38,13 @@ func (mod *LoggerModule) Load(t marvin.Team) {
 		sqlInsertMessage,
 		sqlEditMessage,
 		sqlQueryChannel,
+		sqlGetLastMessage,
 	)
 }
 
 func (mod *LoggerModule) Enable(t marvin.Team) {
 	t.OnEvent(Identifier, "message", mod.OnMessage)
+	go mod.BackfillAll()
 }
 
 func (mod *LoggerModule) Disable(t marvin.Team) {
@@ -81,6 +89,13 @@ const (
 	AND COALESCE(timestamp < $2, TRUE)
 	ORDER BY timestamp DESC
 	LIMIT $3`
+
+	// $1 = channel
+	sqlGetLastMessage = `
+	SELECT MAX(timestamp)
+	FROM module_logger_logs
+	WHERE channel = $1
+	LIMIT 1`
 )
 
 // ---
@@ -105,4 +120,191 @@ func (mod *LoggerModule) OnMessage(_rtm slack.RTMRawMessage) {
 		util.LogError(errors.Wrap(err, "insert"))
 		return
 	}
+}
+
+func (mod *LoggerModule) getHistory(method string, channel slack.ChannelID, stmt *sql.Stmt) ([]json.RawMessage, error) {
+	form := url.Values{
+		"count": []string{"100"},
+	}
+	form.Set("channel", string(channel))
+
+	row := stmt.QueryRow(string(channel))
+	var lastSeenTS sql.NullString
+	err := row.Scan(&lastSeenTS)
+	if err == sql.ErrNoRows || !lastSeenTS.Valid {
+		lastSeenTS.String = "0"
+		lastSeenTS.Valid = true
+	} else if err != nil {
+		return nil, errors.Wrapf(err, "Backfill database err")
+	}
+	form.Set("oldest", lastSeenTS.String)
+
+	resp, err := mod.team.SlackAPIPostRaw(method, form)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Slack API %s error", method)
+	}
+
+	var response struct {
+		slack.APIResponse
+		Messages []json.RawMessage `json:"messages"`
+	}
+	err = json.NewDecoder(resp.Body).Decode(&response)
+	resp.Body.Close()
+	if err != nil {
+		return nil, errors.Wrapf(err, "Slack API %s json decode error", method)
+	}
+	if !response.OK {
+		return nil, errors.Wrapf(response, "Slack API %s error", method)
+	}
+	if len(response.Messages) > 0 {
+		b, _ := json.Marshal(response.Messages)
+		fmt.Println("[Backfill]", channel, string(b))
+	} else {
+		fmt.Println("[Backfill]", channel, "no missed messages")
+	}
+	return response.Messages, nil
+}
+
+func (mod *LoggerModule) BackfillAll() {
+	stmt, err := mod.team.DB().Prepare(sqlGetLastMessage)
+	if err != nil {
+		util.LogError(errors.Wrap(err, "backfill database error"))
+		return
+	}
+	defer stmt.Close()
+
+	publicList := mod.listChannels()
+	for _, v := range publicList {
+		messages, err := mod.getHistory("channels.history", v, stmt)
+		if err != nil {
+			util.LogError(errors.Wrapf(err, "could not backfill logs for %s", v))
+			return
+		}
+		c := mod.saveBackfillData(v, messages)
+		if c != 0 {
+			util.LogGood(fmt.Sprintf("Backfilled %d messages from %s", c, v))
+		}
+	}
+	groupList := mod.listGroups()
+	for _, v := range groupList {
+		messages, err := mod.getHistory("groups.history", v, stmt)
+		if err != nil {
+			util.LogError(errors.Wrapf(err, "could not backfill logs for %s", v))
+			return
+		}
+		c := mod.saveBackfillData(v, messages)
+		if c != 0 {
+			util.LogGood(fmt.Sprintf("Backfilled %d messages from %s", c, v))
+		}
+	}
+	mpimList := mod.listMPIMs()
+	for _, v := range mpimList {
+		messages, err := mod.getHistory("mpim.history", v, stmt)
+		if err != nil {
+			util.LogError(errors.Wrapf(err, "could not backfill logs for %s", v))
+			return
+		}
+		c := mod.saveBackfillData(v, messages)
+		if c != 0 {
+			util.LogGood(fmt.Sprintf("Backfilled %d messages from %s", c, v))
+		}
+	}
+	imList := mod.listIMs()
+	for _, v := range imList {
+		messages, err := mod.getHistory("im.history", v, stmt)
+		if err != nil {
+			util.LogError(errors.Wrapf(err, "could not backfill logs for %s", v))
+			return
+		}
+		c := mod.saveBackfillData(v, messages)
+		if c != 0 {
+			util.LogGood(fmt.Sprintf("Backfilled %d messages from %s", c, v))
+		}
+	}
+}
+
+func (mod *LoggerModule) listChannels() []slack.ChannelID {
+	c := mod.team.GetRTMClient().(*rtm.Client)
+	c.MetadataLock.RLock()
+	defer c.MetadataLock.RUnlock()
+
+	ids := make([]slack.ChannelID, len(c.Channels))
+	for i := range c.Channels {
+		ids[i] = c.Channels[i].ID
+	}
+	return ids
+}
+
+func (mod *LoggerModule) listGroups() []slack.ChannelID {
+	c := mod.team.GetRTMClient().(*rtm.Client)
+	c.MetadataLock.RLock()
+	defer c.MetadataLock.RUnlock()
+
+	ids := make([]slack.ChannelID, len(c.Groups))
+	for i := range c.Groups {
+		ids[i] = c.Groups[i].ID
+	}
+	return ids
+}
+
+func (mod *LoggerModule) listMPIMs() []slack.ChannelID {
+	c := mod.team.GetRTMClient().(*rtm.Client)
+	c.MetadataLock.RLock()
+	defer c.MetadataLock.RUnlock()
+
+	ids := make([]slack.ChannelID, len(c.Mpims))
+	for i := range c.Mpims {
+		ids[i] = c.Mpims[i].ID
+	}
+	return ids
+}
+
+func (mod *LoggerModule) listIMs() []slack.ChannelID {
+	c := mod.team.GetRTMClient().(*rtm.Client)
+	c.MetadataLock.RLock()
+	defer c.MetadataLock.RUnlock()
+
+	ids := make([]slack.ChannelID, len(c.Ims))
+	for i := range c.Ims {
+		ids[i] = c.Ims[i].ID
+	}
+	return ids
+}
+
+func (mod *LoggerModule) saveBackfillData(channel slack.ChannelID, messages []json.RawMessage) (totalAdded int64) {
+	var msgInterestingFields struct {
+		User slack.UserID    `json:"user"`
+		TS   slack.MessageTS `json:"ts"`
+		Text string          `json:"text"`
+	}
+	stmt, err := mod.team.DB().Prepare(sqlInsertMessage)
+	if err != nil {
+		util.LogError(errors.Wrap(err, "prepare"))
+		return 0
+	}
+	defer stmt.Close()
+
+	for _, msgRaw := range messages {
+		err = json.Unmarshal([]byte(msgRaw), &msgInterestingFields)
+		if err != nil {
+			util.LogError(errors.Wrap(err, "unmarshal"))
+			return
+		}
+		r, err := stmt.Exec(string(channel),
+			string(msgInterestingFields.TS),
+			string(msgInterestingFields.User),
+			string(msgInterestingFields.Text),
+			[]byte(msgRaw))
+		if err != nil {
+			util.LogError(err)
+			return
+		}
+		c, err := r.RowsAffected()
+		if err != nil {
+			util.LogError(err)
+			return
+		}
+		totalAdded += c
+	}
+	return totalAdded
 }

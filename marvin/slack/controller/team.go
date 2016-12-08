@@ -121,6 +121,10 @@ func (t *Team) TeamID() slack.TeamID {
 	return t.client.AboutTeam.ID
 }
 
+func (t *Team) GetRTMClient() interface{} {
+	return t.client
+}
+
 // ---
 
 func (t *Team) RegisterCommand(name string, c marvin.SubCommand) {

@@ -160,7 +160,9 @@ func (c *Client) Start() {
 	c.RegisterRawHandler("__internal", c.onIMCreate, "im_created", nil)
 	c.RegisterRawHandler("__internal", c.onTopicChange, "message", []string{"channel_topic", "group_topic"})
 	c.RegisterRawHandler("__internal", c.onPurposeChange, "message", []string{"channel_purpose", "group_purpose"})
+
 	c.RegisterRawHandler("__internal", c.onUserChange, "user_change", nil)
+	c.RegisterRawHandler("__internal", c.onUserChange, "team_join", nil)
 
 	c.started = true
 	go c.pump()
