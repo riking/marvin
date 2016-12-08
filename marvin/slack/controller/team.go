@@ -11,6 +11,7 @@ import (
 	"sync"
 
 	"github.com/pkg/errors"
+	"github.com/gorilla/mux"
 
 	"github.com/riking/homeapi/marvin"
 	"github.com/riking/homeapi/marvin/database"
@@ -31,7 +32,7 @@ type Team struct {
 	confLock sync.Mutex
 	confMap  map[marvin.ModuleID]*DBModuleConfig
 
-	httpMux   *http.ServeMux
+	httpMux   *mux.Router
 	httpStrip string
 }
 
@@ -53,7 +54,7 @@ func NewTeam(cfg *marvin.TeamConfig) (*Team, error) {
 		commands:   marvin.NewParentCommand(),
 		modules:    nil,
 		confMap:    make(map[marvin.ModuleID]*DBModuleConfig),
-		httpMux:    http.NewServeMux(),
+		httpMux:    mux.NewRouter(),
 	}
 
 	u, err := url.Parse(cfg.HTTPURL)
@@ -113,6 +114,10 @@ func (t *Team) ModuleConfig(ident marvin.ModuleID) marvin.ModuleConfig {
 
 func (t *Team) BotUser() slack.UserID {
 	return t.client.Self.ID
+}
+
+func (t *Team) TeamID() slack.TeamID {
+	return t.client.AboutTeam.ID
 }
 
 // ---
@@ -189,7 +194,11 @@ func (t *Team) SlackAPIPostRaw(method string, form url.Values) (*http.Response, 
 	} else {
 		url = fmt.Sprintf("https://slack.com/api/%s", method)
 	}
-	form.Set("token", t.teamConfig.UserToken)
+
+	// Allow custom tokens
+	if form.Get("token") == "" {
+		form.Set("token", t.teamConfig.UserToken)
+	}
 
 	req, err := http.NewRequest("POST", url, strings.NewReader(form.Encode()))
 	if err != nil {

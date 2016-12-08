@@ -3,6 +3,7 @@ package controller
 import (
 	"fmt"
 	"net/url"
+	"time"
 
 	"github.com/riking/homeapi/marvin"
 	"github.com/riking/homeapi/marvin/slack"
@@ -110,7 +111,10 @@ func (t *Team) cachedUserInfo(user slack.UserID) *slack.User {
 
 	for i, v := range t.client.Users {
 		if v.ID == user {
-			return &t.client.Users[i]
+			if v.CacheTS.Before(time.Now().Add(-24 * time.Hour)) {
+				return nil
+			}
+			return t.client.Users[i]
 		}
 	}
 	return nil
@@ -124,13 +128,14 @@ func (t *Team) UserInfo(user slack.UserID) (*slack.User, error) {
 
 	form := url.Values{"user": []string{string(user)}}
 	var response struct {
-		User slack.User `json:"user"`
+		User *slack.User `json:"user"`
 	}
 	err := t.SlackAPIPostJSON("users.info", form, &response)
 	if err != nil {
 		return nil, err
 	}
-	return &response.User, nil
+	t.client.ReplaceUserObject(time.Now(), response.User)
+	return response.User, nil
 }
 
 func (t *Team) cachedPublicChannelInfo(channel slack.ChannelID) *slack.Channel {
@@ -139,7 +144,10 @@ func (t *Team) cachedPublicChannelInfo(channel slack.ChannelID) *slack.Channel {
 
 	for i, v := range t.client.Channels {
 		if v.ID == channel {
-			return &t.client.Channels[i]
+			if v.CacheTS.Before(time.Now().Add(-24 * time.Hour)) {
+				return nil
+			}
+			return t.client.Channels[i]
 		}
 	}
 	return nil
@@ -152,7 +160,7 @@ func (t *Team) PublicChannelInfo(channel slack.ChannelID) (*slack.Channel, error
 	}
 
 	var response struct {
-		Channel slack.Channel `json:"channel"`
+		Channel *slack.Channel `json:"channel"`
 	}
 	form := url.Values{"channel": []string{string(channel)}}
 	err := t.SlackAPIPostJSON("channels.info", form, &response)
@@ -160,22 +168,8 @@ func (t *Team) PublicChannelInfo(channel slack.ChannelID) (*slack.Channel, error
 		return nil, err
 	}
 
-	t.client.MetadataLock.Lock()
-	idx := -1
-	for i, v := range t.client.Channels {
-		if v.ID == channel {
-			idx = i
-			break
-		}
-	}
-	if idx != -1 {
-		t.client.Channels[idx] = response.Channel
-	} else {
-		t.client.Channels = append(t.client.Channels, response.Channel)
-	}
-	t.client.MetadataLock.Unlock()
-
-	return &response.Channel, nil
+	go t.client.ReplaceChannelObject(time.Now(), response.Channel)
+	return response.Channel, nil
 }
 
 func (t *Team) cachedPrivateChannelInfo(channel slack.ChannelID) *slack.Channel {
@@ -184,7 +178,10 @@ func (t *Team) cachedPrivateChannelInfo(channel slack.ChannelID) *slack.Channel 
 
 	for i, v := range t.client.Groups {
 		if v.ID == channel {
-			return &t.client.Groups[i]
+			if v.CacheTS.Before(time.Now().Add(-24 * time.Hour)) {
+				return nil
+			}
+			return t.client.Groups[i]
 		}
 	}
 	return nil
@@ -197,7 +194,7 @@ func (t *Team) PrivateChannelInfo(channel slack.ChannelID) (*slack.Channel, erro
 	}
 
 	var response struct {
-		Group slack.Channel `json:"group"`
+		Group *slack.Channel `json:"group"`
 	}
 	form := url.Values{"channel": []string{string(channel)}}
 	err := t.SlackAPIPostJSON("groups.info", form, &response)
@@ -205,7 +202,8 @@ func (t *Team) PrivateChannelInfo(channel slack.ChannelID) (*slack.Channel, erro
 		return nil, err
 	}
 
-	return &response.Group, nil
+	go t.client.ReplaceGroupObject(time.Now(), response.Group)
+	return response.Group, nil
 }
 
 func (t *Team) GetIMOtherUser(im slack.ChannelID) (slack.UserID, error) {

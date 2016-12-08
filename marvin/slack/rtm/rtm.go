@@ -43,12 +43,12 @@ type Client struct {
 		Created        int
 		ManualPresence string `json:"manual_presence"`
 	}
-	Users     []slack.User
-	AboutTeam slack.TeamInfo    `json:"team"`
-	Channels  []slack.Channel   // C
-	Groups    []slack.Channel   // G
-	Mpims     []slack.Channel   // G
-	Ims       []slack.ChannelDM // D
+	Users     []*slack.User
+	AboutTeam slack.TeamInfo     `json:"team"`
+	Channels  []*slack.Channel   // C
+	Groups    []*slack.Channel   // G
+	Mpims     []*slack.Channel   // G
+	Ims       []*slack.ChannelDM // D
 	Bots      []struct {
 		ID      string `json:"id"`
 		Deleted bool   `json:"deleted"`
@@ -138,6 +138,18 @@ func Dial(team marvin.Team) (*Client, error) {
 		return nil, errors.Errorf("Wrong type for first message, expected 'hello' got %s: %v", msg.Type(), msg)
 	}
 	c.sendChan = make(chan []byte)
+
+	now := time.Now()
+	for _, v := range c.Users {
+		v.CacheTS = now
+	}
+	for _, v := range c.Channels {
+		v.CacheTS = now
+	}
+	for _, v := range c.Groups {
+		v.CacheTS = now
+	}
+
 	go fmt.Println(c)
 	return c, nil
 }
@@ -146,6 +158,7 @@ func (c *Client) Start() {
 	c.RegisterRawHandler("__internal", c.onChannelCreate, "channel_created", nil)
 	c.RegisterRawHandler("__internal", c.onTopicChange, "message", []string{"channel_topic", "group_topic"})
 	c.RegisterRawHandler("__internal", c.onPurposeChange, "message", []string{"channel_purpose", "group_purpose"})
+	c.RegisterRawHandler("__internal", c.onUserChange, "user_change", nil)
 
 	c.started = true
 	go c.pump()

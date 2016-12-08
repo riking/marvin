@@ -1,6 +1,9 @@
 package slack
 
-import "fmt"
+import (
+	"fmt"
+	"time"
+)
 
 type TeamID string
 type UserID string
@@ -75,7 +78,7 @@ type TeamInfo struct {
 }
 
 type User struct {
-	CacheTS  float64     `json:"cache_ts"`
+	CacheTS  time.Time   `json:"-"`
 	ID       UserID      `json:"id"`
 	TeamID   TeamID      `json:"team_id"`
 	Name     string      `json:"name"`
@@ -94,12 +97,15 @@ type User struct {
 		Email              string `json:"email"`
 		Phone              string `json:"phone"`
 		Title              string `json:"title"`
+		Skype              string `json:"skype"`
 		Image24            string `json:"image_24"`
 		Image32            string `json:"image_32"`
 		Image48            string `json:"image_48"`
 		Image72            string `json:"image_72"`
 		Image192           string `json:"image_192"`
 		Image512           string `json:"image_512"`
+		Image1024          string `json:"image_1024"`
+		ImageOriginal      string `json:"image_original"`
 	} `json:"profile"`
 	IsAdmin           bool   `json:"is_admin"`
 	IsOwner           bool   `json:"is_owner"`
@@ -111,6 +117,41 @@ type User struct {
 	Has2Fa            bool   `json:"has_2fa,omitempty"`
 }
 
+func (u *User) Avatar(size int) string {
+	fields := []struct {
+		Size  int
+		Value string
+	}{
+		{24, u.Profile.Image24},
+		{32, u.Profile.Image32},
+		{48, u.Profile.Image48},
+		{72, u.Profile.Image72},
+		{192, u.Profile.Image192},
+		{512, u.Profile.Image512},
+		{1024, u.Profile.Image1024},
+		{10000, u.Profile.ImageOriginal},
+	}
+	bestDiff := 10000 * 3
+	bestURL := ""
+	for _, v := range fields {
+		if v.Value == "" {
+			continue
+		}
+		diff := v.Size - size
+		if diff < 0 {
+			diff = -diff
+		}
+		if diff == 0 {
+			return v.Value
+		}
+		if diff < bestDiff {
+			bestDiff = diff
+			bestURL = v.Value
+		}
+	}
+	return bestURL
+}
+
 type ChannelTopicPurpose struct {
 	Value   string
 	Creator UserID
@@ -118,6 +159,7 @@ type ChannelTopicPurpose struct {
 }
 
 type Channel struct {
+	CacheTS    time.Time `json:"-"`
 	ID         ChannelID
 	Name       string
 	IsChannel  bool        `json:"is_channel"`
@@ -136,10 +178,8 @@ type Channel struct {
 	IsUserDeleted bool `json:"is_user_deleted"`
 	IsOpen        bool `json:"is_open"`
 
-	LastRead string `json:"last_read"`
-	Latest   LatestMsg
-	Topic    ChannelTopicPurpose
-	Purpose  ChannelTopicPurpose
+	Topic   ChannelTopicPurpose
+	Purpose ChannelTopicPurpose
 }
 
 type ChannelDM struct {
