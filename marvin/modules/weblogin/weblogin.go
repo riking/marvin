@@ -27,6 +27,8 @@ type API interface {
 	// An error is returned only in case of corrupt cookie data.
 	GetUserToken(w http.ResponseWriter, r *http.Request) (string, error)
 	StartURL() string
+
+	HTTPError(w http.ResponseWriter, r *http.Request, err error)
 }
 
 var _ API = &WebLoginModule{}
@@ -99,6 +101,9 @@ func (mod *WebLoginModule) Load(t marvin.Team) {
 func (mod *WebLoginModule) Enable(team marvin.Team) {
 	team.HandleHTTP("/oauth/slack/start", http.HandlerFunc(mod.OAuthSlackStart))
 	team.HandleHTTP("/oauth/slack/callback", http.HandlerFunc(mod.OAuthSlackCallback))
+	team.HandleHTTP("/", http.HandlerFunc(mod.ServeRoot))
+	team.Router().PathPrefix("/assets/").HandlerFunc(mod.ServeAsset)
+	team.Router().NotFoundHandler = http.HandlerFunc(mod.Serve404)
 }
 
 func (mod *WebLoginModule) Disable(team marvin.Team) {

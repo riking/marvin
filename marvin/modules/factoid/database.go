@@ -59,6 +59,7 @@ const (
 	VALUES
 	($1,   $2,           $3,      $4,            $5,               $6, CURRENT_TIMESTAMP)`
 
+	// $1 = nameMatch $2 = scopeChannel
 	sqlListMatches = `
 	SELECT DISTINCT name, channel_only IS NOT NULL
 	FROM module_factoid_factoids
@@ -66,6 +67,22 @@ const (
 	AND (channel_only IS NULL OR channel_only = $2)
 	AND (forgotten = FALSE)
 	GROUP BY name, channel_only`
+
+	// $1 = nameMatch $2 = scopeChannel $3 = includeForgotten
+	sqlListMatchesWithInfo = `
+	WITH names AS (
+		SELECT MAX(id) id, name, channel_only
+		FROM module_factoid_factoids
+		WHERE name LIKE '%' || $1 || '%'
+		AND (channel_only IS NULL OR channel_only = $2 OR '_ANY' = $2)
+		AND ($3 OR forgotten = FALSE)
+		GROUP BY name, channel_only
+	)
+	SELECT f.id, f.name, f.rawtext, f.channel_only, f.last_set_user, f.last_set_channel, f.last_set_ts, f.last_set, f.locked, f.forgotten
+	FROM names
+	INNER JOIN module_factoid_factoids f ON names.id = f.id
+	ORDER BY channel_only DESC, last_set DESC
+	`
 
 	// $1 = isLocked $2 = dbID
 	sqlLockFactoid = `
@@ -113,6 +130,7 @@ func (mod *FactoidModule) doSyntaxCheck(t marvin.Team) {
 		sqlFactoidInfo,
 		sqlMakeFactoid,
 		sqlListMatches,
+		sqlListMatchesWithInfo,
 		sqlLockFactoid,
 		sqlForgetFactoid,
 	)
@@ -258,6 +276,45 @@ func (mod *FactoidModule) ListFactoids(match string, channel slack.ChannelID) (c
 		return nil, nil, errors.Wrap(cursor.Err(), "Database error")
 	}
 	return channelOnly, global, nil
+}
+
+func (mod *FactoidModule) ListFactoidsWithInfo(match string, channel slack.ChannelID) ([]*Factoid, error) {
+	if len(match) > FactoidNameMaxLen {
+		return nil, errors.Errorf("Factoid name is too long (%d > %d)", len(match), FactoidNameMaxLen)
+	}
+	stmt, err := mod.team.DB().Prepare(sqlListMatchesWithInfo)
+	if err != nil {
+		return nil, errors.Wrap(err, "Database error")
+	}
+	defer stmt.Close()
+
+	scopeChannel := sql.NullString{Valid: channel != "", String: string(channel)}
+
+	cursor, err := stmt.Query(
+		match, scopeChannel, false,
+	)
+	if err != nil {
+		return nil, errors.Wrap(err, "Database error")
+	}
+	var result *Factoid
+	var list []*Factoid
+
+	for cursor.Next() {
+		result = new(Factoid)
+		err = cursor.Scan(&result.DbID, &result.FactoidName, &result.RawSource, &scopeChannel,
+			(*string)(&result.LastUser), (*string)(&result.LastChannel), (*string)(&result.LastMessage),
+			&result.LastTimestamp,
+			&result.IsLocked, &result.IsForgotten,
+		)
+		if err != nil {
+			return nil, errors.Wrap(cursor.Err(), "Database error")
+		}
+		list = append(list, result)
+	}
+	if cursor.Err() != nil {
+		return nil, errors.Wrap(cursor.Err(), "Database error")
+	}
+	return list, nil
 }
 
 func (mod *FactoidModule) ForgetFactoid(dbID int64, isForgotten bool) error {

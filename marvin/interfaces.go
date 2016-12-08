@@ -8,6 +8,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/gorilla/mux"
 	"gopkg.in/ini.v1"
 
 	"github.com/riking/homeapi/marvin/database"
@@ -256,7 +257,8 @@ type Team interface {
 	// HandleHTTP must be called as follows:
 	//
 	//   team.HandleHTTP("/links/", module_or_other_handler)
-	HandleHTTP(folder string, handler http.Handler)
+	HandleHTTP(folder string, handler http.Handler) *mux.Route
+	Router() *mux.Router
 	AbsoluteURL(path string) string
 
 	ReportError(err error, source ActionSource)

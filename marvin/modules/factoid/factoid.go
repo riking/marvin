@@ -48,6 +48,7 @@ func (mod *FactoidModule) Load(t marvin.Team) {
 
 	setupFunctions(mod)
 	t.DependModule(mod, paste.Identifier, &mod.pasteMod) // TODO - softdepend?
+	mod.registerHTTP()
 }
 
 func (mod *FactoidModule) Enable(team marvin.Team) {

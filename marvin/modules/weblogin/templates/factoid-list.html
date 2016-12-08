@@ -1,0 +1,54 @@
+{{define "styles"}}
+<style>
+ul.factoid-list {
+
+}
+ul.factoid-list li {
+    list-style: none;
+    margin-left: 2px;
+    margin-right: 2px;
+}
+.factoid-list li .last-modified {
+    float: right;
+}
+</style>
+{{end}}
+{{define "content"}}
+<div class="container">
+<div class="page-header">
+    <h1>Factoids</h1> <small>a way to store and retrieve text</small>
+</div>
+<div class="bs-callout bs-callout-info">
+    <h4>Using Factoids</h4>
+    <p>Say <code>!factoidname</code> in any channel where Marvin is to run a factoid. If the factoid takes arguments,
+    provide them after the name, space-separated. The <code>!</code> <em>must</em> be at the very beginning of the
+    message. This is also called a bang-factoid.</p>
+    <p>You can also run a factoid by saying <code>@marvin factoid get factoidname</code>. As before, provide arguments
+    as normal.</p>
+</div>
+<div class="bs-callout bs-callout-info">
+    <h4>Writing Factoids</h4>
+    <p>Use the <code>@marvin remember factoidname content</code> command to set a factoid.</p>
+    <p>If you need the factoid content to contain newlines, do this:</p>
+<pre><code>@marvin remember example &1
+```
+Multiline
+Content
+```</code></pre>
+    <p>If you need multiple multiline parts, just add a &2. This works for all commands in Marvin - but not for
+    bang-factoids, as they always use the entire message!</p>
+</div>
+
+<h3>Factoid List</h3>
+<ul class="factoid-list">
+{{ range .List }}
+  <li><a href="/factoids/{{if eq .ScopeChannel ""}}_{{else}}{{.ScopeChannel}}{{end}}/{{.FactoidName}}">
+      <code>{{ .FactoidName }}</code>{{if ne .ScopeChannel ""}}<span class="is-channel-only">*</span>{{end}}</a>
+      {{if .IsLocked}}(locked){{end}}
+      <span class="last-modified">last modified {{.LastTimestamp}}</span>
+      <pre class="source"><code>{{.RawSource}}</code></pre>
+  </li>
+{{ end }}
+</ul>
+</div>
+{{end}}

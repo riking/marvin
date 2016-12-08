@@ -1,8 +1,8 @@
 package rtm
 
 import (
-	"time"
 	"math"
+	"time"
 
 	"github.com/riking/homeapi/marvin/slack"
 	"github.com/riking/homeapi/marvin/util"

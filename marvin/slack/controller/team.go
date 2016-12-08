@@ -10,8 +10,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/pkg/errors"
 	"github.com/gorilla/mux"
+	"github.com/pkg/errors"
 
 	"github.com/riking/homeapi/marvin"
 	"github.com/riking/homeapi/marvin/database"
@@ -292,8 +292,12 @@ func (t *Team) ConnectHTTP(l net.Listener) {
 // HandleHTTP must be called as follows:
 //
 //   team.HandleHTTP("/links/", module)
-func (t *Team) HandleHTTP(folder string, handler http.Handler) {
-	t.httpMux.Handle(folder, http.StripPrefix(t.httpStrip, handler))
+func (t *Team) HandleHTTP(folder string, handler http.Handler) *mux.Route {
+	return t.httpMux.Handle(folder, http.StripPrefix(t.httpStrip, handler))
+}
+
+func (t *Team) Router() *mux.Router {
+	return t.httpMux
 }
 
 // MakeURL takes a (non-rooted) path to the webserver and makes it absolute.
