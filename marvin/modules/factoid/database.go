@@ -223,7 +223,7 @@ func (mod *FactoidModule) SaveFactoid(name string, channel slack.ChannelID, rawS
 	if len(name) > FactoidNameMaxLen {
 		return errors.Errorf("Factoid name is too long (%d > %d)", len(name), FactoidNameMaxLen)
 	}
-	if strings.ContainsAny(name, ` \n/"`) {
+	if strings.ContainsAny(name, " \n/\"") {
 		return errors.Errorf("Factoid name contains prohibited characters (space, newline, forward slash, double quote)")
 	}
 	stmt, err := mod.team.DB().Prepare(sqlMakeFactoid)
