@@ -11,6 +11,7 @@ type Conn struct {
 	*sql.DB
 }
 
+// Dial constructs a database connection for Marvin.
 func Dial(connect string) (*Conn, error) {
 	db, err := sql.Open("postgres", connect)
 	if err != nil {
@@ -27,6 +28,10 @@ func Dial(connect string) (*Conn, error) {
 	return c, nil
 }
 
+// SyntaxCheck will attempt to prepare every statement passed as a parameter,
+// and panic if any of them cause a syntax error.
+//
+// This should be called at module Load() time.
 func (c *Conn) SyntaxCheck(query ...string) {
 	for _, v := range query {
 		stmt, err := c.DB.Prepare(v)

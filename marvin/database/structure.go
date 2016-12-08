@@ -48,8 +48,12 @@ func (c *Conn) setupMigrate() (err error) {
 	return nil
 }
 
-// MustMigrate panics if Migrate fails. It also calls module.Identifier()
-// for the first argument.
+// MustMigrate performs a SQL migration on the database, and panics if the migration fails.
+// To perform multiple statements, provide them as multiple queries rather than a single query
+// with semicolons; a single call to MustMigrate is wrapped in a single transaction (and is
+// therefore atomic, as Postgres has transactional DDL).
+//
+// This should be called at module load time.
 func (c *Conn) MustMigrate(moduleIdentifier string, version int, query ...string) {
 	err := c.Migrate(moduleIdentifier, version, query...)
 	if err != nil {

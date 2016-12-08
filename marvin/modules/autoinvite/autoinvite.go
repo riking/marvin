@@ -43,6 +43,8 @@ func (mod *AutoInviteModule) Load(t marvin.Team) {
 	var _ marvin.Module = mod.onReact
 
 	t.DependModule(mod, on_reaction.Identifier, &mod.onReact)
+	t.DB().MustMigrate(Identifier, 1481226823, sqlMigrate1)
+	t.DB().SyntaxCheck(sqlInsert)
 }
 
 func (mod *AutoInviteModule) Enable(t marvin.Team) {
@@ -60,6 +62,27 @@ func (mod *AutoInviteModule) onReactAPI() on_reaction.API {
 	}
 	return nil
 }
+
+// ---
+
+const (
+	sqlMigrate1 = `
+	CREATE TABLE module_invites (
+		id SERIAL PRIMARY KEY,
+		invited_channel varchar(10) NOT NULL,
+		inviting_user   varchar(10) NOT NULL,
+		inviting_ts     varchar(20) NOT NULL,
+		msg_channel     varchar(10) NOT NULL,
+		msg_ts          varchar(20) NOT NULL,
+		msg_emoji       varchar(200) NOT NULL,
+		msg_text        TEXT
+	)`
+
+	sqlInsert = `
+	INSERT INTO module_invites
+	(invited_channel, inviting_user, inviting_ts, msg_channel, msg_ts, msg_emoji, msg_text)
+	VALUES ($1, $2, $3, $4, $5, $6, $7)`
+)
 
 // ---
 
