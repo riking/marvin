@@ -8,15 +8,6 @@ import (
 	"github.com/riking/homeapi/marvin/util"
 )
 
-func (c *Client) onChannelCreate(msg slack.RTMRawMessage) {
-	var parseMsg struct {
-		// only ID, Name, Created, Creator
-		Channel slack.Channel
-	}
-	msg.ReMarshal(&parseMsg)
-
-}
-
 func (c *Client) setTopicPurpose(channel slack.ChannelID, isTopic bool, new slack.ChannelTopicPurpose) {
 	var ary *[]*slack.Channel
 
@@ -74,6 +65,33 @@ func (c *Client) onUserChange(msg slack.RTMRawMessage) {
 	}
 
 	c.ReplaceUserObject(cacheTime, resp.User)
+}
+
+func (c *Client) onIMCreate(msg slack.RTMRawMessage) {
+	var resp struct {
+		Channel *slack.ChannelDM `json:"channel"`
+	}
+	msg.ReMarshal(&resp)
+
+	c.MetadataLock.Lock()
+	defer c.MetadataLock.Unlock()
+	c.Ims = append(c.Ims, resp.Channel)
+}
+
+func (c *Client) onGroupJoin(msg slack.RTMRawMessage) {
+	var resp struct {
+		Channel *slack.Channel `json:"channel"`
+	}
+	msg.ReMarshal(&resp)
+	c.ReplaceGroupObject(time.Now(), resp.Channel)
+}
+
+func (c *Client) onChannelJoin(msg slack.RTMRawMessage) {
+	var resp struct {
+		Channel *slack.Channel `json:"channel"`
+	}
+	msg.ReMarshal(&resp)
+	c.ReplaceChannelObject(time.Now(), resp.Channel)
 }
 
 func (c *Client) ReplaceUserObject(cacheTS time.Time, obj *slack.User) {

@@ -4,8 +4,6 @@ import (
 	"fmt"
 
 	"github.com/pkg/errors"
-
-	"github.com/riking/homeapi/marvin/slack"
 )
 
 // CommandArguments contains the post-split arguments arrays. The pre-split
@@ -76,17 +74,8 @@ type CommandResult struct {
 	ReplyType ReplyType
 	Sent      bool
 
-	ExtraMessages []SupplementalMessage
-
 	CanEdit TriValue
 	CanUndo TriValue
-}
-
-type SupplementalMessage struct {
-	slack.ChannelID
-	Message string
-
-	slack.MessageTS
 }
 
 // CmdError includes the Err field for the CmdResultError code.

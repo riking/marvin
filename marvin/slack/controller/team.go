@@ -1,3 +1,4 @@
+// The controller package implements the Team type.
 package controller
 
 import (

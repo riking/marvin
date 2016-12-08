@@ -86,8 +86,9 @@ const (
 
 // ---
 
-const inviteHelp = "`@marvin make-invite [:emoji:] <#channel> [message]` posts a message to another channel that functions as a private channel invitation. " +
-	"Any team member can react to the message to be added to the private channel."
+const inviteHelp = "`@marvin make-invite [:emoji:] <#channel> [message]` posts a message to another " +
+	"channel that functions as a private channel invitation.\n" +
+	"Any team member can react to the message to be added to the private channel you sent the command from."
 
 type PendingInviteData struct {
 	InviteTargetChannel slack.ChannelID
@@ -148,7 +149,7 @@ func (mod *AutoInviteModule) PostInvite(t marvin.Team, args *marvin.CommandArgum
 
 	inviteTarget := args.Source.ChannelID()
 	if inviteTarget == "" || inviteTarget[0] != 'G' {
-		return marvin.CmdFailuref(args, "Command must be used from a private channel.").WithNoEdit().WithSimpleUndo()
+		return marvin.CmdFailuref(args, "Command must be used from the private channel you want to invite people to.").WithNoEdit().WithSimpleUndo()
 	}
 	privateChannel, err := t.PrivateChannelInfo(inviteTarget)
 	if err != nil {

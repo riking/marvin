@@ -186,7 +186,7 @@ type Channel struct {
 type ChannelDM struct {
 	ID            ChannelID `json:"id"`
 	User          UserID    `json:"user"`
-	Created       int       `json:"created"`
+	Created       int64     `json:"created"`
 	IsUserDeleted bool      `json:"is_user_deleted"`
 }
 
