@@ -1,7 +1,7 @@
 {{define "styles"}}
 <style>
 ul.factoid-list {
-
+    padding: 0;
 }
 ul.factoid-list li {
     list-style: none;
@@ -45,7 +45,8 @@ Content
   <li><a href="/factoids/{{if eq .ScopeChannel ""}}_{{else}}{{.ScopeChannel}}{{end}}/{{.FactoidName}}">
       <code>{{ .FactoidName }}</code>{{if ne .ScopeChannel ""}}<span class="is-channel-only">{{.ScopeChannel}}</span>{{end}}</a>
       {{if .IsLocked}}(locked){{end}}
-      <span class="last-modified">last modified by {{.LastUser}} at {{.LastTimestamp}}</span>
+      <span class="last-modified">last modified by @{{with user $.Team .LastUser}}{{.Name}}{{end}}
+        in {{channel_name $.Team .LastChannel}} {{reltime .LastTimestamp}}</span>
       <pre class="source"><code>{{.RawSource}}</code></pre>
   </li>
 {{ end }}

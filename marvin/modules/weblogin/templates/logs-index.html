@@ -1,10 +1,13 @@
 {{define "styles"}}
 <style>
 .channel-box-container {
-    display: flex; flex-flow:row wrap;justify-content: space-between;
+    display: flex;
+    flex-flow: row wrap;
+    justify-content: flex-start;
 }
 .channel-box-container > div {
     margin: 3px;
+    margin-right: 10px;
 }
 .channel-box-container > div > div {
     background-color: #f0f0f0;
@@ -57,6 +60,9 @@
         </div>
         {{ end -}}
     </div>
+    {{ else }}
+    <h2>Private Channels</h2>
+    <p>To view the logs for private channels, <a href="/oauth/slack/start">sign in</a>.</p>
     {{- end }}
 </div>
 {{end}}

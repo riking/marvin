@@ -5,13 +5,17 @@
 {{end}}
 {{define "content"}}
 <div class="container">
+{{with .Factoid}}
 <div class="page-header">
     <h1>Factoid: {{.FactoidName}}</h1>
 </div>
 
     <p>Locked: {{if .IsLocked}}yes{{else}}no{{end}}</p>
-    <p>Last edit: {{.LastUser}} in {{.LastChannel}} at {{.LastTimestamp}}</p>
+    <p>Last edit: @{{with user $.Team .LastUser}}{{.Name}}{{end}}
+        in {{channel_name $.Team .LastChannel}}
+        at {{reltime .LastTimestamp}}</p>
 
     <pre class="source"><code>{{.RawSource}}</code></pre>
 </div>
+{{end}}
 {{end}}

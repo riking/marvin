@@ -1,12 +1,16 @@
 package weblogin
 
 import (
+	"bytes"
 	"fmt"
 	"html/template"
 	"net/http"
 	"strings"
+	"time"
 
+	"github.com/dustin/go-humanize"
 	"github.com/pkg/errors"
+
 	"github.com/riking/homeapi/marvin"
 	"github.com/riking/homeapi/marvin/slack"
 	"github.com/riking/homeapi/marvin/util"
@@ -64,6 +68,7 @@ func (w *LayoutContent) NavbarItems() interface{} {
 	return NavbarContent
 }
 
+var tmplReltime = template.Must(template.New("reltime").Parse(`<span class="reltime" title="{{.RFC3339}}">{{.Relative}}</span>`))
 var tmplLayout = template.Must(template.New("layout").Parse(string(MustAsset("layout.html.tmpl")))).Funcs(tmplFuncs)
 
 var tmplFuncs = template.FuncMap{
@@ -72,6 +77,21 @@ var tmplFuncs = template.FuncMap{
 	},
 	"channel_name": func(team marvin.Team, channelID slack.ChannelID) string {
 		return team.ChannelName(slack.ChannelID(channelID))
+	},
+	"reltime": func(t time.Time) (template.HTML, error) {
+		var buf bytes.Buffer
+		data := struct {
+			RFC3339  string
+			Relative string
+		}{
+			RFC3339:  t.Format(time.RFC3339),
+			Relative: humanize.Time(t),
+		}
+		err := tmplReltime.Execute(&buf, data)
+		if err != nil {
+			return "", err
+		}
+		return template.HTML(buf.String()), nil
 	},
 }
 

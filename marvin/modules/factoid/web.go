@@ -7,6 +7,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/riking/homeapi/marvin"
 	"github.com/riking/homeapi/marvin/modules/weblogin"
 	"github.com/riking/homeapi/marvin/slack"
 	"github.com/riking/homeapi/marvin/util"
@@ -42,8 +43,10 @@ func (mod *FactoidModule) HTTPListFactoids(w http.ResponseWriter, r *http.Reques
 
 	lc.BodyData = struct {
 		List []*Factoid
+		Team marvin.Team
 	}{
 		List: list,
+		Team: mod.team,
 	}
 	util.LogIfError(
 		tmplListFactoids.ExecuteTemplate(w, "layout", lc))
@@ -82,7 +85,13 @@ func (mod *FactoidModule) HTTPShowFactoid(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	lc.BodyData = factoid
+	lc.BodyData = struct {
+		Factoid *Factoid
+		Team    marvin.Team
+	}{
+		Factoid: factoid,
+		Team:    mod.team,
+	}
 
 	util.LogIfError(
 		tmplShowFactoid.ExecuteTemplate(w, "layout", lc))

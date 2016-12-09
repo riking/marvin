@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"bytes"
 	"fmt"
 	"net/url"
 	"time"
@@ -23,7 +24,15 @@ func (t *Team) ChannelName(channel slack.ChannelID) string {
 			return fmt.Sprintf("<!error getting channel name for %s>", string(channel))
 		}
 		if ch.IsMultiIM() {
-			return fmt.Sprintf("#[MultiIM %v]", ch.Members)
+			var membersStr bytes.Buffer
+			for i, v := range ch.Members {
+				if i != 0 {
+					membersStr.WriteByte(' ')
+				}
+				membersStr.WriteByte('@')
+				membersStr.WriteString(t.UserName(v))
+			}
+			return fmt.Sprintf("#[MultiIM %v]", membersStr.String())
 		}
 		return "#" + ch.Name
 	case 'D':
@@ -31,7 +40,7 @@ func (t *Team) ChannelName(channel slack.ChannelID) string {
 		if otherUser == "" {
 			return fmt.Sprintf("<!error getting other user for %s>", string(channel))
 		}
-		return fmt.Sprintf("#[IM %v]", otherUser)
+		return fmt.Sprintf("#[IM @%s]", t.UserName(otherUser))
 	}
 	return string(channel)
 }
@@ -50,7 +59,15 @@ func (t *Team) FormatChannel(channel slack.ChannelID) string {
 			return fmt.Sprintf("<!error getting channel name for %s>", string(channel))
 		}
 		if ch.IsMultiIM() {
-			return fmt.Sprintf("#[MultiIM %v]", ch.Members)
+			var membersStr bytes.Buffer
+			for i, v := range ch.Members {
+				if i != 0 {
+					membersStr.WriteByte(' ')
+				}
+				membersStr.WriteByte('@')
+				membersStr.WriteString(t.UserName(v))
+			}
+			return fmt.Sprintf("#[MultiIM %v]", membersStr.String())
 		}
 		return fmt.Sprintf("<#%s|%s>", channel, ch.Name)
 	case 'D':
@@ -58,7 +75,7 @@ func (t *Team) FormatChannel(channel slack.ChannelID) string {
 		if otherUser == "" {
 			return fmt.Sprintf("<!error getting other user for %s>", string(channel))
 		}
-		return fmt.Sprintf("#[IM %v]", otherUser)
+		return fmt.Sprintf("#[IM @%s]", t.UserName(otherUser))
 	}
 	return string(channel)
 
