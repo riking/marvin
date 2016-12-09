@@ -16,6 +16,7 @@ const (
 	NavSectionHome     = "Home"
 	NavSectionFactoids = "Factoids"
 	NavSectionInvite   = "Invite"
+	NavSectionLogs     = "Logs"
 )
 
 var NavbarContent = []struct {
@@ -23,7 +24,7 @@ var NavbarContent = []struct {
 	URL  string
 }{
 	{Name: NavSectionFactoids, URL: "/factoids"},
-	{Name: NavSectionInvite, URL: "/invite"},
+	{Name: NavSectionLogs, URL: "/logs"},
 }
 
 type LayoutContent struct {
@@ -128,14 +129,7 @@ func (mod *WebLoginModule) Serve404(w http.ResponseWriter, r *http.Request) {
 	mod.HTTPError(w, r, nil)
 }
 
-var tmplHome = template.Must(LayoutTemplateCopy().Parse(`
-{{define "content"}}
-<div class="container">
-<div class="page-header"><h1>Home</h1></div>
-<p>Homepage content</p>
-<p>Goes here</p>
-</div>
-{{end}}`))
+var tmplHome = template.Must(LayoutTemplateCopy().Parse(string(MustAsset("templates/home.html"))))
 
 func (mod *WebLoginModule) ServeRoot(w http.ResponseWriter, r *http.Request) {
 	lc, err := NewLayoutContent(mod.team, w, r, "Home")

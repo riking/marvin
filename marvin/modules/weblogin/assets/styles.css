@@ -1,3 +1,4 @@
+/* Header */
 body {
     background-color: #fefcfc;
 }
@@ -9,6 +10,16 @@ body {
     display: inline-block;
     padding-left: 0;
     margin-left: 5px;
+}
+/* Top of content */
+.page-header h1 {
+    display: inline-block;
+}
+.page-header small {
+    font-size: 18px;
+    color: #888;
+    margin-left: 8px;
+    font-family: 'Alegreya Sans SC', sans-serif;
 }
 
 /* Section: Callouts

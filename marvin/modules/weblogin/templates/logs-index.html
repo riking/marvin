@@ -1,0 +1,62 @@
+{{define "styles"}}
+<style>
+.channel-box-container {
+    display: flex; flex-flow:row wrap;justify-content: space-between;
+}
+.channel-box-container > div {
+    margin: 3px;
+}
+.channel-box-container > div > div {
+    background-color: #f0f0f0;
+    border-radius: 6px;
+    padding: 0.1px 6px;
+}
+.channel-box-container > div a {
+    display: block;
+    width: 100%;
+    color: #6233b7;
+    margin-right: 10px;
+}
+.channel-box-container > div.no-marvin {
+    opacity: 0.6;
+    color: #222;
+}
+.channel-box-container > div.no-marvin a {
+    color: #222;
+}
+.channel-box-container > div.no-marvin a:visited {
+    color: #222;
+}
+</style>
+{{end}}
+{{define "content"}}
+<div class="container">
+    <div class="page-header"><h1>Channel Logs</h1><small>Because Slack premium is billed per user</small></div>
+
+    <h2>Public Channels</h2>
+    <div class="channel-box-container">
+        {{range .Channels}}
+        <div style="order: {{len .Members}}">
+            <div>
+            <h4><a href="/logs/{{.ID}}">#{{.Name}}</a></h4>
+            <p>{{.Purpose.Value}}</p>
+            </div>
+        </div>
+        {{end}}
+    </div>
+    {{ if .YourPrivateChannels -}}
+    <h2>Private Channels</h2>
+    <div class="channel-box-container">
+        {{- range .YourPrivateChannels }}
+        <div style="order: {{len .Members}}" class="{{if not .HasMarvin}}no-marvin {{end}}">
+            <div>
+            <h4><a href="/logs/{{.ID}}">#{{.Name}}</a></h4>
+            {{if not .HasMarvin}}<p><em>Logs are not available for this channel because it doesn't have @marvin.</em></p>{{end}}
+            <p>{{.Purpose.Value}}</p>
+            </div>
+        </div>
+        {{ end -}}
+    </div>
+    {{- end }}
+</div>
+{{end}}

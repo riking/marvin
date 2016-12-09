@@ -4,9 +4,13 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"net/url"
+	"time"
 
+	"github.com/patrickmn/go-cache"
 	"github.com/pkg/errors"
+
 	"github.com/riking/homeapi/marvin"
 	"github.com/riking/homeapi/marvin/slack"
 	"github.com/riking/homeapi/marvin/slack/rtm"
@@ -20,11 +24,13 @@ func init() {
 const Identifier = "logger"
 
 type LoggerModule struct {
-	team marvin.Team
+	team  marvin.Team
+	cache *cache.Cache
 }
 
 func NewLoggerModule(t marvin.Team) marvin.Module {
 	mod := &LoggerModule{team: t}
+	mod.cache = cache.New(5*time.Minute, 30*time.Minute)
 	return mod
 }
 
@@ -45,6 +51,7 @@ func (mod *LoggerModule) Load(t marvin.Team) {
 func (mod *LoggerModule) Enable(t marvin.Team) {
 	t.OnEvent(Identifier, "message", mod.OnMessage)
 	go mod.BackfillAll()
+	t.HandleHTTP("/logs", http.HandlerFunc(mod.LogsIndex))
 }
 
 func (mod *LoggerModule) Disable(t marvin.Team) {

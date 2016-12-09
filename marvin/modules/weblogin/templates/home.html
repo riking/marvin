@@ -1,0 +1,21 @@
+{{define "content"}}
+<div class="container">
+    <div class="page-header">
+        <h1>Home</h1><small>is where the heart is</small>
+    </div>
+
+    <p>This is the web interface for Marvin.</p>
+    <h4><a href="/factoids">Factoids</a></h4>
+    <p>View source, history, and audit logs for factoids.</p>
+    <h4><a href="/logs">Logs</a></h4>
+    <p>View old logs of the Slack channels past the 10k message limit.<br>
+        To view private channels, you must be <a href="/oauth/slack/start">signed in with Slack</a>.</p>
+    <h4><a href="/invites">Private Channel Invitations</a></h4>
+    <p>Manage Marvin invites to your private channel, or take a publicly available invite to a private channel.</p>
+    <h4>More to come</h4>
+    <ul>
+        <li>Log in with Intra to get Slack PMs when you have a correction</li>
+        <li><a href="http://wiki.electorama.com/wiki/Maximize_Affirmed_Majorities">MAM</a> polling</li>
+    </ul>
+</div>
+{{end}}
