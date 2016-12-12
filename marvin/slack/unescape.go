@@ -44,7 +44,7 @@ func UnescapeText(msg string) string {
 			return entity
 		default:
 			if strings.HasPrefix(mid, "mailto") {
-				return entity
+				return rhs
 			}
 			if strings.HasPrefix(mid, "http") {
 				return rhs
