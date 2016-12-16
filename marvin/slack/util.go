@@ -10,7 +10,8 @@ import (
 
 var (
 	mentionRegexp     = regexp.MustCompile(`<@(U[A-Z0-9]+)>`)
-	channelMentionRgx = regexp.MustCompile(`<#(C[A-Z0-9]+)\|([a-z0-9_-]+)>`)
+	channelMentionRgx = regexp.MustCompile(`<#(C[A-Z0-9]+)\|?([a-z0-9_-]+)?>`)
+	channelIDRgx      = regexp.MustCompile(`C[A-Z0-9]+`)
 	groupIDRgx        = regexp.MustCompile(`G[A-Z0-9]+`)
 	dmIDRgx           = regexp.MustCompile(`D[A-Z0-9]+`)
 )
@@ -32,7 +33,11 @@ func ParseChannelID(arg string) ChannelID {
 	if match != nil {
 		return ChannelID(match[1])
 	}
-	strMatch := groupIDRgx.FindString(arg)
+	strMatch := channelIDRgx.FindString(arg)
+	if strMatch != "" {
+		return ChannelID(strMatch)
+	}
+	strMatch = groupIDRgx.FindString(arg)
 	if strMatch != "" {
 		return ChannelID(strMatch)
 	}
