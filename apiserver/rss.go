@@ -36,17 +36,18 @@ type infoFileFmt struct {
 	FeedDescription string `json:"description"`
 	FeedLink        string `json:"link"`
 
-	StartAt time.Time `json:"start_at"`
-	PerDay  float64   `json:"per_day"`
+	StartAt     time.Time `json:"start_at"`
+	StartOffset int
+	PerDay      float64 `json:"per_day"`
 
 	RawItems []rssItem `json:"-"`
 	Items    []rssItem `json:"-"`
 	Now      time.Time `json:"-"`
 }
 
-func (f *infoFileFmt) ItemOffset() int {
-	daysScaled := float64(f.Now.Sub(f.StartAt).Hours()) / 24 * f.PerDay
-	return int(daysScaled)
+func (f *infoFileFmt) ItemOffset(now time.Time) int {
+	daysScaled := float64(now.Sub(f.StartAt).Hours()) / 24 * f.PerDay
+	return int(daysScaled) + f.StartOffset
 }
 
 func (f *infoFileFmt) TimeForOffset(offset int) time.Time {
@@ -55,11 +56,11 @@ func (f *infoFileFmt) TimeForOffset(offset int) time.Time {
 }
 
 func (f *infoFileFmt) FeedLastUpdated() string {
-	return f.TimeForOffset(f.ItemOffset()).Format(http.TimeFormat)
+	return f.TimeForOffset(f.ItemOffset(f.Now)).Format(http.TimeFormat)
 }
 
 func (f *infoFileFmt) TTL() string {
-	untilNextOffset := f.TimeForOffset(f.ItemOffset() + 1).Sub(f.Now)
+	untilNextOffset := f.TimeForOffset(f.ItemOffset(f.Now) + 1).Sub(f.Now)
 	if untilNextOffset < 30*time.Minute {
 		untilNextOffset = 30 * time.Minute
 	} else {
@@ -124,7 +125,7 @@ func HTTPRSSBinge(w http.ResponseWriter, r *http.Request) {
 	case "rss.xml":
 		w.Header().Set("Content-Type", "text/xml; charset=UTF-8")
 
-		lastItemIdx := infoFile.ItemOffset()
+		lastItemIdx := infoFile.ItemOffset(curTime)
 		if lastItemIdx >= len(infoFile.RawItems) {
 			lastItemIdx = len(infoFile.RawItems) - 1
 		}
