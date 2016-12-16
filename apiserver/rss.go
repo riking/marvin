@@ -37,8 +37,8 @@ type infoFileFmt struct {
 	FeedLink        string `json:"link"`
 
 	StartAt     time.Time `json:"start_at"`
-	StartOffset int
-	PerDay      float64 `json:"per_day"`
+	StartOffset int       `json:"start_offset"`
+	PerDay      float64   `json:"per_day"`
 
 	RawItems []rssItem `json:"-"`
 	Items    []rssItem `json:"-"`
@@ -47,7 +47,7 @@ type infoFileFmt struct {
 
 func (f *infoFileFmt) ItemOffset(now time.Time) int {
 	daysScaled := float64(now.Sub(f.StartAt).Hours()) / 24 * f.PerDay
-	return int(daysScaled) + f.StartOffset
+	return int(daysScaled)
 }
 
 func (f *infoFileFmt) TimeForOffset(offset int) time.Time {
@@ -125,7 +125,7 @@ func HTTPRSSBinge(w http.ResponseWriter, r *http.Request) {
 	case "rss.xml":
 		w.Header().Set("Content-Type", "text/xml; charset=UTF-8")
 
-		lastItemIdx := infoFile.ItemOffset(curTime)
+		lastItemIdx := infoFile.ItemOffset(curTime) + f.StartOffset
 		if lastItemIdx >= len(infoFile.RawItems) {
 			lastItemIdx = len(infoFile.RawItems) - 1
 		}
