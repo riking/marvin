@@ -51,8 +51,8 @@ func (f *infoFileFmt) ItemOffset(now time.Time) int {
 }
 
 func (f *infoFileFmt) TimeForOffset(offset int) time.Time {
-	offDur := time.Duration(offset) * time.Duration(float64(24*time.Hour)/f.PerDay)
-	return f.StartAt.Add(offDur)
+	oneItem := time.Duration(float64(24*time.Hour) / f.PerDay)
+	return f.StartAt.Add(oneItem * time.Duration(offset-f.StartOffset))
 }
 
 func (f *infoFileFmt) FeedLastUpdated() string {
