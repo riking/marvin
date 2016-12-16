@@ -125,7 +125,7 @@ func HTTPRSSBinge(w http.ResponseWriter, r *http.Request) {
 	case "rss.xml":
 		w.Header().Set("Content-Type", "text/xml; charset=UTF-8")
 
-		lastItemIdx := infoFile.ItemOffset(curTime) + f.StartOffset
+		lastItemIdx := infoFile.ItemOffset(curTime) + infoFile.StartOffset
 		if lastItemIdx >= len(infoFile.RawItems) {
 			lastItemIdx = len(infoFile.RawItems) - 1
 		}
