@@ -45,12 +45,12 @@ type infoFileFmt struct {
 }
 
 func (f *infoFileFmt) ItemOffset() int {
-	days := f.Now.Sub(f.StartAt).Hours() / 24
-	return int(float64(days) * f.PerDay)
+	daysScaled := float64(f.Now.Sub(f.StartAt).Hours()) / 24 * f.PerDay
+	return int(daysScaled)
 }
 
 func (f *infoFileFmt) TimeForOffset(offset int) time.Time {
-	offDur := time.Duration(offset) * time.Duration(float64((24*time.Hour)/f.PerDay))
+	offDur := time.Duration(offset) * time.Duration(float64(24*time.Hour)/f.PerDay)
 	return f.StartAt.Add(offDur)
 }
 
