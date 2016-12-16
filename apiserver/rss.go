@@ -50,7 +50,7 @@ func (f *infoFileFmt) ItemOffset() int {
 }
 
 func (f *infoFileFmt) TimeForOffset(offset int) time.Time {
-	offDur := time.Duration(offset) * (24 * time.Hour) / f.PerDay
+	offDur := time.Duration(offset) * time.Duration(float64((24*time.Hour)/f.PerDay))
 	return f.StartAt.Add(offDur)
 }
 
