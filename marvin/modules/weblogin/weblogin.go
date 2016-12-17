@@ -111,6 +111,20 @@ func (mod *WebLoginModule) Disable(team marvin.Team) {
 
 // ---
 
+const (
+	sqlMigrate1 = `
+	CREATE TABLE slack_login_tokens (
+		id serial primary key,
+		userID      varchar(10), -- slack.UserID
+		username    varchar(64),
+		token       varchar(60), -- slack.LoginToken
+		scopes      text[],
+		created_at  timestamp with zone,
+	)`
+)
+
+// ---
+
 func (mod *WebLoginModule) StartURL() string {
 	return mod.team.AbsoluteURL("/oauth/slack/start")
 }

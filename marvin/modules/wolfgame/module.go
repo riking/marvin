@@ -1,9 +1,9 @@
 package wolfgame
 
 import (
-	"github.com/riking/homeapi/marvin"
-	"github.com/riking/homeapi/marvin/modules/paste"
 	"sync"
+
+	"github.com/riking/homeapi/marvin"
 	"github.com/riking/homeapi/marvin/slack"
 )
 
@@ -16,7 +16,7 @@ const Identifier = "wolfgame"
 type WolfGameModule struct {
 	team marvin.Team
 
-	lock sync.Mutex
+	lock    sync.Mutex
 	players []Player
 }
 
@@ -26,7 +26,7 @@ type Player struct {
 
 func NewWolfGameModule(t marvin.Team) marvin.Module {
 	mod := &WolfGameModule{
-		team:      t,
+		team: t,
 	}
 	return mod
 }

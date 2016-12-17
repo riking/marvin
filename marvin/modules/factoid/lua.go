@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/pkg/errors"
 	"github.com/yuin/gopher-lua"
@@ -167,6 +168,7 @@ func (f *FactoidLua) SetFactoidEnv() {
 func (f *FactoidLua) OpenBot(L *lua.LState) int {
 	tab := L.NewTable()
 	tab.RawSetString("paste", L.NewFunction(f.mod.LuaPaste))
+	tab.RawSetString("now", L.NewFunction(lua_Now))
 	L.SetGlobal("bot", tab)
 	return 0
 }
@@ -185,6 +187,11 @@ func (mod *FactoidModule) LuaPaste(L *lua.LState) int {
 	}
 	url := mod.pasteMod.(paste.API).GetURL(id)
 	L.Push(lua.LString(url))
+	return 1
+}
+
+func lua_Now(L *lua.LState) int {
+	L.Push(lua.LNumber(time.Now().Unix()))
 	return 1
 }
 
