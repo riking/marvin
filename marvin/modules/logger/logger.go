@@ -131,7 +131,7 @@ func (mod *LoggerModule) OnMessage(_rtm slack.RTMRawMessage) {
 
 func (mod *LoggerModule) getHistory(method string, channel slack.ChannelID, stmt *sql.Stmt) ([]json.RawMessage, error) {
 	form := url.Values{
-		"count": []string{"100"},
+		"count": []string{"40"},
 	}
 	form.Set("channel", string(channel))
 
@@ -144,7 +144,7 @@ func (mod *LoggerModule) getHistory(method string, channel slack.ChannelID, stmt
 	} else if err != nil {
 		return nil, errors.Wrapf(err, "Backfill database err")
 	}
-	form.Set("oldest", lastSeenTS.String)
+	//form.Set("oldest", lastSeenTS.String)
 
 	resp, err := mod.team.SlackAPIPostRaw(method, form)
 	if err != nil {
