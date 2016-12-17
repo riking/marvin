@@ -80,7 +80,8 @@ const (
 	sqlInsertMessage = `
 	INSERT INTO module_logger_logs
 	(channel, timestamp, msg_user, text, raw)
-	VALUES ($1, $2, $3, $4, $5::jsonb)`
+	VALUES ($1, $2, $3, $4, $5::jsonb)
+	ON CONFLICT DO NOTHING`
 
 	// $1 = channel $2 = timestamp $3 = text $4 = editor $5 = edit_event_ts $6 = edit.original
 	sqlEditMessage = `
