@@ -62,7 +62,7 @@
         {{ end -}}
     </div>
     {{ else }}
-        {{- if .CurrentUser.SlackUser -}}
+        {{- if .Layout.DCurrentUser.SlackUser -}}
         <p>To view the logs for private channels, <a href='{{.Layout.StartSlackURL "groups:read"}}'>grant access</a>.</p>
         {{- else -}}
         <p>To view the logs for private channels, <a href='{{.Layout.StartSlackURL "groups:read"}}'>sign in</a>.</p>

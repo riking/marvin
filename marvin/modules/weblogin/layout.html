@@ -4,8 +4,10 @@
 <head>
     {{ block "title" . }}<title>{{if .Title}}{{.Title}}{{else}}Marvin Web Interface{{end}}</title>{{ end }}
     {{ block "default-styles" . -}}
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css"
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.6/css/bootstrap.min.css"
           integrity="sha384-1q8mTJOASx8j1Au+a5WDVnPi2lkFfwwEAa8hDDdjZlpLegxhjVME1fgjWPGmkzs7" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css"
+          integrity="sha384-wvfXpqpZZVQGK6TAh5PVlGOfQNHSoD2xbE+QkPxCAFlNEevoEH3Sl0sibVcOQVnN" crossorigin="anonymous">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.2.3/jquery.min.js"
           integrity="sha384-I6F5OKECLVtK/BL+8iSLDEHowSAfUo76ZL9+kGAgTRdiByINKJaqTPH/QVNS1VDb" crossorigin="anonymous"></script>
     <link href="https://fonts.googleapis.com/css?family=Alegreya+Sans+SC" rel="stylesheet">
@@ -35,19 +37,19 @@
             <li>
                 <img height="32" width="32" src="{{.SlackUser.Avatar 32}}"
                      srcset="{{.SlackUser.Avatar 32}} 1x, {{.SlackUser.Avatar 64}} 2x, {{.SlackUser.Avatar 128}} 4x" />
-                <a href="#">@{{.CurrentUser.Name}}</a>
+                <a href="#"><i class="fa fa-slack"></i> {{.DCurrentUser.SlackName}}</a>
             </li>
             {{- else -}}
-            <li><a href="/oauth/slack/start">Slack Log In</a></li>
+            <li><a href="{{.StartSlackURL}}"><i class="fa fa-slack"></i> Slack Log In</a></li>
             {{- end}}
-            &lt;=&gt;
-            {{ if .CurrentUser.IntraLogin -}}
+            <li style="color:#ddd;padding-top:15px;padding-bottom:15px;margin-right:15px;"><i class="fa fa-arrows-h"></i></li>
+            {{ if .DCurrentUser.IntraLogin -}}
             <li>
-                <img height="32" width="32" src="https://cdn.intra.42.fr/users/medium_{{.CurrentUser.IntraLogin}}.jpeg" />
-                <a href="#">@{{.CurrentUser.IntraLogin}}</a>
+                <img height="32" src="https://cdn.intra.42.fr/users/medium_{{.DCurrentUser.IntraLogin}}.jpeg" />
+                <a href="#">{{.DCurrentUser.IntraLogin}}</a>
             </li>
             {{- else -}}
-            <li><a href="/oauth/intra/start">Intra Log In</a></li>
+            <li><a href="{{.StartIntraURL}}">Intra Log In</a></li>
             {{- end }}
         </ul>
     </div>

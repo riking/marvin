@@ -4,21 +4,24 @@ import (
 	"database/sql"
 	"net/http"
 
+	"encoding/json"
+
 	"github.com/pkg/errors"
 	"github.com/riking/homeapi/marvin/slack"
+	"golang.org/x/oauth2"
 )
 
 const (
 	sqlMigrateUser1 = `
 	CREATE TABLE web_users (
-		id                serial primary key,
-		slack_uid         varchar(12) null, -- slack.UserID
-		slack_name        varchar(64) null,
-		slack_token       varchar(60) null,
-		slack_scopes      text[]      default '{}',
-		intra_user        varchar(64) null,
-		intra_token       text        null,
-		intra_scopes      text[]      default '{}',
+		id                  serial primary key,
+		slack_uid           varchar(12) null, -- slack.UserID
+		slack_name          varchar(64) null,
+		slack_token         text        null,
+		slack_scopes        jsonb       default '[]',
+		intra_user          varchar(64) null,
+		intra_token         json        null,
+		intra_scopes        jsonb       default '[]'
 	)`
 
 	sqlMigrateUser2 = `CREATE UNIQUE INDEX web_users_slack ON web_users (slack_uid)`
@@ -32,7 +35,8 @@ const (
 	WHERE id = $1`
 
 	sqlNewUser = `
-	INSERT INTO web_users
+	INSERT INTO web_users (id, slack_uid, intra_user)
+	VALUES (DEFAULT, NULL, NULL)
 	RETURNING id`
 
 	sqlLookupUserBySlack = `SELECT id FROM web_users WHERE slack_uid = $1`
@@ -70,7 +74,7 @@ type User struct {
 	SlackScopes []string
 
 	IntraLogin  string
-	IntraToken  string
+	IntraToken  *oauth2.Token
 	IntraScopes []string
 }
 
@@ -97,10 +101,12 @@ func (mod *WebLoginModule) GetUserByID(uid int64) (*User, error) {
 	}
 	var idMatch int64
 	var slackUser, slackName, slackToken sql.NullString
-	var intraLogin, intraToken sql.NullString
+	var intraLogin sql.NullString
+	var slackScopes, intraToken, intraScopes []byte
+
 	err = row.Scan(&idMatch,
-		&slackUser, &slackName, &slackToken, &u.SlackScopes,
-		&intraLogin, &intraToken, &u.IntraScopes,
+		&slackUser, &slackName, &slackToken, &slackScopes,
+		&intraLogin, &intraToken, &intraScopes,
 	)
 	if err == sql.ErrNoRows {
 		return nil, ErrNoSuchUser
@@ -113,10 +119,21 @@ func (mod *WebLoginModule) GetUserByID(uid int64) (*User, error) {
 		u.SlackUser = slack.UserID(slackUser.String)
 		u.SlackName = slackName.String
 		u.SlackToken = slackToken.String
+		err = json.Unmarshal(slackScopes, &u.SlackScopes)
+		if err != nil {
+			return nil, errors.Wrap(err, "get user: unmarshal slack scopes")
+		}
 	}
-	if intraToken.Valid {
+	if intraLogin.Valid {
 		u.IntraLogin = intraLogin.String
-		u.IntraToken = intraToken.String
+		err = json.Unmarshal(intraToken, &u.IntraToken)
+		if err != nil {
+			return nil, errors.Wrap(err, "get user: unmarshal intra scopes")
+		}
+		err = json.Unmarshal(intraScopes, &u.IntraScopes)
+		if err != nil {
+			return nil, errors.Wrap(err, "get user: unmarshal intra scopes")
+		}
 	}
 	return u, nil
 
@@ -250,6 +267,11 @@ func (u *User) UpdateSlack(uid slack.UserID, name, token string, scopes []string
 	u.SlackToken = token
 	u.SlackScopes = scopes
 
+	scopeBytes, err := json.Marshal(u.SlackScopes)
+	if err != nil {
+		return errors.Wrap(err, "update slack data: marshal")
+	}
+
 	tx, err := u.mod.team.DB().Begin()
 	if err != nil {
 		return errors.Wrap(err, "update slack data: begin")
@@ -270,7 +292,7 @@ func (u *User) UpdateSlack(uid slack.UserID, name, token string, scopes []string
 		}
 	}
 
-	_, err = stmt.Exec(u.ID, string(u.SlackUser), u.SlackName, u.SlackToken, u.SlackScopes)
+	_, err = stmt.Exec(u.ID, string(u.SlackUser), u.SlackName, u.SlackToken, scopeBytes)
 	if err != nil {
 		tx.Rollback()
 		return errors.Wrap(err, "update slack data: update")
@@ -284,10 +306,19 @@ func (u *User) UpdateSlack(uid slack.UserID, name, token string, scopes []string
 }
 
 // UpdateIntra saves the given intra token to the database, and creates a new row in the database if necessary (id == -1).
-func (u *User) UpdateIntra(login, token string, scopes []string) error {
+func (u *User) UpdateIntra(login string, token *oauth2.Token, scopes []string) error {
 	u.IntraLogin = login
 	u.IntraToken = token
 	u.IntraScopes = scopes
+
+	scopeBytes, err := json.Marshal(u.IntraScopes)
+	if err != nil {
+		return errors.Wrap(err, "update slack data: marshal")
+	}
+	tokenBytes, err := json.Marshal(u.IntraToken)
+	if err != nil {
+		return errors.Wrap(err, "update slack data: marshal")
+	}
 
 	tx, err := u.mod.team.DB().Begin()
 	if err != nil {
@@ -309,7 +340,7 @@ func (u *User) UpdateIntra(login, token string, scopes []string) error {
 		}
 	}
 
-	_, err = stmt.Exec(u.ID, u.IntraLogin, u.IntraToken, u.IntraScopes)
+	_, err = stmt.Exec(u.ID, u.IntraLogin, tokenBytes, scopeBytes)
 	if err != nil {
 		tx.Rollback()
 		return errors.Wrap(err, "update intra data: update")

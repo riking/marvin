@@ -91,6 +91,13 @@ func (w *LayoutContent) StartIntraURL(extraScopes ...string) string {
 	return w.WLMod.StartIntraURL(w.CurrentURL, extraScopes...)
 }
 
+func (w *LayoutContent) DCurrentUser() User {
+	if w.CurrentUser != nil {
+		return *w.CurrentUser
+	}
+	return User{}
+}
+
 var tmplReltime = template.Must(template.New("reltime").Parse(`<span class="reltime" title="{{.RFC3339}}">{{.Relative}}</span>`))
 var tmplLayout = template.Must(template.New("layout").Parse(string(MustAsset("layout.html")))).Funcs(tmplFuncs)
 

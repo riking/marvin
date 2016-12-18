@@ -217,9 +217,10 @@ func (ms *moduleStatus) Err() error {
 	return ms.degradeReason
 }
 
-func (t *Team) constructModules() {
+func (t *Team) constructModules() bool {
 	var modList []*moduleStatus
 	var err error
+	success := true
 
 	for _, constructor := range marvin.AllModules() {
 		var mod marvin.Module
@@ -229,6 +230,7 @@ func (t *Team) constructModules() {
 		if err != nil {
 			util.LogWarnf("Could not construct module: %s",
 				strings.Replace(fmt.Sprintf("%+v", err), "\n", "\t\n", -1))
+			success = false
 			continue
 		}
 		id := mod.Identifier()
@@ -245,6 +247,7 @@ func (t *Team) constructModules() {
 		})
 	}
 	t.modules = modList
+	return success
 }
 
 type sortModules []*moduleStatus
@@ -260,13 +263,15 @@ func (sm sortModules) Less(i, j int) bool {
 	return false
 }
 
-func (t *Team) loadModules() {
+func (t *Team) loadModules() bool {
+	success := true
 	for _, v := range t.modules {
 		err := protectedCallT(t, v.instance.Load)
 		if err != nil {
 			v.state = marvin.ModuleStateErrorLoading
 			v.degradeReason = err
 			util.LogBadf("Module %s failed to load: %v\n", v.identifier, err)
+			success = false
 			continue
 		}
 		util.LogGood("Loaded module", v.identifier)
@@ -281,9 +286,11 @@ func (t *Team) loadModules() {
 	}
 
 	sort.Sort(sortModules(t.modules))
+	return success
 }
 
-func (t *Team) enableModules() {
+func (t *Team) enableModules() bool {
+	success := true
 	conf := t.ModuleConfig("modules")
 	for _, ms := range t.modules {
 		desired, _, _ := conf.GetIsDefault(string(ms.identifier))
@@ -300,6 +307,7 @@ func (t *Team) enableModules() {
 			if !dependMS.IsEnabled() {
 				util.LogWarnf("Enabling module %s failed: dependency %s is not enabled\n%v", ms.identifier, dependMS.identifier, dependMS)
 				ok = false
+				success = false
 				break
 			}
 			*v.Pointer = dependMS.instance
@@ -310,6 +318,7 @@ func (t *Team) enableModules() {
 
 		t.enableModule2(ms)
 	}
+	return success
 }
 
 func (t *Team) enableModule2(ms *moduleStatus) error {

@@ -1,0 +1,38 @@
+{{define "content"}}
+<div class="container">
+    <div class="page-header"><h1>User Profile</h1><small>Manage connections and log out</small></div>
+
+    <h2>Slack</h2>
+    <div class="channel-box-container">
+        {{range .Channels}}
+        <div style="order: -{{len .Members}}">
+            <div>
+                <h4><a href="/logs/{{.ID}}">#{{.Name}}</a></h4>
+                <p>{{.Purpose.Value}}</p>
+            </div>
+        </div>
+        {{end}}
+    </div>
+
+    <h2>Private Channels</h2>
+    {{ if .YourPrivateChannels -}}
+    <div class="channel-box-container">
+        {{- range .YourPrivateChannels }}
+        <div style="order: -{{len .Members}}" class="{{if not .HasMarvin}}no-marvin {{end}}">
+            <div>
+                <h4><a href="/logs/{{.ID}}">#{{.Name}}</a></h4>
+                {{if not .HasMarvin}}<p><em>Logs are not available for this channel because it doesn't have @marvin.</em></p>{{end}}
+                <p>{{.Purpose.Value}}</p>
+            </div>
+        </div>
+        {{ end -}}
+    </div>
+    {{ else }}
+    {{- if .Layout.DCurrentUser.SlackUser -}}
+    <p>To view the logs for private channels, <a href='{{.Layout.StartSlackURL "groups:read"}}'>grant access</a>.</p>
+    {{- else -}}
+    <p>To view the logs for private channels, <a href='{{.Layout.StartSlackURL "groups:read"}}'>sign in</a>.</p>
+    {{- end -}}
+    {{- end }}
+</div>
+{{end}}

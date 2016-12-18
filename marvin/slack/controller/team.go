@@ -73,13 +73,20 @@ func (t *Team) ConnectRTM(c *rtm.Client) {
 	t.client = c
 }
 
-func (t *Team) EnableModules() {
+func (t *Team) EnableModules() bool {
 	t.ModuleConfig("modules").(*DBModuleConfig).DefaultsLocked = true
 	t.ModuleConfig("blacklist").(*DBModuleConfig).DefaultsLocked = true
 
-	t.constructModules()
-	t.loadModules()
-	t.enableModules()
+	if !t.constructModules() {
+		return false
+	}
+	if !t.loadModules() {
+		return false
+	}
+	if !t.enableModules() {
+		return false
+	}
+	return true
 }
 
 func (t *Team) Domain() string {

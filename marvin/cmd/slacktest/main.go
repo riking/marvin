@@ -111,7 +111,10 @@ func main() {
 	}, rtm.MsgTypeAll, nil)
 
 	team.ConnectRTM(client)
-	team.EnableModules()
+	if !team.EnableModules() {
+		util.LogWarn("Some modules failed to load. Quitting.")
+		return
+	}
 	team.ConnectHTTP(l)
 
 	client.Start()

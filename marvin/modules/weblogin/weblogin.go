@@ -52,15 +52,16 @@ func init() {
 const Identifier = "weblogin"
 
 type WebLoginModule struct {
-	team        marvin.Team
-	oauthConfig oauth2.Config
-	store       sessions.Store
+	team             marvin.Team
+	slackOAuthConfig oauth2.Config
+	IntraOAuthConfig oauth2.Config
+	store            sessions.Store
 }
 
 func NewWebLoginModule(t marvin.Team) marvin.Module {
 	mod := &WebLoginModule{
 		team: t,
-		oauthConfig: oauth2.Config{
+		slackOAuthConfig: oauth2.Config{
 			ClientID:     t.TeamConfig().ClientID,
 			ClientSecret: t.TeamConfig().ClientSecret,
 			Endpoint: oauth2.Endpoint{
@@ -69,6 +70,16 @@ func NewWebLoginModule(t marvin.Team) marvin.Module {
 			},
 			RedirectURL: t.AbsoluteURL("/oauth/slack/callback"),
 			Scopes:      []string{"BOGUS_VALUE"},
+		},
+		IntraOAuthConfig: oauth2.Config{
+			ClientID:     t.TeamConfig().IntraUID,
+			ClientSecret: t.TeamConfig().IntraSecret,
+			Endpoint: oauth2.Endpoint{
+				AuthURL:  "https://api.intra.42.fr/oauth/authorize",
+				TokenURL: "https://api.intra.42.fr/oauth/token",
+			},
+			RedirectURL: t.AbsoluteURL("/oauth/intra/callback"),
+			Scopes:      []string{},
 		},
 		store: nil,
 	}
@@ -107,7 +118,7 @@ func (mod *WebLoginModule) Load(t marvin.Team) {
 	}
 	mod.store = store
 
-	mod.team.DB().MustMigrate(Identifier, 1482035974, sqlMigrateUser1, sqlMigrateUser2, sqlMigrateUser3)
+	mod.team.DB().MustMigrate(Identifier, 1482049049, sqlMigrateUser1, sqlMigrateUser2, sqlMigrateUser3)
 	mod.team.DB().SyntaxCheck(
 		sqlLoadUser,
 		sqlNewUser,
@@ -121,6 +132,8 @@ func (mod *WebLoginModule) Load(t marvin.Team) {
 func (mod *WebLoginModule) Enable(team marvin.Team) {
 	team.Router().HandleFunc("/oauth/slack/start", mod.OAuthSlackStart)
 	team.Router().HandleFunc("/oauth/slack/callback", mod.OAuthSlackCallback)
+	team.Router().HandleFunc("/oauth/intra/start", mod.OAuthIntraStart)
+	team.Router().HandleFunc("/oauth/intra/callback", mod.OAuthIntraCallback)
 
 	team.Router().HandleFunc("/", mod.ServeRoot)
 	team.Router().PathPrefix("/assets/").HandlerFunc(mod.ServeAsset)

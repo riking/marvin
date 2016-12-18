@@ -3,9 +3,11 @@ package weblogin
 import (
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/gorilla/securecookie"
@@ -13,17 +15,15 @@ import (
 	"github.com/pkg/errors"
 	"golang.org/x/oauth2"
 
-	"encoding/json"
-	"strings"
-
 	"github.com/riking/homeapi/marvin/slack"
 	"github.com/riking/homeapi/marvin/util"
 )
 
 var (
-	cookieLoginTmp = "oauth"
-	keyOauthNonce  = "oauth-nonce"
-	keyAfterLogin  = "oauth-redirect"
+	cookieLoginTmp    = "oauth"
+	cookieKeyNonce    = "nonce"
+	cookieKeyRedirect = "redirect"
+	cookieKeyScope    = "scope"
 
 	ErrBadCookie = errors.New("Bad cookie data")
 )
@@ -74,10 +74,6 @@ func (mod *WebLoginModule) StartSlackURL(returnURL string, extraScopes ...string
 	return uri.String()
 }
 
-func (mod *WebLoginModule) StartIntraURL(returnURL string, extraScopes ...string) string {
-	panic("TODO move to other file")
-}
-
 func (mod *WebLoginModule) OAuthSlackStart(w http.ResponseWriter, r *http.Request) {
 	loginSession, err := mod.getSession(w, r, cookieLoginTmp)
 	if err != nil {
@@ -93,16 +89,16 @@ func (mod *WebLoginModule) OAuthSlackStart(w http.ResponseWriter, r *http.Reques
 	var bytes [16]byte
 	rand.Read(bytes[:])
 	nonce := base64.URLEncoding.EncodeToString(bytes[:])
-	loginSession.Values[keyOauthNonce] = nonce
+	loginSession.Values[cookieKeyNonce] = nonce
 
 	if after := r.Form.Get("redirect_url"); after != "" {
-		loginSession.Values[keyAfterLogin] = after
+		loginSession.Values[cookieKeyRedirect] = after
 	}
 
 	scopes := strings.Split(r.Form.Get("scope"), " ")
 	scopes = append(scopes, "identify")
 
-	targetURL := mod.oauthConfig.AuthCodeURL(nonce,
+	targetURL := mod.slackOAuthConfig.AuthCodeURL(nonce,
 		oauth2.SetAuthURLParam("team", string(mod.team.TeamID())),
 		oauth2.SetAuthURLParam("scope", strings.Join(scopes, " ")),
 	)
@@ -121,7 +117,7 @@ func (mod *WebLoginModule) OAuthSlackCallback(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	doneRedirectURL, _ := loginSession.Values[keyAfterLogin].(string)
+	doneRedirectURL, _ := loginSession.Values[cookieKeyRedirect].(string)
 
 	// Burn nonce (this deletes record from database)
 	loginSession.Options.MaxAge = -1
@@ -129,11 +125,13 @@ func (mod *WebLoginModule) OAuthSlackCallback(w http.ResponseWriter, r *http.Req
 	if err != nil {
 		util.LogError(errors.Wrap(err, "oauth: clearing session"))
 		http.Error(w, "Internal error", http.StatusInternalServerError)
+		w.Write([]byte(`<br><a href="/oauth/slack/start">Start Over</a>`))
 		return
 	}
 
 	if loginSession.IsNew {
 		http.Error(w, "nonce expired", http.StatusBadRequest)
+		w.Write([]byte(`<br><a href="/oauth/slack/start">Start Over</a>`))
 		return
 	}
 
@@ -149,7 +147,7 @@ func (mod *WebLoginModule) OAuthSlackCallback(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	nonceExpect, anyStored := loginSession.Values[keyOauthNonce]
+	nonceExpect, anyStored := loginSession.Values[cookieKeyNonce]
 	nonceGot := r.Form.Get("state")
 	if nonceExpect != nonceGot || !anyStored {
 		http.Error(w, "nonce mismatch", http.StatusBadRequest)
@@ -158,7 +156,7 @@ func (mod *WebLoginModule) OAuthSlackCallback(w http.ResponseWriter, r *http.Req
 
 	// Nonce passed, exchange code for an auth token
 	code := r.Form.Get("code")
-	token, err := mod.oauthConfig.Exchange(r.Context(), code)
+	token, err := mod.slackOAuthConfig.Exchange(r.Context(), code)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("bad token/could not contact Slack: %s", err), http.StatusBadRequest)
 		return
@@ -217,7 +215,7 @@ func (mod *WebLoginModule) OAuthSlackCallback(w http.ResponseWriter, r *http.Req
 	// Check for existing User
 	var user *User
 	user, err = mod.GetUserBySlack(response.UserID)
-	if err != nil {
+	if err != nil && err != ErrNoSuchUser {
 		util.LogError(err)
 		http.Error(w, fmt.Sprintf("database error: %s", err), http.StatusBadRequest)
 		return
