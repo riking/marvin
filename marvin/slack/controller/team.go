@@ -245,10 +245,12 @@ func (t *Team) SlackAPIPostJSON(method string, form url.Values, result interface
 		return errors.Wrapf(err, "Slack API %s", method)
 	}
 
+	// Early return - no result needed
 	if result == nil {
 		util.LogDebug("Slack API", method, "success", slackResponse)
-		return nil // Response is just "ok"
+		return nil
 	}
+
 	err = json.Unmarshal(rawResponse, result)
 	if err != nil {
 		util.LogBadf("Slack API %s error: %s", method, err)

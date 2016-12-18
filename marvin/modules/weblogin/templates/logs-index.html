@@ -47,8 +47,9 @@
         </div>
         {{end}}
     </div>
-    {{ if .YourPrivateChannels -}}
+
     <h2>Private Channels</h2>
+    {{ if .YourPrivateChannels -}}
     <div class="channel-box-container">
         {{- range .YourPrivateChannels }}
         <div style="order: -{{len .Members}}" class="{{if not .HasMarvin}}no-marvin {{end}}">
@@ -61,8 +62,11 @@
         {{ end -}}
     </div>
     {{ else }}
-    <h2>Private Channels</h2>
-    <p>To view the logs for private channels, <a href="/oauth/slack/start">sign in</a>.</p>
+        {{- if .CurrentUser.SlackUser -}}
+        <p>To view the logs for private channels, <a href='{{.Layout.StartSlackURL "groups:read"}}'>grant access</a>.</p>
+        {{- else -}}
+        <p>To view the logs for private channels, <a href='{{.Layout.StartSlackURL "groups:read"}}'>sign in</a>.</p>
+        {{- end -}}
     {{- end }}
 </div>
 {{end}}

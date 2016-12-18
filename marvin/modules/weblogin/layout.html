@@ -31,15 +31,24 @@
         {{ end }}{{ end }}
         </ul>
         <ul class="nav navbar-nav navbar-right">
-            {{ if .CurrentUser -}}
+            {{ if .SlackUser -}}
             <li>
-                <img height="32" width="32" src="{{.CurrentUser.Avatar 32}}"
-                     srcset="{{.CurrentUser.Avatar 32}} 1x, {{.CurrentUser.Avatar 64}} 2x, {{.CurrentUser.Avatar 128}} 4x" />
-                <a href="#">slack@{{.CurrentUser.Name}}</a>
+                <img height="32" width="32" src="{{.SlackUser.Avatar 32}}"
+                     srcset="{{.SlackUser.Avatar 32}} 1x, {{.SlackUser.Avatar 64}} 2x, {{.SlackUser.Avatar 128}} 4x" />
+                <a href="#">@{{.CurrentUser.Name}}</a>
             </li>
             {{- else -}}
-            <li><a href="/oauth/slack/start">Log In</a></li>
+            <li><a href="/oauth/slack/start">Slack Log In</a></li>
             {{- end}}
+            &lt;=&gt;
+            {{ if .CurrentUser.IntraLogin -}}
+            <li>
+                <img height="32" width="32" src="https://cdn.intra.42.fr/users/medium_{{.CurrentUser.IntraLogin}}.jpeg" />
+                <a href="#">@{{.CurrentUser.IntraLogin}}</a>
+            </li>
+            {{- else -}}
+            <li><a href="/oauth/intra/start">Intra Log In</a></li>
+            {{- end }}
         </ul>
     </div>
     </div>

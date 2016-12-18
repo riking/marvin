@@ -20,14 +20,24 @@ import (
 type API interface {
 	marvin.Module
 
-	// GetUser returns an empty string if the user has not authed with Slack.
+	// GetCurrentUser gets the current User object for the request's cookies.
+	// If there is no logged in user, this method returns (nil, nil).
 	// An error is returned only in case of corrupt cookie data.
-	GetUser(w http.ResponseWriter, r *http.Request) (slack.UserID, error)
-	// Returns an empty string if the user has not authed with Slack.
-	// An error is returned only in case of corrupt cookie data.
-	GetUserToken(w http.ResponseWriter, r *http.Request) (string, error)
-	StartURL() string
+	GetCurrentUser(w http.ResponseWriter, r *http.Request) (*User, error)
 
+	// GetUserBySlack gets the User object for the given Slack user.
+	// If no associated Slack account is found, ErrNoSuchUser is returned.
+	GetUserBySlack(slackID slack.UserID) (*User, error)
+	// GetUserByIntra gets the User object for the given Intra username.
+	// If no associated Intra account is found, ErrNoSuchUser is returned.
+	GetUserByIntra(login string) (*User, error)
+
+	// StartSlackURL returns the URL to redirect to to start Slack authentication.
+	StartSlackURL(returnURL string, extraScopes ...string) string
+	// StartSlackURL returns the URL to redirect to to start Intra authentication.
+	StartIntraURL(returnURL string, extraScopes ...string) string
+
+	// HTTPError renders a formatted error page.
 	HTTPError(w http.ResponseWriter, r *http.Request, err error)
 }
 
@@ -58,7 +68,7 @@ func NewWebLoginModule(t marvin.Team) marvin.Module {
 				TokenURL: "https://slack.com/api/oauth.access",
 			},
 			RedirectURL: t.AbsoluteURL("/oauth/slack/callback"),
-			Scopes:      []string{"identify", "groups:read"},
+			Scopes:      []string{"BOGUS_VALUE"},
 		},
 		store: nil,
 	}
@@ -96,12 +106,23 @@ func (mod *WebLoginModule) Load(t marvin.Team) {
 		store.Options.Secure = true
 	}
 	mod.store = store
+
+	mod.team.DB().MustMigrate(Identifier, 1482035974, sqlMigrateUser1, sqlMigrateUser2, sqlMigrateUser3)
+	mod.team.DB().SyntaxCheck(
+		sqlLoadUser,
+		sqlNewUser,
+		sqlUpdateIntra,
+		sqlUpdateSlack,
+		sqlLookupUserBySlack,
+		sqlLookupUserByIntra,
+	)
 }
 
 func (mod *WebLoginModule) Enable(team marvin.Team) {
-	team.HandleHTTP("/oauth/slack/start", http.HandlerFunc(mod.OAuthSlackStart))
-	team.HandleHTTP("/oauth/slack/callback", http.HandlerFunc(mod.OAuthSlackCallback))
-	team.HandleHTTP("/", http.HandlerFunc(mod.ServeRoot))
+	team.Router().HandleFunc("/oauth/slack/start", mod.OAuthSlackStart)
+	team.Router().HandleFunc("/oauth/slack/callback", mod.OAuthSlackCallback)
+
+	team.Router().HandleFunc("/", mod.ServeRoot)
 	team.Router().PathPrefix("/assets/").HandlerFunc(mod.ServeAsset)
 	team.Router().NotFoundHandler = http.HandlerFunc(mod.Serve404)
 }
@@ -110,18 +131,6 @@ func (mod *WebLoginModule) Disable(team marvin.Team) {
 }
 
 // ---
-
-const (
-	sqlMigrate1 = `
-	CREATE TABLE slack_login_tokens (
-		id serial primary key,
-		userID      varchar(10), -- slack.UserID
-		username    varchar(64),
-		token       varchar(60), -- slack.LoginToken
-		scopes      text[],
-		created_at  timestamp with zone,
-	)`
-)
 
 // ---
 

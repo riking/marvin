@@ -136,7 +136,8 @@ type TeamConfig struct {
 	ClientID        string
 	ClientSecret    string
 	CookieSecretKey string
-	VerifyToken     string
+	IntraUID        string
+	IntraSecret     string
 	DatabaseURL     string
 	UserToken       string
 	LogChannel      slack.ChannelID
@@ -151,7 +152,8 @@ func LoadTeamConfig(sec *ini.Section) *TeamConfig {
 	c.ClientID = sec.Key("ClientID").String()
 	c.ClientSecret = sec.Key("ClientSecret").String()
 	c.CookieSecretKey = sec.Key("CookieSecretKey").String()
-	c.VerifyToken = sec.Key("VerifyToken").String()
+	c.IntraUID = sec.Key("IntraUID").String()
+	c.IntraSecret = sec.Key("IntraSecret").String()
 	c.DatabaseURL = sec.Key("DatabaseURL").String()
 	c.UserToken = sec.Key("UserToken").String()
 	c.HTTPListen = sec.Key("HTTPListen").String()
@@ -258,7 +260,7 @@ type Team interface {
 	// HandleHTTP must be called as follows:
 	//
 	//   team.HandleHTTP("/links/", module_or_other_handler)
-	HandleHTTP(folder string, handler http.Handler) *mux.Route
+	HandleHTTP(path string, handler http.Handler) *mux.Route
 	Router() *mux.Router
 	AbsoluteURL(path string) string
 

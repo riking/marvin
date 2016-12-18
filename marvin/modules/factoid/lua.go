@@ -141,6 +141,7 @@ func (f *FactoidLua) Setup() {
 	lualib.OpenBit(f.L)
 	lualib.OpenJson(f.L)
 	lualib.OpenRequests(f.L)
+	lualib.OpenCorpus(f.L)
 
 	f.OpenFactoid(f.L)
 	f.OpenBot(f.L)

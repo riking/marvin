@@ -13,25 +13,25 @@ import (
 	"github.com/pkg/errors"
 	"golang.org/x/oauth2"
 
+	"encoding/json"
+	"strings"
+
 	"github.com/riking/homeapi/marvin/slack"
 	"github.com/riking/homeapi/marvin/util"
 )
 
 var (
-	cookieLoginTmp = "login"
-	keyOauthNonce  = "login-nonce"
-	keyAfterLogin  = "login-redirect"
+	cookieLoginTmp = "oauth"
+	keyOauthNonce  = "oauth-nonce"
+	keyAfterLogin  = "oauth-redirect"
 
-	cookieLongTerm = "slack"
-	keyUserID      = "slack-id"
-	keyUserToken   = "slack-token"
-	keyUserScope   = "slack-scope"
+	ErrBadCookie = errors.New("Bad cookie data")
 )
 
 const shortTermMaxAge = 10 * time.Minute
 const longTermMaxAge = 6 * 30 * 24 * time.Hour
 
-func (mod *WebLoginModule) getSession(w http.ResponseWriter, r *http.Request, name string) (*sessions.Session, bool) {
+func (mod *WebLoginModule) getSession(w http.ResponseWriter, r *http.Request, name string) (*sessions.Session, error) {
 	sess, err := mod.store.Get(r, name)
 	if err != nil {
 		if err, ok := err.(securecookie.Error); ok {
@@ -40,13 +40,13 @@ func (mod *WebLoginModule) getSession(w http.ResponseWriter, r *http.Request, na
 				sess.Save(r, w)
 				util.LogBadf("Cookie decode error: %s", err)
 				http.Error(w, "invalid cookies, please login again", http.StatusBadRequest)
-				return nil, false
+				return nil, ErrBadCookie
 			}
 		}
 
 		util.LogBadf("Cookie error: %s", err)
 		http.Error(w, fmt.Sprintf("cookie error: %s", err), http.StatusInternalServerError)
-		return nil, false
+		return nil, ErrBadCookie
 	}
 
 	if name == cookieLoginTmp {
@@ -55,16 +55,36 @@ func (mod *WebLoginModule) getSession(w http.ResponseWriter, r *http.Request, na
 		sess.Options.MaxAge = int(longTermMaxAge / time.Second)
 	}
 
-	return sess, true
+	return sess, nil
+}
+
+func (mod *WebLoginModule) StartSlackURL(returnURL string, extraScopes ...string) string {
+	form := url.Values{}
+	if returnURL != "" {
+		form.Set("redirect_url", returnURL)
+	}
+	if len(extraScopes) > 0 {
+		form.Set("scope", strings.Join(extraScopes, " "))
+	}
+	uri, err := url.Parse(mod.team.AbsoluteURL("/oauth/slack/start"))
+	if err != nil {
+		panic(err)
+	}
+	uri.RawQuery = form.Encode()
+	return uri.String()
+}
+
+func (mod *WebLoginModule) StartIntraURL(returnURL string, extraScopes ...string) string {
+	panic("TODO move to other file")
 }
 
 func (mod *WebLoginModule) OAuthSlackStart(w http.ResponseWriter, r *http.Request) {
-	loginSession, ok := mod.getSession(w, r, cookieLoginTmp)
-	if !ok {
+	loginSession, err := mod.getSession(w, r, cookieLoginTmp)
+	if err != nil {
 		return
 	}
 
-	err := r.ParseForm()
+	err = r.ParseForm()
 	if err != nil {
 		http.Error(w, "bad form encoding", http.StatusBadRequest)
 		return
@@ -79,27 +99,35 @@ func (mod *WebLoginModule) OAuthSlackStart(w http.ResponseWriter, r *http.Reques
 		loginSession.Values[keyAfterLogin] = after
 	}
 
-	redirectURL := mod.oauthConfig.AuthCodeURL(nonce, oauth2.SetAuthURLParam("team", string(mod.team.TeamID())))
+	scopes := strings.Split(r.Form.Get("scope"), " ")
+	scopes = append(scopes, "identify")
+
+	targetURL := mod.oauthConfig.AuthCodeURL(nonce,
+		oauth2.SetAuthURLParam("team", string(mod.team.TeamID())),
+		oauth2.SetAuthURLParam("scope", strings.Join(scopes, " ")),
+	)
 	err = loginSession.Save(r, w)
 	if err != nil {
-		util.LogError(err)
-		http.Error(w, "Internal error", http.StatusInternalServerError)
+		util.LogError(errors.Wrap(err, "could not create oauth cookie"))
+		http.Error(w, fmt.Sprintf("Internal error: %s", err), http.StatusInternalServerError)
 		return
 	}
-	http.Redirect(w, r, redirectURL, http.StatusSeeOther)
+	http.Redirect(w, r, targetURL, http.StatusSeeOther)
 }
 
 func (mod *WebLoginModule) OAuthSlackCallback(w http.ResponseWriter, r *http.Request) {
-	loginSession, ok := mod.getSession(w, r, cookieLoginTmp)
-	if !ok {
+	loginSession, err := mod.getSession(w, r, cookieLoginTmp)
+	if err != nil {
 		return
 	}
 
+	doneRedirectURL, _ := loginSession.Values[keyAfterLogin].(string)
+
 	// Burn nonce (this deletes record from database)
 	loginSession.Options.MaxAge = -1
-	err := loginSession.Save(r, w)
+	err = loginSession.Save(r, w)
 	if err != nil {
-		util.LogError(err)
+		util.LogError(errors.Wrap(err, "oauth: clearing session"))
 		http.Error(w, "Internal error", http.StatusInternalServerError)
 		return
 	}
@@ -128,83 +156,101 @@ func (mod *WebLoginModule) OAuthSlackCallback(w http.ResponseWriter, r *http.Req
 		return
 	}
 
+	// Nonce passed, exchange code for an auth token
 	code := r.Form.Get("code")
 	token, err := mod.oauthConfig.Exchange(r.Context(), code)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("bad token/could not contact Slack: %s", err), http.StatusBadRequest)
 		return
 	}
-	tokenScope := token.Extra("scope").(string)
+
+	// Contact Slack via auth.test to get the full token scope, user ID, team ID
 
 	form := url.Values{}
 	form.Set("token", token.AccessToken)
 
-	var resp struct {
-		UserID slack.UserID `json:"user_id"`
-		TeamID slack.TeamID `json:"team_id"`
+	var response struct {
+		slack.APIResponse
+		UserID   slack.UserID `json:"user_id"`
+		UserName string       `json:"user"`
+		TeamID   slack.TeamID `json:"team_id"`
 	}
 
-	err = mod.team.SlackAPIPostJSON("auth.test", form, &resp)
+	// PostRaw is used to get the X-OAuth-Scopes header
+	resp, err := mod.team.SlackAPIPostRaw("auth.test", form)
 	if err != nil {
+		util.LogError(err)
 		http.Error(w, fmt.Sprintf("bad token/could not contact Slack: %s", err), http.StatusBadRequest)
 		return
 	}
-	if resp.TeamID != mod.team.TeamID() {
-		util.LogBad("(http) Bad team id, got", resp.TeamID, "wanted", mod.team.TeamID())
+	err = json.NewDecoder(resp.Body).Decode(&response)
+	resp.Body.Close()
+	if err != nil {
+		util.LogBadf("Slack API auth.test error: %s", err)
+		http.Error(w, fmt.Sprintf("bad token/could not contact Slack: %s", err), http.StatusBadRequest)
+		return
+	}
+	if !response.APIResponse.OK {
+		err = response.APIResponse
+		util.LogBadf("Slack API auth.test error: %s", err)
+		http.Error(w, fmt.Sprintf("bad token/could not contact Slack: %s", err), http.StatusBadRequest)
+		return
+	}
+
+	// Verify that they actually logged into the correct team
+	// User IDs are NOT unique across Slack teams
+	if response.TeamID != mod.team.TeamID() {
+		util.LogBad("(http) Bad team id, got", response.TeamID, "wanted", mod.team.TeamID())
 		http.Error(w, fmt.Sprintf("Wrong Slack team! This is only available for %s.slack.com",
 			mod.team.TeamConfig().TeamDomain), http.StatusBadRequest)
+		// asynchronously revoke the token
+		go mod.team.SlackAPIPostJSON("auth.revoke", form, nil)
 		return
 	}
 
-	permSession, ok := mod.getSession(w, r, cookieLongTerm)
-	if !ok {
-		return
+	// The whole reason we're using PostRaw: the X-OAuth-Scopes header
+	authorizedScopes := strings.Split(resp.Header.Get("X-OAuth-Scopes"), ",")
+	for i, v := range authorizedScopes {
+		authorizedScopes[i] = strings.TrimSpace(v)
 	}
-	permSession.Values[keyUserID] = string(resp.UserID)
-	permSession.Values[keyUserToken] = token.AccessToken
-	permSession.Values[keyUserScope] = tokenScope
-	err = permSession.Save(r, w)
+
+	// Check for existing User
+	var user *User
+	user, err = mod.GetUserBySlack(response.UserID)
 	if err != nil {
 		util.LogError(err)
-		http.Error(w, "Internal error", http.StatusInternalServerError)
+		http.Error(w, fmt.Sprintf("database error: %s", err), http.StatusBadRequest)
+		return
+	}
+	if user == nil {
+		user, err = mod.GetOrNewCurrentUser(w, r)
+		if err != nil {
+			util.LogError(err)
+			http.Error(w, fmt.Sprintf("error getting current user: %s", err), http.StatusBadRequest)
+			return
+		}
+	}
+
+	err = user.UpdateSlack(response.UserID, response.UserName, token.AccessToken, authorizedScopes)
+	if err != nil {
+		err = errors.Wrap(err, "error saving login data")
+		util.LogError(err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	redirectURL, ok := loginSession.Values[keyAfterLogin].(string)
-	if ok {
-		http.Redirect(w, r, redirectURL, http.StatusFound)
+	err = user.Login(w, r)
+	if err != nil {
+		err = errors.Wrap(err, "error saving login cookie")
+		util.LogError(err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	http.Redirect(w, r, "/", http.StatusFound)
+
+	if doneRedirectURL != "" {
+		http.Redirect(w, r, doneRedirectURL, http.StatusFound)
+		return
+	}
+	http.Redirect(w, r, mod.team.AbsoluteURL("/"), http.StatusFound)
 	w.Write([]byte(`You are now logged in, redirecting to the homepage...`))
-}
-
-func (mod *WebLoginModule) GetUser(w http.ResponseWriter, r *http.Request) (slack.UserID, error) {
-	permSession, ok := mod.getSession(w, r, cookieLongTerm)
-	if !ok {
-		return "", errors.Errorf("Bad cookie data")
-	}
-	if permSession.IsNew {
-		return "", nil
-	}
-	uid, ok := permSession.Values[keyUserID].(string)
-	if !ok {
-		return "", nil
-	}
-	return slack.UserID(uid), nil
-}
-
-func (mod *WebLoginModule) GetUserToken(w http.ResponseWriter, r *http.Request) (string, error) {
-	permSession, ok := mod.getSession(w, r, cookieLongTerm)
-	if !ok {
-		return "", errors.Errorf("Bad cookie data")
-	}
-	if permSession.IsNew {
-		return "", nil
-	}
-	token, ok := permSession.Values[keyUserToken].(string)
-	if !ok {
-		return "", nil
-	}
-	return token, nil
 }

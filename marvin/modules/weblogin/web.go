@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/dustin/go-humanize"
-	"github.com/pkg/errors"
 
 	"github.com/riking/homeapi/marvin"
 	"github.com/riking/homeapi/marvin/slack"
@@ -33,8 +32,12 @@ var NavbarContent = []struct {
 
 type LayoutContent struct {
 	Team        marvin.Team
+	WLMod       *WebLoginModule
 	Title       string
-	CurrentUser *slack.User
+	CurrentURL  string
+	CurrentUser *User
+
+	slackUser *slack.User
 
 	NavbarCurrent     string
 	NavbarItemsCustom interface{}
@@ -45,18 +48,15 @@ type LayoutContent struct {
 // NewLayoutContent will always succeed, but may leave some fields unfilled when err != nil.
 func NewLayoutContent(team marvin.Team, w http.ResponseWriter, r *http.Request, navSection string) (*LayoutContent, error) {
 	var err error
-	var userID slack.UserID
-	var user *slack.User = nil
+	var user *User
 
-	userID, err = team.GetModule(Identifier).(*WebLoginModule).GetUser(w, r)
-	if userID != "" {
-		var err error
-		user, err = team.UserInfo(userID)
-		err = errors.Wrap(err, "getting user info for layout")
-	}
+	wlMod := team.GetModule(Identifier).(*WebLoginModule)
+	user, err = wlMod.GetCurrentUser(w, r)
 	return &LayoutContent{
 		Team:          team,
+		WLMod:         wlMod,
 		NavbarCurrent: navSection,
+		CurrentURL:    r.URL.EscapedPath(),
 		CurrentUser:   user,
 	}, err
 }
@@ -68,8 +68,31 @@ func (w *LayoutContent) NavbarItems() interface{} {
 	return NavbarContent
 }
 
+func (w *LayoutContent) SlackUser() (*slack.User, error) {
+	if w.slackUser != nil {
+		return w.slackUser, nil
+	}
+	if w.CurrentUser == nil {
+		return nil, nil
+	}
+	if w.CurrentUser.SlackToken == "" {
+		return nil, nil
+	}
+	var err error
+	w.slackUser, err = w.Team.UserInfo(w.CurrentUser.SlackUser)
+	return w.slackUser, err
+}
+
+func (w *LayoutContent) StartSlackURL(extraScopes ...string) string {
+	return w.WLMod.StartSlackURL(w.CurrentURL, extraScopes...)
+}
+
+func (w *LayoutContent) StartIntraURL(extraScopes ...string) string {
+	return w.WLMod.StartIntraURL(w.CurrentURL, extraScopes...)
+}
+
 var tmplReltime = template.Must(template.New("reltime").Parse(`<span class="reltime" title="{{.RFC3339}}">{{.Relative}}</span>`))
-var tmplLayout = template.Must(template.New("layout").Parse(string(MustAsset("layout.html.tmpl")))).Funcs(tmplFuncs)
+var tmplLayout = template.Must(template.New("layout").Parse(string(MustAsset("layout.html")))).Funcs(tmplFuncs)
 
 var tmplFuncs = template.FuncMap{
 	"user": func(team marvin.Team, userID slack.UserID) (*slack.User, error) {

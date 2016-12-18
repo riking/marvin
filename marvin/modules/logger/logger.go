@@ -145,8 +145,9 @@ func (mod *LoggerModule) getHistory(method string, channel slack.ChannelID, stmt
 	} else if err != nil {
 		return nil, errors.Wrapf(err, "Backfill database err")
 	}
-	//form.Set("oldest", lastSeenTS.String)
 
+	// PostRaw is used because we're unmarshalling a large response body into `json.RawMessage`s.
+	// Best to keep the json work to a minimum.
 	resp, err := mod.team.SlackAPIPostRaw(method, form)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Slack API %s error", method)

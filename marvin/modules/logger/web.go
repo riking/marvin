@@ -13,23 +13,19 @@ import (
 	"github.com/riking/homeapi/marvin/util"
 )
 
-func (mod *LoggerModule) getPrivateChannels(userID slack.UserID, w http.ResponseWriter, r *http.Request) ([]briefChannelInfo, error) {
+func (mod *LoggerModule) getPrivateChannels(userID slack.UserID, token string) ([]briefChannelInfo, error) {
 	item, ok := mod.cache.Get(fmt.Sprintf("groups-%s", userID))
 	if ok {
 		return item.([]briefChannelInfo), nil
 	}
 
-	token, err := mod.team.GetModule(weblogin.Identifier).(weblogin.API).GetUserToken(w, r)
-	if err != nil {
-		return nil, err
-	}
 	form := url.Values{
 		"token": []string{token},
 	}
 	var resp struct {
 		Groups []*slack.Channel `json:"groups"`
 	}
-	err = mod.team.SlackAPIPostJSON("groups.list", form, &resp)
+	err := mod.team.SlackAPIPostJSON("groups.list", form, &resp)
 	if err != nil {
 		return nil, err
 	}
@@ -73,14 +69,15 @@ func (mod *LoggerModule) LogsIndex(w http.ResponseWriter, r *http.Request) {
 
 	var data struct {
 		Team                marvin.Team
+		Layout              *weblogin.LayoutContent
 		Channels            []*slack.Channel
 		YourPrivateChannels []briefChannelInfo
 	}
 	data.Team = mod.team
 
 	// Fill out YourPrivateChannels
-	if lc.CurrentUser != nil {
-		data.YourPrivateChannels, err = mod.getPrivateChannels(lc.CurrentUser.ID, w, r)
+	if lc.CurrentUser != nil && lc.CurrentUser.HasScopeSlack("groups:read") {
+		data.YourPrivateChannels, err = mod.getPrivateChannels(lc.CurrentUser.SlackUser, lc.CurrentUser.SlackToken)
 		if err != nil {
 			mod.team.GetModule(weblogin.Identifier).(weblogin.API).HTTPError(w, r, err)
 			return
@@ -89,6 +86,7 @@ func (mod *LoggerModule) LogsIndex(w http.ResponseWriter, r *http.Request) {
 
 	rtmClient := mod.team.GetRTMClient().(*rtm.Client)
 	data.Channels = rtmClient.Channels
+	data.Layout = lc
 	lc.BodyData = data
 
 	util.LogIfError(tmplIndex.ExecuteTemplate(w, "layout", lc))
