@@ -44,7 +44,7 @@ func (mod *AutoInviteModule) Load(t marvin.Team) {
 
 	t.DependModule(mod, on_reaction.Identifier, &mod.onReact)
 	t.DB().MustMigrate(Identifier, 1481226823, sqlMigrate1)
-	t.DB().SyntaxCheck(sqlInsert)
+	t.DB().SyntaxCheck(sqlInsert, sqlFindInvite)
 }
 
 func (mod *AutoInviteModule) Enable(t marvin.Team) {
@@ -82,6 +82,11 @@ const (
 	INSERT INTO module_invites
 	(invited_channel, inviting_user, inviting_ts, msg_channel, msg_ts, msg_emoji, msg_text)
 	VALUES ($1, $2, $3, $4, $5, $6, $7)`
+
+	sqlFindInvite = `
+	SELECT invited_channel
+	FROM module_invites
+	WHERE msg_channel = $1 AND msg_ts = $2`
 )
 
 // ---
@@ -89,6 +94,34 @@ const (
 const inviteHelp = "`@marvin make-invite [:emoji:] <#channel> [message]` posts a message to another " +
 	"channel that functions as a private channel invitation.\n" +
 	"Any team member can react to the message to be added to the private channel you sent the command from."
+
+func (mod *AutoInviteModule) OnRawReaction(rtm slack.RTMRawMessage) {
+	var msg struct {
+		TargetUser slack.UserID `json:"item_user"`
+		Item       struct {
+			Type    string          `json:"type"`
+			Channel slack.ChannelID `json:"channel"`
+			TS      slack.MessageTS `json:"ts"`
+		}
+		EventTS slack.MessageTS `json:"event_ts"`
+	}
+	rtm.ReMarshal(&msg)
+
+	if msg.TargetUser != mod.team.BotUser() {
+		return
+	}
+	if msg.Item.Type != "message" {
+		return
+	}
+
+	stmt, err := mod.team.DB().Prepare(sqlFindInvite)
+	if err != nil {
+		util.LogError(errors.Wrap(err, "prepare"))
+	}
+	defer stmt.Close()
+
+	row := stmt.QueryRow(string(msg.Item.Channel), string(msg.Item.TS))
+}
 
 type PendingInviteData struct {
 	InviteTargetChannel slack.ChannelID
