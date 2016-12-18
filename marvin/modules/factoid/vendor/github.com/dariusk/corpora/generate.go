@@ -1,3 +1,3 @@
 package corpora
 
-//go:generate sh bindata.sh
+//go:generate sh generate-bindata.sh
