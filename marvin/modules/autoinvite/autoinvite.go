@@ -45,7 +45,8 @@ func (mod *AutoInviteModule) Load(t marvin.Team) {
 
 	t.DependModule(mod, on_reaction.Identifier, &mod.onReact)
 	t.DB().MustMigrate(Identifier, 1481226823, sqlMigrate1)
-	t.DB().SyntaxCheck(sqlInsert, sqlFindInvite)
+	t.DB().MustMigrate(Identifier, 1482202815, sqlMigrate2, sqlMigrate3)
+	t.DB().SyntaxCheck(sqlInsert, sqlFindInvite, sqlRevokeInvite)
 }
 
 func (mod *AutoInviteModule) Enable(t marvin.Team) {
@@ -79,11 +80,11 @@ const (
 		msg_channel     varchar(10) NOT NULL,
 		msg_ts          varchar(20) NOT NULL,
 		msg_emoji       varchar(200) NOT NULL,
-		msg_text        TEXT,
-
-		INDEX (msg_channel, msg_ts, invited_channel),
-		INDEX (invited_channel, valid)
+		msg_text        TEXT
 	)`
+
+	sqlMigrate2 = `CREATE INDEX index_module_invites_on_message (msg_channel, msg_ts, invited_channel)`
+	sqlMigrate3 = `CREATE INDEX index_module_invites_on_channel (invited_channel, valid)`
 
 	sqlInsert = `
 	INSERT INTO module_invites
