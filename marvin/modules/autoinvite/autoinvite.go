@@ -83,8 +83,10 @@ const (
 		msg_text        TEXT
 	)`
 
-	sqlMigrate2 = `CREATE INDEX index_module_invites_on_message (msg_channel, msg_ts, invited_channel)`
-	sqlMigrate3 = `CREATE INDEX index_module_invites_on_channel (invited_channel, valid)`
+	sqlMigrate2 = `CREATE INDEX index_module_invites_on_message
+			ON module_invites (msg_channel, msg_ts, invited_channel)`
+	sqlMigrate3 = `CREATE INDEX index_module_invites_on_channel
+			ON module_invites (invited_channel, valid)`
 
 	sqlInsert = `
 	INSERT INTO module_invites
