@@ -94,15 +94,15 @@ const (
 	VALUES (true, $1, $2, $3, $4, $5, $6, $7)`
 
 	sqlFindInvite = `
-	SELECT invited_channel
+	SELECT invited_channel, valid
 	FROM module_invites
-	WHERE msg_channel = $1 AND msg_ts = $2
-	AND valid = true`
+	WHERE msg_channel = $1 AND msg_ts = $2`
 
 	sqlRevokeInvite = `
 	UPDATE module_invites
 	SET valid = false
-	WHERE invited_channel = $1`
+	WHERE invited_channel = $1
+	RETURNING msg_channel, msg_ts, msg_emoji`
 )
 
 // ---
@@ -144,8 +144,9 @@ func (mod *AutoInviteModule) OnRawReaction(rtm slack.RTMRawMessage) {
 	defer stmt.Close()
 
 	row := stmt.QueryRow(string(msg.Item.Channel), string(msg.Item.TS))
-	var targetChannelStr sql.NullString
-	err = row.Scan(&targetChannelStr)
+	var targetChannelStr string
+	var isValid bool
+	err = row.Scan(&targetChannelStr, &isValid)
 	if err == sql.ErrNoRows {
 		return
 	} else if err != nil {
@@ -153,12 +154,18 @@ func (mod *AutoInviteModule) OnRawReaction(rtm slack.RTMRawMessage) {
 		return
 	}
 
+	if !isValid {
+		channel, _ := mod.team.GetIM(msg.User)
+		mod.team.SendMessage(channel, "That invitation has been deleted.")
+		return
+	}
+
 	var response struct {
 		AlreadyInGroup bool `json:"already_in_group"`
 	}
 	form := url.Values{
-		"channel": []string{string(targetChannelStr.String)},
-		"user":    []string{string(rtm.UserID())},
+		"channel": []string{string(targetChannelStr)},
+		"user":    []string{string(msg.User)},
 	}
 	err = mod.team.SlackAPIPostJSON("groups.invite", form, &response)
 	if err != nil {
@@ -166,10 +173,10 @@ func (mod *AutoInviteModule) OnRawReaction(rtm slack.RTMRawMessage) {
 		return
 	}
 	if response.AlreadyInGroup {
-		util.LogGood("Invite skipped:", mod.team.UserName(msg.User), "already in", mod.team.ChannelName(slack.ChannelID(targetChannelStr.String)))
+		util.LogGood("Invite skipped:", mod.team.UserName(msg.User), "already in", mod.team.ChannelName(slack.ChannelID(targetChannelStr)))
 		return
 	}
-	util.LogGood("Invited", mod.team.UserName(msg.User), "to", mod.team.ChannelName(slack.ChannelID(targetChannelStr.String)))
+	util.LogGood("Invited", mod.team.UserName(msg.User), "to", mod.team.ChannelName(slack.ChannelID(targetChannelStr)))
 }
 
 type PendingInviteData struct {
@@ -206,7 +213,7 @@ func (mod *AutoInviteModule) OnReaction(evt *on_reaction.ReactionEvent, customDa
 		}
 		return errors.Wrap(err, "invite to group")
 	}
-	util.LogGood("Invited", mod.team.UserName(evt.UserID), "to", mod.team.ChannelName(data.InviteTargetChannel))
+	util.LogGood("(Old) Invited", mod.team.UserName(evt.UserID), "to", mod.team.ChannelName(data.InviteTargetChannel))
 	return nil
 }
 
@@ -394,15 +401,45 @@ func (mod *AutoInviteModule) CmdRevokeInvite(t marvin.Team, args *marvin.Command
 	}
 	defer stmt.Close()
 
-	r, err := stmt.Exec(string(args.Source.ChannelID()))
+	rows, err := stmt.Query(string(args.Source.ChannelID()))
 	if err != nil {
 		return marvin.CmdError(args, err, "database error")
 	}
 
-	rows, err := r.RowsAffected()
-	if err != nil {
-		return marvin.CmdError(args, err, "database error")
+	var channel, ts, emoji string
+	var count int64
+	for rows.Next() {
+		err = rows.Scan(&channel, &ts, &emoji)
+		if err != nil {
+			util.LogError(err)
+			continue
+		}
+
+		form := url.Values{
+			"name":      []string{emoji},
+			"channel":   []string{channel},
+			"timestamp": []string{ts},
+		}
+		err = mod.team.SlackAPIPostJSON("reactions.remove", form, nil)
+		if err, ok := err.(slack.APIResponse); ok {
+			if err.SlackError == "no_reaction" {
+				continue
+			}
+		}
+		if err != nil {
+			util.LogError(err)
+			continue
+		}
+		form = url.Values{
+			"channel": []string{channel},
+			"ts":      []string{ts},
+			"as_user": []string{"true"},
+			"text":    []string{"(Invite deleted)"},
+			"parse":   []string{"client"},
+		}
+		util.LogIfError(mod.team.SlackAPIPostJSON("chat.update", form, nil))
+		count++
 	}
 
-	return marvin.CmdSuccess(args, fmt.Sprintf("%d invite messages revoked.", rows))
+	return marvin.CmdSuccess(args, fmt.Sprintf("%d invite messages revoked.", count))
 }
