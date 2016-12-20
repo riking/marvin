@@ -75,7 +75,7 @@ const (
 	CREATE TABLE module_invites (
 		id SERIAL PRIMARY KEY,
 		valid           boolean NOT NULL,
-		public          boolean NOT NULL,
+		-- public       boolean NOT NULL DEFAULT true,
 		invited_channel varchar(10) NOT NULL,
 		inviting_user   varchar(10) NOT NULL,
 		inviting_ts     varchar(20) NOT NULL,
@@ -89,7 +89,7 @@ const (
 			ON module_invites (msg_channel, msg_ts, invited_channel)`
 	sqlMigrate3 = `CREATE INDEX index_module_invites_on_channel
 			ON module_invites (invited_channel, valid)`
-	sqlMigrate4 = `ALTER TABLE module_invites ADD COLUMN IF NOT EXISTS public boolean NOT NULL`
+	sqlMigrate4 = `ALTER TABLE module_invites ADD COLUMN public boolean NOT NULL DEFAULT true`
 
 	sqlInsert = `
 	INSERT INTO module_invites
