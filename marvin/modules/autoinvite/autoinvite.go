@@ -130,6 +130,9 @@ func (mod *AutoInviteModule) OnRawReaction(rtm slack.RTMRawMessage) {
 	if msg.TargetUser != mod.team.BotUser() {
 		return
 	}
+	if msg.User == mod.team.BotUser() {
+		return
+	}
 	if msg.Item.Type != "message" {
 		return
 	}
