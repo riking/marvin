@@ -1,11 +1,12 @@
 package intra
 
 import (
-	"net/http"
-	"golang.org/x/oauth2"
 	"context"
-	"fmt"
 	"encoding/json"
+	"fmt"
+	"net/http"
+
+	"golang.org/x/oauth2"
 )
 
 type Doer interface {

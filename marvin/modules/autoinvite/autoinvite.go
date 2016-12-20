@@ -1,6 +1,7 @@
 package autoinvite
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"net/url"
@@ -49,7 +50,9 @@ func (mod *AutoInviteModule) Load(t marvin.Team) {
 
 func (mod *AutoInviteModule) Enable(t marvin.Team) {
 	mod.onReactAPI().RegisterHandler(mod, Identifier)
+	mod.team.OnEvent(Identifier, "reaction_added", mod.OnRawReaction)
 	t.RegisterCommandFunc("make-invite", marvin.SubCommandFunc(mod.PostInvite), inviteHelp)
+	t.RegisterCommandFunc("revoke-invite", marvin.SubCommandFunc(mod.CmdRevokeInvite), revokeHelp)
 }
 
 func (mod *AutoInviteModule) Disable(t marvin.Team) {
@@ -69,34 +72,48 @@ const (
 	sqlMigrate1 = `
 	CREATE TABLE module_invites (
 		id SERIAL PRIMARY KEY,
+		valid           boolean NOT NULL,
 		invited_channel varchar(10) NOT NULL,
 		inviting_user   varchar(10) NOT NULL,
 		inviting_ts     varchar(20) NOT NULL,
 		msg_channel     varchar(10) NOT NULL,
 		msg_ts          varchar(20) NOT NULL,
 		msg_emoji       varchar(200) NOT NULL,
-		msg_text        TEXT
+		msg_text        TEXT,
+
+		INDEX (msg_channel, msg_ts, invited_channel),
+		INDEX (invited_channel, valid)
 	)`
 
 	sqlInsert = `
 	INSERT INTO module_invites
-	(invited_channel, inviting_user, inviting_ts, msg_channel, msg_ts, msg_emoji, msg_text)
-	VALUES ($1, $2, $3, $4, $5, $6, $7)`
+	(valid, invited_channel, inviting_user, inviting_ts, msg_channel, msg_ts, msg_emoji, msg_text)
+	VALUES (true, $1, $2, $3, $4, $5, $6, $7)`
 
 	sqlFindInvite = `
 	SELECT invited_channel
 	FROM module_invites
-	WHERE msg_channel = $1 AND msg_ts = $2`
+	WHERE msg_channel = $1 AND msg_ts = $2
+	AND valid = true`
+
+	sqlRevokeInvite = `
+	UPDATE module_invites
+	SET valid = false
+	WHERE invited_channel = $1`
 )
 
 // ---
 
-const inviteHelp = "`@marvin make-invite [:emoji:] <#channel> [message]` posts a message to another " +
-	"channel that functions as a private channel invitation.\n" +
-	"Any team member can react to the message to be added to the private channel you sent the command from."
+const (
+	inviteHelp = "`@marvin make-invite [:emoji:] <#channel> [message]` posts a message to another " +
+		"channel that functions as a private channel invitation.\n" +
+		"Any team member can react to the message to be added to the private channel you sent the command from."
+	revokeHelp = "`@marvin revoke-invite` revokes all standing invitations to the channel you sent the command from."
+)
 
 func (mod *AutoInviteModule) OnRawReaction(rtm slack.RTMRawMessage) {
 	var msg struct {
+		User       slack.UserID `json:"user"`
 		TargetUser slack.UserID `json:"item_user"`
 		Item       struct {
 			Type    string          `json:"type"`
@@ -121,6 +138,32 @@ func (mod *AutoInviteModule) OnRawReaction(rtm slack.RTMRawMessage) {
 	defer stmt.Close()
 
 	row := stmt.QueryRow(string(msg.Item.Channel), string(msg.Item.TS))
+	var targetChannelStr sql.NullString
+	err = row.Scan(&targetChannelStr)
+	if err == sql.ErrNoRows {
+		return
+	} else if err != nil {
+		util.LogError(err)
+		return
+	}
+
+	var response struct {
+		AlreadyInGroup bool `json:"already_in_group"`
+	}
+	form := url.Values{
+		"channel": []string{string(targetChannelStr.String)},
+		"user":    []string{string(rtm.UserID())},
+	}
+	err = mod.team.SlackAPIPostJSON("groups.invite", form, &response)
+	if err != nil {
+		util.LogError(err)
+		return
+	}
+	if response.AlreadyInGroup {
+		util.LogGood("Invite skipped:", mod.team.UserName(msg.User), "already in", mod.team.ChannelName(slack.ChannelID(targetChannelStr.String)))
+		return
+	}
+	util.LogGood("Invited", mod.team.UserName(msg.User), "to", mod.team.ChannelName(slack.ChannelID(targetChannelStr.String)))
 }
 
 type PendingInviteData struct {
@@ -293,6 +336,9 @@ func (mod *AutoInviteModule) PostInvite(t marvin.Team, args *marvin.CommandArgum
 	}
 	msgID := slack.MsgID(messageChannel, ts)
 	args.SetModuleData(postInviteResult{MsgID: msgID, Emoji: emoji, TargetName: privateChannel.Name})
+
+	err = mod.SaveInvite(args, msgID, emoji, customMsg)
+
 	err = mod.onReactAPI().ListenMessage(msgID, Identifier, callbackBytes)
 	if err != nil {
 		// Failed to save, delete the message
@@ -312,4 +358,45 @@ func (mod *AutoInviteModule) PostInvite(t marvin.Team, args *marvin.CommandArgum
 			"Couldn't post sample reaction (the message should still work)")
 	}
 	return marvin.CmdSuccess(args, fmt.Sprintf("Message posted: %s", t.ArchiveURL(msgID))).WithEdit().WithCustomUndo()
+}
+
+func (mod *AutoInviteModule) SaveInvite(
+	args *marvin.CommandArguments,
+	sentMsgId slack.MessageID,
+	emoji, text string) error {
+	stmt, err := mod.team.DB().Prepare(sqlInsert)
+	if err != nil {
+		return errors.Wrap(err, "prepare")
+	}
+	defer stmt.Close()
+
+	_, err = stmt.Exec(
+		string(args.Source.ChannelID()), string(args.Source.UserID()), string(args.Source.MsgTimestamp()),
+		string(sentMsgId.ChannelID), string(sentMsgId.MessageTS),
+		emoji, text,
+	)
+	if err != nil {
+		return errors.Wrap(err, "insert")
+	}
+	return nil
+}
+
+func (mod *AutoInviteModule) CmdRevokeInvite(t marvin.Team, args *marvin.CommandArguments) marvin.CommandResult {
+	stmt, err := mod.team.DB().Prepare(sqlRevokeInvite)
+	if err != nil {
+		return marvin.CmdError(args, err, "database error")
+	}
+	defer stmt.Close()
+
+	r, err := stmt.Exec(string(args.Source.ChannelID()))
+	if err != nil {
+		return marvin.CmdError(args, err, "database error")
+	}
+
+	rows, err := r.RowsAffected()
+	if err != nil {
+		return marvin.CmdError(args, err, "database error")
+	}
+
+	return marvin.CmdSuccess(args, fmt.Sprintf("%d invite messages revoked.", rows))
 }
