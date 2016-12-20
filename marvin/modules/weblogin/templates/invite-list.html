@@ -1,13 +1,25 @@
 {{define "styles"}}
 <style>
+    .m-channel {
+        margin-right: 0;
+        margin-left: 0;
+        background-color: #ddd;
+        border: 1px inset #333;
+        border-radius: 6px 6px 0 0;
+    }
+    .m-channel-wrap {
+        position: relative;
+        padding: 15px;
+    }
+    .m-channel h3 {
+        margin-top: 0;
+        font-size: 24px;
+    }
     .join-btn {
         position: absolute;
         top: 1rem;
-        right: 0;
+        right: 15px;
         text-transform: lowercase;
-    }
-    .m-channel h3 {
-        font-size: 24px;
     }
     .m-channel .meta {
         font-style: italic;
@@ -24,12 +36,13 @@
 </div>
 
 <section>
-    {{ each .Channels }}
+    {{ range .Channels }}
     <div class="m-channel card card-block" data-id="{{.ID}}">
+        <div class="m-channel-wrap">
         <h3>{{.Name}}</h3>
         <span class="join-btn">
         {{ if $.NotLoggedIn -}}
-            <a class="btn" data-interact="1">Log In First</a>
+            <a class="btn btn-default" data-interact="1">Log In First</a>
         {{- else -}}
         {{- if and .StatusLoaded .Available -}}
             <a class="btn btn-primary" data-interact="1"><i class="fa fa-slack"></i> Join Channel</a>
@@ -44,6 +57,7 @@
         </span>
         <p class="meta">@{{.UserName}} created invite on {{reltime .Timestamp}}</p>
         <p class="message">{{.Text}}</p>
+        </div>
     </div>
     {{ end }}
 </section>
@@ -53,10 +67,10 @@
         <a class="btn btn-primary" data-interact="1"><i class="fa fa-slack"></i> Join Channel</a>
     </div>
     <div id="placeholder-join-login">
-        <a class="btn" data-interact="1">Log In First</a>
+        <a class="btn btn-default" data-interact="1">Log In First</a>
     </div>
     <div id="placeholder-join-pending">
-        <a class="btn disabled"><i class="fa fa-spin fa-spinner"></i> Working…</a>
+        <a class="btn btn-default disabled"><i class="fa fa-spin fa-spinner"></i> Working…</a>
     </div>
     <div id="placeholder-join-finished">
         <a class="btn btn-info"><i class="fa fa-slack"></i> Joined</a>
@@ -74,13 +88,13 @@
 <script>
 var csrfToken = {{js .CSRF}};
 var startLoginURL = {{js .Layout.StartSlackURL "groups:read"}};
-var needLogin = {{js .NeedPermission}} || (!{{js .NotLoggedIn}});
+var needLogin = {{if or (false) (not .NotLoggedIn)}}true{{else}}false{{end}};
 function buttonClick(evt) {
     var spanEl = evt.delegateTarget;
-    var divEl = spanEl.parentElement;
-    var channelID = divEL.dataset.id;
+    var divEl = spanEl.parentElement.parentElement;
+    var channelID = divEl.dataset.id;
 
-    if (needPermission) {
+    if (needLogin) {
         document.location = startLoginURL;
         return;
     }

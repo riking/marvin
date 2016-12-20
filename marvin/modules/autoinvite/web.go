@@ -3,6 +3,7 @@ package autoinvite
 import (
 	"encoding/json"
 	"fmt"
+	"html/template"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -15,6 +16,7 @@ import (
 
 	"github.com/riking/homeapi/marvin/modules/weblogin"
 	"github.com/riking/homeapi/marvin/slack"
+	"github.com/riking/homeapi/marvin/util"
 )
 
 func (mod *AutoInviteModule) registerHTTP() {
@@ -24,6 +26,8 @@ func (mod *AutoInviteModule) registerHTTP() {
 	mod.team.Router().Path("/invites/{channel}").Methods(http.MethodPost).Handler(
 		wlAPI.CSRF(http.HandlerFunc(mod.HTTPInvite)))
 }
+
+var tmplListInvites = template.Must(weblogin.LayoutTemplateCopy().Parse(string(weblogin.MustAsset("templates/invite-list.html"))))
 
 func (mod *AutoInviteModule) HTTPListInvites(w http.ResponseWriter, r *http.Request) {
 	wlAPI := mod.team.GetModule(weblogin.Identifier).(weblogin.API)
@@ -108,6 +112,8 @@ func (mod *AutoInviteModule) HTTPListInvites(w http.ResponseWriter, r *http.Requ
 	}
 
 	lc.BodyData = data
+	util.LogIfError(
+		tmplListInvites.Execute(w, lc))
 }
 
 var rgxAcceptInvite = regexp.MustCompile(`/invites/([A-Z0-9]+)`)

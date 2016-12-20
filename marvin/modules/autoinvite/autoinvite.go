@@ -55,6 +55,7 @@ func (mod *AutoInviteModule) Enable(t marvin.Team) {
 	mod.team.OnEvent(Identifier, "reaction_added", mod.OnRawReaction)
 	t.RegisterCommandFunc("make-invite", marvin.SubCommandFunc(mod.PostInvite), inviteHelp)
 	t.RegisterCommandFunc("revoke-invite", marvin.SubCommandFunc(mod.CmdRevokeInvite), revokeHelp)
+	mod.registerHTTP()
 }
 
 func (mod *AutoInviteModule) Disable(t marvin.Team) {
