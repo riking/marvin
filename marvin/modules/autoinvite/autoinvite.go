@@ -46,6 +46,7 @@ func (mod *AutoInviteModule) Load(t marvin.Team) {
 	t.DependModule(mod, on_reaction.Identifier, &mod.onReact)
 	t.DB().MustMigrate(Identifier, 1481226823, sqlMigrate1)
 	t.DB().MustMigrate(Identifier, 1482202815, sqlMigrate2, sqlMigrate3)
+	t.DB().MustMigrate(Identifier, 1482215299, sqlMigrate4)
 	t.DB().SyntaxCheck(sqlInsert, sqlFindInvite, sqlRevokeInvite)
 }
 
@@ -74,6 +75,7 @@ const (
 	CREATE TABLE module_invites (
 		id SERIAL PRIMARY KEY,
 		valid           boolean NOT NULL,
+		public          boolean NOT NULL,
 		invited_channel varchar(10) NOT NULL,
 		inviting_user   varchar(10) NOT NULL,
 		inviting_ts     varchar(20) NOT NULL,
@@ -87,11 +89,12 @@ const (
 			ON module_invites (msg_channel, msg_ts, invited_channel)`
 	sqlMigrate3 = `CREATE INDEX index_module_invites_on_channel
 			ON module_invites (invited_channel, valid)`
+	sqlMigrate4 = `ALTER TABLE module_invites ADD COLUMN IF NOT EXISTS public boolean NOT NULL`
 
 	sqlInsert = `
 	INSERT INTO module_invites
-	(valid, invited_channel, inviting_user, inviting_ts, msg_channel, msg_ts, msg_emoji, msg_text)
-	VALUES (true, $1, $2, $3, $4, $5, $6, $7)`
+	(valid, public, invited_channel, inviting_user, inviting_ts, msg_channel, msg_ts, msg_emoji, msg_text)
+	VALUES (true, $1, $2, $3, $4, $5, $6, $7, $8)`
 
 	sqlFindInvite = `
 	SELECT invited_channel, valid
@@ -103,6 +106,12 @@ const (
 	SET valid = false
 	WHERE invited_channel = $1
 	RETURNING msg_channel, msg_ts, msg_emoji`
+
+	sqlListInvites = `
+	SELECT invited_channel, inviting_user, inviting_ts, msg_text
+	FROM module_invites
+	WHERE valid = true AND public = true
+	ORDER BY inviting_ts DESC`
 )
 
 // ---
@@ -384,6 +393,7 @@ func (mod *AutoInviteModule) SaveInvite(
 	defer stmt.Close()
 
 	_, err = stmt.Exec(
+		bool(sentMsgId.ChannelID[0] == 'C'),
 		string(args.Source.ChannelID()), string(args.Source.UserID()), string(args.Source.MsgTimestamp()),
 		string(sentMsgId.ChannelID), string(sentMsgId.MessageTS),
 		emoji, text,

@@ -13,6 +13,7 @@ import (
 	"crypto/aes"
 	"encoding/hex"
 
+	"github.com/gorilla/csrf"
 	"github.com/riking/homeapi/marvin"
 	"github.com/riking/homeapi/marvin/slack"
 )
@@ -39,6 +40,8 @@ type API interface {
 
 	// HTTPError renders a formatted error page.
 	HTTPError(w http.ResponseWriter, r *http.Request, err error)
+
+	CSRF(h http.Handler) http.Handler
 }
 
 var _ API = &WebLoginModule{}
@@ -56,6 +59,8 @@ type WebLoginModule struct {
 	slackOAuthConfig oauth2.Config
 	IntraOAuthConfig oauth2.Config
 	store            sessions.Store
+
+	secretKey []byte
 }
 
 func NewWebLoginModule(t marvin.Team) marvin.Module {
@@ -96,6 +101,7 @@ func (mod *WebLoginModule) Load(t marvin.Team) {
 	if err != nil || len(b) != aes.BlockSize {
 		panic(errors.Errorf("CookieSecretKey must be a %d-byte hex string", aes.BlockSize))
 	}
+	mod.secretKey = b
 
 	store, err := pgstore.NewPGStoreFromPool(
 		t.DB().DB,
@@ -149,4 +155,8 @@ func (mod *WebLoginModule) Disable(team marvin.Team) {
 
 func (mod *WebLoginModule) StartURL() string {
 	return mod.team.AbsoluteURL("/oauth/slack/start")
+}
+
+func (mod *WebLoginModule) CSRF(h http.Handler) http.Handler {
+	return csrf.Protect(mod.secretKey)(h)
 }

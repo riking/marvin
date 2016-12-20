@@ -18,7 +18,7 @@ import (
 const (
 	NavSectionHome     = "Home"
 	NavSectionFactoids = "Factoids"
-	NavSectionInvite   = "Invite"
+	NavSectionInvite   = "Channels"
 	NavSectionLogs     = "Logs"
 )
 
@@ -28,6 +28,7 @@ var NavbarContent = []struct {
 }{
 	{Name: NavSectionFactoids, URL: "/factoids"},
 	{Name: NavSectionLogs, URL: "/logs"},
+	{Name: NavSectionInvite, URL: "/invites"},
 }
 
 type LayoutContent struct {

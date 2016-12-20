@@ -1,0 +1,119 @@
+{{define "styles"}}
+<style>
+    .join-btn {
+        position: absolute;
+        top: 1rem;
+        right: 0;
+        text-transform: lowercase;
+    }
+    .m-channel h3 {
+        font-size: 24px;
+    }
+    .m-channel .meta {
+        font-style: italic;
+    }
+    .m-channel .message {
+        font-size: 18px;
+    }
+</style>
+{{end}}
+{{define "content"}}
+<div class="container">
+<div class="page-header">
+    <h1>Private Channels</h1><small>Join up here!</small>
+</div>
+
+<section>
+    {{ each .Channels }}
+    <div class="m-channel card card-block" data-id="{{.ID}}">
+        <h3>{{.Name}}</h3>
+        <span class="join-btn">
+        {{ if $.NotLoggedIn -}}
+            <a class="btn" data-interact="1">Log In First</a>
+        {{- else -}}
+        {{- if and .StatusLoaded .Available -}}
+            <a class="btn btn-primary" data-interact="1"><i class="fa fa-slack"></i> Join Channel</a>
+        {{- else -}}
+        {{- if .StatusLoaded -}}
+            <a class="btn btn-primary disabled">Already Joined</a>
+        {{- else -}}
+            <a class="btn btn-warning">Check Failed - <i class="fa fa-slack"></i> Click to Join</a>
+        {{- end -}}
+        {{- end -}}
+        {{- end }}
+        </span>
+        <p class="meta">@{{.UserName}} created invite on {{reltime .Timestamp}}</p>
+        <p class="message">{{.Text}}</p>
+    </div>
+    {{ end }}
+</section>
+</div>
+<div id="placeholders" style="display:none">
+    <div id="placeholder-join-available">
+        <a class="btn btn-primary" data-interact="1"><i class="fa fa-slack"></i> Join Channel</a>
+    </div>
+    <div id="placeholder-join-login">
+        <a class="btn" data-interact="1">Log In First</a>
+    </div>
+    <div id="placeholder-join-pending">
+        <a class="btn disabled"><i class="fa fa-spin fa-spinner"></i> Working…</a>
+    </div>
+    <div id="placeholder-join-finished">
+        <a class="btn btn-info"><i class="fa fa-slack"></i> Joined</a>
+    </div>
+    <div id="placeholder-join-unknown">
+        <a class="btn btn-warning">Check Failed - <i class="fa fa-slack"></i> Click to Join</a>
+    </div>
+    <div id="placeholder-join-error">
+        <a class="btn btn-danger" data-interact="1">Error (check console)</a>
+    </div>
+    <div id="placeholder-join-alreadyjoined">
+        <a class="btn btn-primary disabled">Already Joined</a>
+    </div>
+</div>
+<script>
+var csrfToken = {{js .CSRF}};
+var startLoginURL = {{js .Layout.StartSlackURL "groups:read"}};
+var needLogin = {{js .NeedPermission}} || (!{{js .NotLoggedIn}});
+function buttonClick(evt) {
+    var spanEl = evt.delegateTarget;
+    var divEl = spanEl.parentElement;
+    var channelID = divEL.dataset.id;
+
+    if (needPermission) {
+        document.location = startLoginURL;
+        return;
+    }
+    var $aEl = $(spanEl).find('a');
+    if (!$aEl[0].dataset.interact) {
+        return;
+    }
+
+    var headers = new Headers();
+    headers.set('X-CSRF-Token', csrfToken);
+    var options = {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: headers
+    };
+
+    var url = '/invites/' + channelID;
+
+    spanEl.innerHTML = document.getElementById('placeholder-join-pending').innerHTML;
+    fetch(url, options).then(function(resp) {
+        return resp.json();
+    }).then(function(json) {
+        if (!json.ok) {
+            spanEl.innerHTML = document.getElementById('placeholder-join-error').innerHTML;
+            console.log("Error:", json);
+            return;
+        }
+        spanEl.innerHTML = document.getElementById('placeholder-join-finished').innerHTML;
+    }, function(err) {
+        spanEl.innerHTML = document.getElementById('placeholder-join-error').innerHTML;
+        console.log(err);
+    });
+}
+$('.join-btn').on('click', buttonClick);
+</script>
+{{end}}

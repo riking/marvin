@@ -200,11 +200,11 @@ func (t *Team) ReactMessage(msgID slack.MessageID, emojiName string) error {
 }
 
 func (t *Team) SlackAPIPostRaw(method string, form url.Values) (*http.Response, error) {
-	var url string
+	var u string
 	if strings.HasPrefix(method, "https://slack.com") {
-		url = method
+		u = method
 	} else {
-		url = fmt.Sprintf("https://slack.com/api/%s", method)
+		u = fmt.Sprintf("https://slack.com/api/%s", method)
 	}
 
 	// Allow custom tokens
@@ -212,7 +212,7 @@ func (t *Team) SlackAPIPostRaw(method string, form url.Values) (*http.Response, 
 		form.Set("token", t.teamConfig.UserToken)
 	}
 
-	req, err := http.NewRequest("POST", url, strings.NewReader(form.Encode()))
+	req, err := http.NewRequest("POST", u, strings.NewReader(form.Encode()))
 	if err != nil {
 		panic(err)
 	}
