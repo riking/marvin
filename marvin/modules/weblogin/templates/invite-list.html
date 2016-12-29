@@ -44,13 +44,13 @@
         {{ if $.NotLoggedIn -}}
             <a class="btn btn-default" data-interact="1">Log In First</a>
         {{- else -}}
-        {{- if and .StatusLoaded .Available -}}
+        {{- if and $.HaveJoinData .Available -}}
             <a class="btn btn-primary" data-interact="1"><i class="fa fa-slack"></i> Join Channel</a>
         {{- else -}}
-        {{- if .StatusLoaded -}}
+        {{- if $.HaveJoinData -}}
             <a class="btn btn-primary disabled">Already Joined</a>
         {{- else -}}
-            <a class="btn btn-warning">Check Failed - <i class="fa fa-slack"></i> Click to Join</a>
+            <a class="btn btn-warning" data-interact="1">Check Failed - <i class="fa fa-slack"></i> Click to Join</a>
         {{- end -}}
         {{- end -}}
         {{- end }}
@@ -76,7 +76,7 @@
         <a class="btn btn-info"><i class="fa fa-slack"></i> Joined</a>
     </div>
     <div id="placeholder-join-unknown">
-        <a class="btn btn-warning">Check Failed - <i class="fa fa-slack"></i> Click to Join</a>
+        <a class="btn btn-warning" data-interact="1">Check Failed - <i class="fa fa-slack"></i> Click to Join</a>
     </div>
     <div id="placeholder-join-error">
         <a class="btn btn-danger" data-interact="1">Error (check console)</a>
@@ -86,9 +86,8 @@
     </div>
 </div>
 <script>
-var csrfToken = {{js .CSRF}};
 var startLoginURL = {{js .Layout.StartSlackURL "groups:read"}};
-var needLogin = {{if or (false) (not .NotLoggedIn)}}true{{else}}false{{end}};
+var needLogin = {{if or (.NeedPermission) (.NotLoggedIn)}}true{{else}}false{{end}};
 function buttonClick(evt) {
     var spanEl = evt.delegateTarget;
     var divEl = spanEl.parentElement.parentElement;
@@ -103,19 +102,19 @@ function buttonClick(evt) {
         return;
     }
 
-    var headers = new Headers();
-    headers.set('X-CSRF-Token', csrfToken);
-    var options = {
-        method: 'POST',
-        credentials: 'same-origin',
-        headers: headers
-    };
+    getCSRFToken().then(function(token) {
+        var headers = new Headers();
+        headers.set('X-CSRF-Token', token);
+        var options = {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: headers
+        };
 
-    var url = '/invites/' + channelID;
+        var url = '/invites/' + channelID;
 
-    spanEl.innerHTML = document.getElementById('placeholder-join-pending').innerHTML;
-    fetch(url, options).then(function(resp) {
-        return resp.json();
+        spanEl.innerHTML = document.getElementById('placeholder-join-pending').innerHTML;
+        return fetch(url, options).then(function(resp) { return resp.json(); });
     }).then(function(json) {
         if (!json.ok) {
             spanEl.innerHTML = document.getElementById('placeholder-join-error').innerHTML;

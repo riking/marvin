@@ -14,6 +14,13 @@
     <link rel="stylesheet" href="/assets/styles.css">
     {{- end }}
     {{ block "styles" . }}{{ end }}
+<script>
+function getCSRFToken() {
+    return fetch("/session/csrf.json").
+        then(function(resp) { return resp.json(); }).
+        then(function(resp) { return resp.token; });
+}
+</script>
 </head>
 <body>
 {{ block "navbar" . -}}

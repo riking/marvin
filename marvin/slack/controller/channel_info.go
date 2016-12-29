@@ -25,6 +25,8 @@ func (t *Team) ChannelName(channel slack.ChannelID) string {
 		}
 		if ch.IsMultiIM() {
 			var membersStr bytes.Buffer
+			ch.LockMemberList.Lock()
+			defer ch.LockMemberList.Unlock()
 			for i, v := range ch.Members {
 				if i != 0 {
 					membersStr.WriteByte(' ')
@@ -60,6 +62,8 @@ func (t *Team) FormatChannel(channel slack.ChannelID) string {
 		}
 		if ch.IsMultiIM() {
 			var membersStr bytes.Buffer
+			ch.LockMemberList.Lock()
+			defer ch.LockMemberList.Unlock()
 			for i, v := range ch.Members {
 				if i != 0 {
 					membersStr.WriteByte(' ')
@@ -153,6 +157,36 @@ func (t *Team) UserInfo(user slack.UserID) (*slack.User, error) {
 	}
 	t.client.ReplaceUserObject(time.Now(), response.User)
 	return response.User, nil
+}
+
+func (t *Team) UserInChannels(user slack.UserID, channels map[slack.ChannelID]marvin.TriValue) map[slack.ChannelID]marvin.TriValue {
+	for key := range channels {
+		var info *slack.Channel
+		if key[0] == 'C' {
+			info = t.cachedPublicChannelInfo(key)
+		} else {
+			info = t.cachedPrivateChannelInfo(key)
+		}
+		if info == nil {
+			channels[key] = marvin.TriDefault
+			continue
+		}
+		found := false
+		info.LockMemberList.Lock()
+		for _, v := range info.Members {
+			if v == user {
+				found = true
+				break
+			}
+		}
+		info.LockMemberList.Unlock()
+		if found {
+			channels[key] = marvin.TriYes
+		} else {
+			channels[key] = marvin.TriNo
+		}
+	}
+	return channels
 }
 
 func (t *Team) cachedPublicChannelInfo(channel slack.ChannelID) *slack.Channel {

@@ -11,7 +11,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gorilla/csrf"
 	"github.com/pkg/errors"
 
 	"github.com/riking/homeapi/marvin/modules/weblogin"
@@ -22,7 +21,7 @@ import (
 func (mod *AutoInviteModule) registerHTTP() {
 	wlAPI := mod.team.GetModule(weblogin.Identifier).(weblogin.API)
 
-	mod.team.Router().Handle("/invites", wlAPI.CSRF(http.HandlerFunc(mod.HTTPListInvites)))
+	mod.team.Router().Handle("/invites", http.HandlerFunc(mod.HTTPListInvites))
 	mod.team.Router().Path("/invites/{channel}").Methods(http.MethodPost).Handler(
 		wlAPI.CSRF(http.HandlerFunc(mod.HTTPInvite)))
 }
@@ -47,8 +46,9 @@ func (mod *AutoInviteModule) HTTPListInvites(w http.ResponseWriter, r *http.Requ
 	}
 
 	type singleChannel struct {
-		Name      string
-		ID        slack.ChannelID
+		Name string
+		ID   slack.ChannelID
+
 		Available bool
 
 		User      slack.UserID
@@ -59,14 +59,12 @@ func (mod *AutoInviteModule) HTTPListInvites(w http.ResponseWriter, r *http.Requ
 
 	var data struct {
 		Layout         *weblogin.LayoutContent
-		CSRF           string
 		NotLoggedIn    bool
 		NeedPermission bool
-		StatusLoaded   bool
+		HaveJoinData   bool
 
 		Channels []singleChannel
 	}
-	data.CSRF = csrf.Token(r)
 	data.Layout = lc
 	data.NotLoggedIn = user == nil || user.SlackUser == ""
 
@@ -107,8 +105,10 @@ func (mod *AutoInviteModule) HTTPListInvites(w http.ResponseWriter, r *http.Requ
 		})
 	}
 
+	data.HaveJoinData = false
 	if user != nil && user.SlackUser != "" {
 		// TODO fill out Available
+
 	}
 
 	lc.BodyData = data

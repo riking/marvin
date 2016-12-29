@@ -38,7 +38,7 @@ func (mod *LoggerModule) getPrivateChannels(userID slack.UserID, token string) (
 			Name:    v.Name,
 			ID:      v.ID,
 			Purpose: v.Purpose,
-			Members: make([]struct{}, len(v.Members)),
+			Members: make([]struct{}, len(v.Members)), // no lock needed - this object returned by API
 		})
 		g, _ := mod.team.PrivateChannelInfo(v.ID)
 		if g != nil {

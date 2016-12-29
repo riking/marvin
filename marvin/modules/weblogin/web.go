@@ -2,6 +2,7 @@ package weblogin
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"html/template"
 	"net/http"
@@ -9,6 +10,7 @@ import (
 	"time"
 
 	"github.com/dustin/go-humanize"
+	"github.com/gorilla/csrf"
 
 	"github.com/riking/homeapi/marvin"
 	"github.com/riking/homeapi/marvin/slack"
@@ -191,4 +193,14 @@ func (mod *WebLoginModule) ServeRoot(w http.ResponseWriter, r *http.Request) {
 
 	lc.BodyData = nil
 	util.LogIfError(tmplHome.ExecuteTemplate(w, "layout", lc))
+}
+
+func (mod *WebLoginModule) ServeCSRF(w http.ResponseWriter, r *http.Request) {
+	var jsonData struct {
+		Token string `json:"token"`
+	}
+	jsonData.Token = csrf.Token(r)
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store, must-revalidate, no-cache, private")
+	_ = json.NewEncoder(w).Encode(jsonData)
 }

@@ -41,6 +41,7 @@ type API interface {
 	// HTTPError renders a formatted error page.
 	HTTPError(w http.ResponseWriter, r *http.Request, err error)
 
+	// CSRF wraps the handler in gorilla/csrf protection.
 	CSRF(h http.Handler) http.Handler
 }
 

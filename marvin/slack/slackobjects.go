@@ -2,6 +2,7 @@ package slack
 
 import (
 	"fmt"
+	"sync"
 	"time"
 )
 
@@ -170,10 +171,10 @@ type Channel struct {
 	Creator    UserID
 	IsArchived bool `json:"is_archived"`
 	IsGeneral  bool `json:"is_general"`
+	HasPins    bool `json:"has_pins"`
 
-	HasPins  bool `json:"has_pins"`
-	Members  []UserID
-	IsMember bool `json:"is_member"`
+	LockMemberList sync.Mutex `json:"-"`
+	Members        []UserID   `json:"members"`
 
 	// IM only
 	IsUserDeleted bool `json:"is_user_deleted"`
