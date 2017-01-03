@@ -87,7 +87,7 @@
 </div>
 <script>
 var startLoginURL = {{js .Layout.StartSlackURL "groups:read"}};
-var needLogin = {{if or (.NeedPermission) (.NotLoggedIn)}}true{{else}}false{{end}};
+var needLogin = {{if or (false) (.NotLoggedIn)}}true{{else}}false{{end}};
 function buttonClick(evt) {
     var spanEl = evt.delegateTarget;
     var divEl = spanEl.parentElement.parentElement;

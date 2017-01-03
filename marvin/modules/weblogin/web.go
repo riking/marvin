@@ -78,7 +78,7 @@ func (w *LayoutContent) SlackUser() (*slack.User, error) {
 	if w.CurrentUser == nil {
 		return nil, nil
 	}
-	if w.CurrentUser.SlackToken == "" {
+	if w.CurrentUser.SlackUser == "" {
 		return nil, nil
 	}
 	var err error

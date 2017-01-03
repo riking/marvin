@@ -1,17 +1,18 @@
 package weblogin
 
 import (
+	"crypto/aes"
+	"encoding/hex"
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/antonlindstrom/pgstore"
 	"github.com/gorilla/sessions"
 	"github.com/pkg/errors"
 	"golang.org/x/oauth2"
-
-	"crypto/aes"
-	"encoding/hex"
 
 	"github.com/gorilla/csrf"
 	"github.com/riking/homeapi/marvin"
@@ -62,6 +63,9 @@ type WebLoginModule struct {
 	store            sessions.Store
 
 	secretKey []byte
+
+	authTokenMap  map[string]authNonceValue
+	authTokenLock sync.Mutex
 }
 
 func NewWebLoginModule(t marvin.Team) marvin.Module {
@@ -87,7 +91,8 @@ func NewWebLoginModule(t marvin.Team) marvin.Module {
 			RedirectURL: t.AbsoluteURL("/oauth/intra/callback"),
 			Scopes:      []string{},
 		},
-		store: nil,
+		store:        nil,
+		authTokenMap: make(map[string]authNonceValue),
 	}
 
 	return mod
@@ -145,6 +150,14 @@ func (mod *WebLoginModule) Enable(team marvin.Team) {
 	team.Router().HandleFunc("/", mod.ServeRoot)
 	team.Router().PathPrefix("/assets/").HandlerFunc(mod.ServeAsset)
 	team.Router().NotFoundHandler = http.HandlerFunc(mod.Serve404)
+
+	team.RegisterCommandFunc("web-authenticate", mod.CommandWebAuthenticate, "Used for assosciating a intra login with a slack name.")
+	go func() {
+		for {
+			time.Sleep(1 * time.Hour)
+			mod.janitorAuthToken()
+		}
+	}()
 }
 
 func (mod *WebLoginModule) Disable(team marvin.Team) {
