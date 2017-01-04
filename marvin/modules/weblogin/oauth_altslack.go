@@ -92,7 +92,7 @@ func (mod *WebLoginModule) OAuthAltSlackStart(w http.ResponseWriter, r *http.Req
 	util.LogIfError(tmplLoginAltSlack.Execute(w, lc))
 }
 
-func (mod *WebLoginModule) CommandWebAuthenticate(args *marvin.CommandArguments) marvin.CommandResult {
+func (mod *WebLoginModule) CommandWebAuthenticate(t marvin.Team, args *marvin.CommandArguments) marvin.CommandResult {
 	if len(args.Arguments) != 1 {
 		return marvin.CmdFailuref(args, "Please only use this command as instructed on the website.")
 	}

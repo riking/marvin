@@ -363,6 +363,7 @@ func (mod *AutoInviteModule) PostInvite(t marvin.Team, args *marvin.CommandArgum
 	err = mod.SaveInvite(args, msgID, emoji, customMsg)
 
 	//err = mod.onReactAPI().ListenMessage(msgID, Identifier, callbackBytes)
+	_ = callbackBytes
 	if err != nil {
 		// Failed to save, delete the message
 		form := url.Values{
