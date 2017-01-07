@@ -13,6 +13,7 @@ import (
 
 	"github.com/riking/homeapi/marvin"
 	"github.com/riking/homeapi/marvin/slack"
+	"github.com/riking/homeapi/marvin/util"
 )
 
 type uniqueID struct {
@@ -33,7 +34,8 @@ type Client struct {
 	codec websocket.Codec
 	team  marvin.Team
 
-	reconnectURL string
+	membershipCh   chan membershipRequest
+	channelMembers membershipMap
 
 	MetadataLock sync.RWMutex
 	Self         struct {
@@ -150,7 +152,25 @@ func Dial(team marvin.Team) (*Client, error) {
 		v.CacheTS = now
 	}
 
-	go fmt.Println(c)
+	c.channelMembers = make(membershipMap)
+	c.membershipCh = make(chan membershipRequest, 8)
+	//for _, v := range c.Channels {
+	//	m := make(map[slack.UserID]bool)
+	//	for _, userID := range v.Members {
+	//		m[userID] = true
+	//	}
+	//	c.channelMembers[v.ID] = m
+	//}
+	for _, v := range c.Groups {
+		m := make(map[slack.UserID]bool)
+		for _, userID := range v.Members {
+			m[userID] = true
+		}
+		c.channelMembers[v.ID] = m
+	}
+	go c.membershipWorker()
+
+	util.LogGood("Connected to Slack", startResponse.CacheVersion)
 	return c, nil
 }
 
@@ -163,6 +183,9 @@ func (c *Client) Start() {
 
 	c.RegisterRawHandler("__internal", c.onUserChange, "user_change", nil)
 	c.RegisterRawHandler("__internal", c.onUserChange, "team_join", nil)
+
+	c.RegisterRawHandler("__internal", c.onUserJoinChannel, "message", []string{"channel_join", "group_join"})
+	c.RegisterRawHandler("__internal", c.onUserLeaveChannel, "message", []string{"channel_leave", "group_leave"})
 
 	c.started = true
 	go c.pump()

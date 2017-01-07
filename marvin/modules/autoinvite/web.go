@@ -104,8 +104,16 @@ func (mod *AutoInviteModule) HTTPListInvites(w http.ResponseWriter, r *http.Requ
 
 	data.HaveJoinData = false
 	if user != nil && user.SlackUser != "" {
-		// TODO fill out Available
-
+		slackChannels := make([]slack.ChannelID, len(data.Channels))
+		for i, v := range data.Channels {
+			slackChannels[i] = v.ID
+		}
+		membershipMap := mod.team.UserInChannels(user.SlackUser, slackChannels...)
+		fmt.Println(membershipMap)
+		for i := range data.Channels {
+			data.Channels[i].Available = !membershipMap[data.Channels[i].ID]
+		}
+		data.HaveJoinData = true
 	}
 
 	lc.BodyData = data

@@ -275,4 +275,5 @@ type Team interface {
 	PublicChannelInfo(channel slack.ChannelID) (*slack.Channel, error)
 	PrivateChannelInfo(channel slack.ChannelID) (*slack.Channel, error)
 	UserInfo(user slack.UserID) (*slack.User, error)
+	UserInChannels(user slack.UserID, channels ...slack.ChannelID) map[slack.ChannelID]bool
 }
