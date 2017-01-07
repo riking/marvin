@@ -43,6 +43,11 @@
         <ol><li>Sending an emoji reaction on Slack will invite them to the channel.</li>
         <li>The channel will appear on this page, and people can click the button to be invited.</li></ol>
     </div>
+    <div class="bs-callout bs-callout-info">
+        <h4>Other Info</h4>
+        <p>To remove a channel from this list, use <code>@marvin revoke-invite</code> - this command will cancel all invitations to the channel you use it in.</p>
+        <p>Invitations sent to a private channel will not show up on the web interface; you must react to the message in Slack.</p>
+    </div>
 
 <section>
     {{ range .Channels }}

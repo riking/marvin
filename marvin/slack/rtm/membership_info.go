@@ -21,7 +21,10 @@ func userInChannelList(user slack.UserID, channels ...slack.ChannelID) func(m me
 	r := make(map[slack.ChannelID]bool)
 	return func(m membershipMap) interface{} {
 		for _, v := range channels {
-			r[v] = m[v][user]
+			chMap := m[v]
+			if chMap != nil {
+				r[v] = chMap[user]
+			}
 		}
 		return r
 	}
