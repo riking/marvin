@@ -3,9 +3,10 @@
     .m-channel {
         margin-right: 0;
         margin-left: 0;
-        background-color: #ddd;
+        background-color: #eee;
         border: 1px inset #333;
-        border-radius: 6px 6px 0 0;
+        border-radius: 6px;
+        margin-top: 5px;
     }
     .m-channel-wrap {
         position: relative;
@@ -34,6 +35,14 @@
 <div class="page-header">
     <h1>Private Channels</h1><small>Join up here!</small>
 </div>
+    <div class="bs-callout bs-callout-info">
+        <h4>Creating Invites</h4>
+        <p>To add your private channel to this page, first invite @marvin and say (for example):</p>
+        <p><code>@marvin make-invite :soccer: #random Futbol! Arrange games, talk about soccer</code></p>
+        <p>Marvin will post a message to the channel you specified (<code>#random</code>) and people can join in one of two ways:</p>
+        <ol><li>Sending an emoji reaction on Slack will invite them to the channel.</li>
+        <li>The channel will appear on this page, and people can click the button to be invited.</li></ol>
+    </div>
 
 <section>
     {{ range .Channels }}
