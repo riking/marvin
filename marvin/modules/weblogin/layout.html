@@ -66,7 +66,7 @@ function doLogout() {
                 <a href="/user">{{.DCurrentUser.IntraLogin}}</a>
             </li>
             <li>
-                <a href="/session/destroy" id="logout-form"><i class="fa fa-power-off"></i></a>
+                <a href="/session/destroy" id="logout-form" onclick="doLogout()"><i class="fa fa-power-off"></i></a>
             </li>
             {{- else -}}
             <li><a href="{{.StartIntraURL}}">Intra Log In</a></li>
