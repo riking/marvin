@@ -17,6 +17,10 @@ func (mod *WebLoginModule) DestroySession(w http.ResponseWriter, r *http.Request
 		mod.HTTPError(w, r, errors.Wrap(err, "Error determining login state"))
 		return
 	}
+	if user == nil {
+		w.WriteHeader(200)
+		return
+	}
 
 	lc, _ := NewLayoutContent(mod.team, w, r, NavSectionInvite)
 
