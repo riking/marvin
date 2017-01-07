@@ -144,6 +144,7 @@ func (mod *WebLoginModule) Enable(team marvin.Team) {
 	team.Router().HandleFunc("/", mod.ServeRoot)
 	team.Router().PathPrefix("/assets/").HandlerFunc(mod.ServeAsset)
 	team.Router().HandleFunc("/session/csrf.json", mod.ServeCSRF)
+	team.Router().Methods(http.MethodDelete).Path("/session/destroy").HandlerFunc(mod.DestroySession)
 	team.Router().NotFoundHandler = http.HandlerFunc(mod.Serve404)
 
 	team.RegisterCommandFunc("web-authenticate", mod.CommandWebAuthenticate, "Used for assosciating a intra login with a slack name.")

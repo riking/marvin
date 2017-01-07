@@ -24,14 +24,19 @@ function postData(url, data, options) {
     if (!options) options = {};
     if (!data) data = {};
     if (!options.headers) options.headers = new Headers();
+    if (!options.method) options.method = 'POST';
+    if (!options.credentials) options.credentials = 'same-origin';
     return getCSRFToken().then(function(csrfToken) {
         options.headers.set('X-CSRF-Token', csrfToken);
         options.body = Object.keys(data).map(function (k) {
             return encodeURIComponent(k) + '=' + encodeURIComponent(data[k]);
         }).join('&');
-        options.method = 'POST';
-        options.credentials = 'same-origin';
         return fetch(url, options);
+    });
+}
+function doLogout() {
+    postData("/session/destroy", {}, {method: 'DELETE'}).then(function() {
+        document.location.reload();
     });
 }
 </script>
@@ -54,21 +59,14 @@ function postData(url, data, options) {
         {{ end }}{{ end }}
         </ul>
         <ul class="nav navbar-nav navbar-right">
-            {{ if .SlackUser -}}
-            <li>
-                <img height="32" width="32" src="{{.SlackUser.Avatar 32}}"
-                     srcset="{{.SlackUser.Avatar 32}} 1x, {{.SlackUser.Avatar 64}} 2x, {{.SlackUser.Avatar 128}} 4x" />
-                <a href="#"><i class="fa fa-slack"></i> {{.DCurrentUser.SlackName}}</a>
-            </li>
-            {{- else -}}
-            <li><a href="{{.StartSlackURL}}"><i class="fa fa-slack"></i> Slack Log In</a></li>
-            {{- end}}
-            <li style="color:#ddd;padding-top:15px;padding-bottom:15px;margin-right:15px;"><i class="fa fa-arrows-h"></i></li>
             {{ if .DCurrentUser.IntraLogin -}}
             <li>
                 <!-- This might be wrong -->
                 <img height="32" src="https://cdn.intra.42.fr/users/medium_{{.DCurrentUser.IntraLogin}}.jpeg" />
-                <a href="#">{{.DCurrentUser.IntraLogin}}</a>
+                <a href="/user">{{.DCurrentUser.IntraLogin}}</a>
+            </li>
+            <li>
+                <a href="/session/destroy" id="logout-form"><i class="fa fa-power-off"></i></a>
             </li>
             {{- else -}}
             <li><a href="{{.StartIntraURL}}">Intra Log In</a></li>
@@ -82,5 +80,8 @@ function postData(url, data, options) {
 <h1>Missing content!</h1>
 {{ end }}{{ end }}
 </body>
+<script>
+    document.getElementById('logout-form').addEventListener('click', doLogout);
+</script>
 </html>
 {{ end }}

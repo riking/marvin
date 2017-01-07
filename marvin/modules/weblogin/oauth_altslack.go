@@ -3,6 +3,7 @@ package weblogin
 import (
 	"crypto/rand"
 	"encoding/base64"
+	"fmt"
 	"html/template"
 	"net/http"
 	"strings"
@@ -79,6 +80,8 @@ func (mod *WebLoginModule) OAuthAltSlackStart(w http.ResponseWriter, r *http.Req
 		LoginIntraFirst bool
 		AlreadyComplete bool
 		RandomToken     string
+		RedirectURL     string
+		RedirectB64     string
 	}
 	data.Layout = lc
 
@@ -89,13 +92,18 @@ func (mod *WebLoginModule) OAuthAltSlackStart(w http.ResponseWriter, r *http.Req
 	} else {
 		data.RandomToken = mod.newAuthToken(u)
 	}
+	data.RedirectURL = r.Form.Get("redirect_url")
+	data.RedirectB64 = base64.RawURLEncoding.EncodeToString([]byte(data.RedirectURL))
+	if data.RedirectB64 == "" {
+		data.RedirectB64 = "==="
+	}
 
-	if data.AlreadyComplete && r.Form.Get("redirect_url") != "" {
-		if !strings.HasPrefix(r.Form.Get("redirect_url"), "/") {
+	if data.AlreadyComplete && data.RedirectURL != "" {
+		if !strings.HasPrefix(data.RedirectURL, "/") {
 			http.Error(w, "SecurityError: off-site redirect", http.StatusBadRequest)
 			return
 		}
-		http.Redirect(w, r, r.Form.Get("redirect_url"), http.StatusFound)
+		http.Redirect(w, r, data.RedirectURL, http.StatusFound)
 		return
 	}
 	lc.BodyData = data
@@ -103,17 +111,29 @@ func (mod *WebLoginModule) OAuthAltSlackStart(w http.ResponseWriter, r *http.Req
 }
 
 func (mod *WebLoginModule) CommandWebAuthenticate(t marvin.Team, args *marvin.CommandArguments) marvin.CommandResult {
-	if len(args.Arguments) != 1 {
+	if len(args.Arguments) != 2 {
 		return marvin.CmdFailuref(args, "Please only use this command as instructed on the website.")
 	}
 	token := args.Pop()
+	redirectB64 := args.Pop()
+	redirectURLBytes, err := base64.RawURLEncoding.DecodeString(redirectB64)
+	redirectURL := string(redirectURLBytes)
+	if redirectB64 == "===" {
+		redirectURL = "/"
+	} else if err != nil {
+		util.LogWarn(err)
+		return marvin.CmdFailuref(args, "Please only use this command as instructed on the website.")
+	}
+
 	userID := mod.findAuthToken(token)
 	if userID == -1 {
+		util.LogWarn("bad auth token")
 		return marvin.CmdFailuref(args, "Please only use this command as instructed on the website.")
 	}
 
 	user, err := mod.GetUserByID(userID)
 	if err != nil {
+		util.LogWarn(err)
 		return marvin.CmdError(args, err, "Error loading user info; you were not logged in.")
 	}
 
@@ -122,5 +142,6 @@ func (mod *WebLoginModule) CommandWebAuthenticate(t marvin.Team, args *marvin.Co
 	if err != nil {
 		return marvin.CmdError(args, err, "Error saving user info; you were not logged in.")
 	}
-	return marvin.CmdSuccess(args, "You have been logged in. Return to https://marvin.riking.org .")
+	return marvin.CmdSuccess(args, fmt.Sprintf("You have been logged in. Return to %s .",
+		mod.team.AbsoluteURL(redirectURL)))
 }

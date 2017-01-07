@@ -22,6 +22,7 @@ const (
 	NavSectionFactoids = "Factoids"
 	NavSectionInvite   = "Channels"
 	NavSectionLogs     = "Logs"
+	NavSectionUser     = "User"
 )
 
 var NavbarContent = []struct {
@@ -29,8 +30,8 @@ var NavbarContent = []struct {
 	URL  string
 }{
 	{Name: NavSectionFactoids, URL: "/factoids"},
-	{Name: NavSectionLogs, URL: "/logs"},
 	{Name: NavSectionInvite, URL: "/invites"},
+	{Name: NavSectionLogs, URL: "/logs"},
 }
 
 type LayoutContent struct {
