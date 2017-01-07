@@ -66,7 +66,11 @@ func (mod *WebLoginModule) StartSlackURL(returnURL string, extraScopes ...string
 	if len(extraScopes) > 0 {
 		form.Set("scope", strings.Join(extraScopes, " "))
 	}
-	uri, err := url.Parse(mod.team.AbsoluteURL("/oauth/slack/start"))
+	relURL := "/oauth/slack/start"
+	if len(extraScopes) == 0 {
+		relURL = "/oauth/altslack/start"
+	}
+	uri, err := url.Parse(mod.team.AbsoluteURL(relURL))
 	if err != nil {
 		panic(err)
 	}
