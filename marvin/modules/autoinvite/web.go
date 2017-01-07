@@ -109,7 +109,6 @@ func (mod *AutoInviteModule) HTTPListInvites(w http.ResponseWriter, r *http.Requ
 			slackChannels[i] = v.ID
 		}
 		membershipMap := mod.team.UserInChannels(user.SlackUser, slackChannels...)
-		fmt.Println(membershipMap)
 		for i := range data.Channels {
 			data.Channels[i].Available = !membershipMap[data.Channels[i].ID]
 		}
