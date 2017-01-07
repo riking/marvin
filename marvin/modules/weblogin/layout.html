@@ -16,9 +16,23 @@
     {{ block "styles" . }}{{ end }}
 <script>
 function getCSRFToken() {
-    return fetch("/session/csrf.json").
+    return fetch("/session/csrf.json", {mode: 'same-origin', credentials: 'same-origin'}).
         then(function(resp) { return resp.json(); }).
         then(function(resp) { return resp.token; });
+}
+function postData(url, data, options) {
+    if (!options) options = {};
+    if (!data) data = {};
+    if (!options.headers) options.headers = new Headers();
+    return getCSRFToken().then(function(csrfToken) {
+        options.headers.set('X-CSRF-Token', csrfToken);
+        options.body = Object.keys(data).map(function (k) {
+            return encodeURIComponent(k) + '=' + encodeURIComponent(data[k]);
+        }).join('&');
+        options.method = 'POST';
+        options.credentials = 'same-origin';
+        return fetch(url, options);
+    });
 }
 </script>
 </head>

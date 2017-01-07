@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"html/template"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/riking/homeapi/marvin"
@@ -17,9 +18,9 @@ type authNonceValue struct {
 }
 
 func (mod *WebLoginModule) newAuthToken(u *User) string {
-	var randBytes [16]byte
+	var randBytes [32]byte
 	n, _ := rand.Reader.Read(randBytes[:])
-	if n != 16 {
+	if n != 32 {
 		return "ERROR"
 	}
 	str := base64.RawURLEncoding.EncodeToString(randBytes[:])
@@ -71,6 +72,7 @@ func (mod *WebLoginModule) OAuthAltSlackStart(w http.ResponseWriter, r *http.Req
 	if err != nil {
 		return
 	}
+	r.ParseForm()
 
 	var data struct {
 		Layout          *LayoutContent
@@ -79,7 +81,6 @@ func (mod *WebLoginModule) OAuthAltSlackStart(w http.ResponseWriter, r *http.Req
 		RandomToken     string
 	}
 	data.Layout = lc
-	lc.BodyData = data
 
 	if u == nil || u.IntraLogin == "" {
 		data.LoginIntraFirst = true
@@ -89,6 +90,15 @@ func (mod *WebLoginModule) OAuthAltSlackStart(w http.ResponseWriter, r *http.Req
 		data.RandomToken = mod.newAuthToken(u)
 	}
 
+	if data.AlreadyComplete && r.Form.Get("redirect_url") != "" {
+		if !strings.HasPrefix(r.Form.Get("redirect_url"), "/") {
+			http.Error(w, "SecurityError: off-site redirect", http.StatusBadRequest)
+			return
+		}
+		http.Redirect(w, r, r.Form.Get("redirect_url"), http.StatusFound)
+		return
+	}
+	lc.BodyData = data
 	util.LogIfError(tmplLoginAltSlack.Execute(w, lc))
 }
 

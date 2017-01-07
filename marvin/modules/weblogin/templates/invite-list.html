@@ -82,7 +82,7 @@
         <a class="btn btn-danger" data-interact="1">Error (check console)</a>
     </div>
     <div id="placeholder-join-alreadyjoined">
-        <a class="btn btn-primary disabled">Already Joined</a>
+        <a class="btn btn-default disabled"><i class="fa fa-slack"></i> Already Joined</a>
     </div>
 </div>
 <script>
@@ -102,26 +102,23 @@ function buttonClick(evt) {
         return;
     }
 
-    getCSRFToken().then(function(token) {
-        var headers = new Headers();
-        headers.set('X-CSRF-Token', token);
-        var options = {
-            method: 'POST',
-            credentials: 'same-origin',
-            headers: headers
-        };
-
-        var url = '/invites/' + channelID;
-
-        spanEl.innerHTML = document.getElementById('placeholder-join-pending').innerHTML;
-        return fetch(url, options).then(function(resp) { return resp.json(); });
+    spanEl.innerHTML = document.getElementById('placeholder-join-pending').innerHTML;
+    postData('/invites/' + channelID, {join: true}).then(function(resp) {
+        return resp.json();
     }).then(function(json) {
-        if (!json.ok) {
+        if (!json['ok'])
+        {
             spanEl.innerHTML = document.getElementById('placeholder-join-error').innerHTML;
             console.log("Error:", json);
-            return;
         }
-        spanEl.innerHTML = document.getElementById('placeholder-join-finished').innerHTML;
+        else if (json.data && json.data.already_joined)
+        {
+            spanEl.innerHTML = document.getElementById('placeholder-join-alreadyjoined').innerHTML;
+        }
+        else
+        {
+            spanEl.innerHTML = document.getElementById('placeholder-join-finished').innerHTML;
+        }
     }, function(err) {
         spanEl.innerHTML = document.getElementById('placeholder-join-error').innerHTML;
         console.log(err);

@@ -14,7 +14,6 @@ import (
 	"github.com/pkg/errors"
 	"golang.org/x/oauth2"
 
-	"github.com/gorilla/csrf"
 	"github.com/riking/homeapi/marvin"
 	"github.com/riking/homeapi/marvin/slack"
 )
@@ -41,9 +40,6 @@ type API interface {
 
 	// HTTPError renders a formatted error page.
 	HTTPError(w http.ResponseWriter, r *http.Request, err error)
-
-	// CSRF wraps the handler in gorilla/csrf protection.
-	CSRF(h http.Handler) http.Handler
 }
 
 var _ API = &WebLoginModule{}
@@ -61,8 +57,6 @@ type WebLoginModule struct {
 	slackOAuthConfig oauth2.Config
 	IntraOAuthConfig oauth2.Config
 	store            sessions.Store
-
-	secretKey []byte
 
 	authTokenMap  map[string]authNonceValue
 	authTokenLock sync.Mutex
@@ -103,15 +97,14 @@ func (mod *WebLoginModule) Identifier() marvin.ModuleID {
 }
 
 func (mod *WebLoginModule) Load(t marvin.Team) {
-	b, err := hex.DecodeString(t.TeamConfig().CookieSecretKey)
-	if err != nil || len(b) != aes.BlockSize {
+	keyBytes, err := hex.DecodeString(t.TeamConfig().CookieSecretKey)
+	if err != nil || len(keyBytes) != aes.BlockSize {
 		panic(errors.Errorf("CookieSecretKey must be a %d-byte hex string", aes.BlockSize))
 	}
-	mod.secretKey = b
 
 	store, err := pgstore.NewPGStoreFromPool(
 		t.DB().DB,
-		b, b,
+		keyBytes, keyBytes,
 	)
 	if err != nil {
 		panic(errors.Wrap(err, "Could not setup session store"))
@@ -144,11 +137,13 @@ func (mod *WebLoginModule) Load(t marvin.Team) {
 func (mod *WebLoginModule) Enable(team marvin.Team) {
 	team.Router().HandleFunc("/oauth/slack/start", mod.OAuthSlackStart)
 	team.Router().HandleFunc("/oauth/slack/callback", mod.OAuthSlackCallback)
+	team.Router().HandleFunc("/oauth/altslack/start", mod.OAuthAltSlackStart)
 	team.Router().HandleFunc("/oauth/intra/start", mod.OAuthIntraStart)
 	team.Router().HandleFunc("/oauth/intra/callback", mod.OAuthIntraCallback)
 
 	team.Router().HandleFunc("/", mod.ServeRoot)
 	team.Router().PathPrefix("/assets/").HandlerFunc(mod.ServeAsset)
+	team.Router().HandleFunc("/session/csrf.json", mod.ServeCSRF)
 	team.Router().NotFoundHandler = http.HandlerFunc(mod.Serve404)
 
 	team.RegisterCommandFunc("web-authenticate", mod.CommandWebAuthenticate, "Used for assosciating a intra login with a slack name.")
@@ -169,8 +164,4 @@ func (mod *WebLoginModule) Disable(team marvin.Team) {
 
 func (mod *WebLoginModule) StartURL() string {
 	return mod.team.AbsoluteURL("/oauth/slack/start")
-}
-
-func (mod *WebLoginModule) CSRF(h http.Handler) http.Handler {
-	return csrf.Protect(mod.secretKey)(h)
 }

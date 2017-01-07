@@ -2,6 +2,8 @@
 package controller
 
 import (
+	"crypto/aes"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -11,6 +13,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/gorilla/csrf"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 
@@ -294,8 +297,20 @@ func (t *Team) OffAllEvents(mod marvin.ModuleID) {
 // ---
 
 func (t *Team) ConnectHTTP(l net.Listener) {
+	keyBytes, err := hex.DecodeString(t.TeamConfig().CookieSecretKey)
+	if err != nil || len(keyBytes) != aes.BlockSize {
+		panic(errors.Errorf("CookieSecretKey must be a %d-byte hex string", aes.BlockSize))
+	}
+	var args []csrf.Option
+
+	if !strings.HasPrefix(t.teamConfig.HTTPURL, "https") {
+		args = append(args, csrf.Secure(false))
+	}
+	args = append(args, csrf.RequestHeader("x-csrf-token"))
+	csrfProtect := csrf.Protect(keyBytes, args...)
+
 	go func() {
-		err := http.Serve(l, t.httpMux)
+		err := http.Serve(l, csrfProtect(t.httpMux))
 		if err != nil {
 			util.LogError(err)
 		}

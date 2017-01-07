@@ -7,6 +7,10 @@
 .instructions pre {
     font-size: 22px;
 }
+.btn-giant {
+    font-size: 150%;
+    line-height: 150%;
+}
 </style>
 {{end}}
 {{define "content"}}
@@ -16,7 +20,8 @@
 </div>
     {{if .LoginIntraFirst }}
     <div class="instructions">
-        <p>You cannot use this until you have <a href="{{ .Layout.StartIntraURL }}"><b>logged in with Intra</b></a>.</p>
+        <p>You cannot use this until you have <a href="{{ $.Layout.StartIntraURL }}"><b>logged in with Intra</b></a>.</p>
+        <p><a class="btn btn-primary btn-giant" href="{{ $.Layout.StartIntraURL }}">Log In With Intra</a></p>
     </div>
     {{else}}
     {{if .AlreadyComplete }}
@@ -29,8 +34,8 @@
         <h3>Your Code:</h3>
         <pre><code>@marvin web-authenticate {{.RandomToken}}</code></pre>
         <p><small>This token is valid for twenty minutes.</small></p>
-        <p><a class="btn btn-primary" href="https://42schoolusa.slack.com/messages/@marvin/">Click Here and Paste</a></p>
-        <p>Marvin will give you a URL. Open it to finish. When you are done, you can close this tab.</p>
+        <p><a class="btn btn-primary btn-giant" href="https://42schoolusa.slack.com/messages/@marvin/">Click Here and Paste</a></p>
+        <p>When you are done, reload this tab.</p>
     </div>
     {{end}}
     {{end}}

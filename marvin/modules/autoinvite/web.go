@@ -19,11 +19,8 @@ import (
 )
 
 func (mod *AutoInviteModule) registerHTTP() {
-	wlAPI := mod.team.GetModule(weblogin.Identifier).(weblogin.API)
-
-	mod.team.Router().Handle("/invites", http.HandlerFunc(mod.HTTPListInvites))
-	mod.team.Router().Path("/invites/{channel}").Methods(http.MethodPost).Handler(
-		wlAPI.CSRF(http.HandlerFunc(mod.HTTPInvite)))
+	mod.team.Router().HandleFunc("/invites", mod.HTTPListInvites)
+	mod.team.Router().Path("/invites/{channel}").Methods(http.MethodPost).HandlerFunc(mod.HTTPInvite)
 }
 
 var tmplListInvites = template.Must(weblogin.LayoutTemplateCopy().Parse(string(weblogin.MustAsset("templates/invite-list.html"))))
@@ -124,7 +121,7 @@ type jsonResponse struct {
 		Type    string `json:"type"`
 		Message string `json:"message"`
 	} `json:"error,omitempty"`
-	Data interface{}
+	Data interface{} `json:"data"`
 }
 
 func (mod *AutoInviteModule) HTTPInvite(w http.ResponseWriter, r *http.Request) {
