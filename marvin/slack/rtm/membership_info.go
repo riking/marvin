@@ -29,7 +29,12 @@ func userInChannelList(user slack.UserID, channels ...slack.ChannelID) func(m me
 
 func userJoinChannel(user slack.UserID, channel slack.ChannelID, join bool) func(m membershipMap) interface{} {
 	return func(m membershipMap) interface{} {
-		m[channel][user] = join
+		chMap, ok := m[channel]
+		if !ok {
+			chMap = make(map[slack.UserID]bool)
+			m[channel] = chMap
+		}
+		chMap[user] = join
 		return nil
 	}
 }
