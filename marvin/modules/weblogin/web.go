@@ -60,7 +60,7 @@ func NewLayoutContent(team marvin.Team, w http.ResponseWriter, r *http.Request, 
 		Team:          team,
 		WLMod:         wlMod,
 		NavbarCurrent: navSection,
-		CurrentURL:    r.URL.EscapedPath(),
+		CurrentURL:    r.URL.RequestURI(),
 		CurrentUser:   user,
 	}, err
 }

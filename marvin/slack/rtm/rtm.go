@@ -154,13 +154,13 @@ func Dial(team marvin.Team) (*Client, error) {
 
 	c.channelMembers = make(membershipMap)
 	c.membershipCh = make(chan membershipRequest, 8)
-	//for _, v := range c.Channels {
-	//	m := make(map[slack.UserID]bool)
-	//	for _, userID := range v.Members {
-	//		m[userID] = true
-	//	}
-	//	c.channelMembers[v.ID] = m
-	//}
+	for _, v := range c.Channels {
+		m := make(map[slack.UserID]bool)
+		for _, userID := range v.Members {
+			m[userID] = true
+		}
+		c.channelMembers[v.ID] = m
+	}
 	for _, v := range c.Groups {
 		m := make(map[slack.UserID]bool)
 		for _, userID := range v.Members {
