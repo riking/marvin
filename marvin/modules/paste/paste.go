@@ -64,8 +64,8 @@ func (mod *PasteModule) Load(t marvin.Team) {
 }
 
 func (mod *PasteModule) Enable(team marvin.Team) {
-	team.HandleHTTP("/p/", mod)
-	team.HandleHTTP("/l/", mod)
+	team.Router().Handle("/p/{id}", mod)
+	team.Router().Handle("/l/{id}", mod)
 }
 
 func (mod *PasteModule) Disable(team marvin.Team) {
