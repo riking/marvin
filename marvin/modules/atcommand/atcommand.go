@@ -282,8 +282,8 @@ func (mod *AtCommandModule) HandleEdit(_rtm slack.RTMRawMessage) {
 	if !rtm.AssertText() {
 		return
 	}
-	if rtm.UserID() == "" {
-		return // attachment edit
+	if rtm.EditingUserID() == "" {
+		return // unfurl edit
 	}
 	msgID := rtm.MessageID()
 	time.Sleep(50 * time.Millisecond) // slack is out-of-order sometimes
