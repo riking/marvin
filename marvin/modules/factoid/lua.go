@@ -170,6 +170,7 @@ func (f *FactoidLua) SetFactoidEnv() {
 func (f *FactoidLua) OpenBot(L *lua.LState) int {
 	tab := L.NewTable()
 	tab.RawSetString("paste", L.NewFunction(f.mod.LuaPaste))
+	tab.RawSetString("shortlink", L.NewFunction(f.mod.LuaShortLink))
 	tab.RawSetString("now", L.NewFunction(lua_Now))
 	tab.RawSetString("uriencode", L.NewFunction(lua_URIEncode))
 	L.SetGlobal("bot", tab)
@@ -188,8 +189,25 @@ func (mod *FactoidModule) LuaPaste(L *lua.LState) int {
 	if err != nil {
 		L.RaiseError("paste() failed: %s", err)
 	}
-	pasteURL := mod.pasteMod.(paste.API).GetURL(id)
+	pasteURL := mod.pasteMod.(paste.API).URLForPaste(id)
 	L.Push(lua.LString(pasteURL))
+	return 1
+}
+
+func (mod *FactoidModule) LuaShortLink(L *lua.LState) int {
+	if mod.pasteMod == nil {
+		L.RaiseError("paste module not available")
+	}
+	if L.GetTop() != 1 {
+		L.RaiseError("shortlink() takes one argument: content")
+	}
+	str := L.CheckString(1)
+	id, err := mod.pasteMod.(paste.API).CreateLink(str)
+	if err != nil {
+		L.RaiseError("shortlink() failed: %s", err)
+	}
+	linkURL := mod.pasteMod.(paste.API).URLForLink(id)
+	L.Push(lua.LString(linkURL))
 	return 1
 }
 

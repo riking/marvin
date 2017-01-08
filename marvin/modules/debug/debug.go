@@ -99,7 +99,7 @@ func (mod *DebugModule) DebugCommandPaste(t marvin.Team, args *marvin.CommandArg
 	if err != nil {
 		return marvin.CmdError(args, err, "creating paste")
 	}
-	return marvin.CmdSuccess(args, mod.pasteModule.(paste.API).GetURL(id))
+	return marvin.CmdSuccess(args, mod.pasteModule.(paste.API).URLForPaste(id))
 }
 
 func (mod *DebugModule) CommandEcho(t marvin.Team, args *marvin.CommandArguments) marvin.CommandResult {
