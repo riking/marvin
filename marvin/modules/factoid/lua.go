@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"net/url"
 	"strings"
 	"time"
 
@@ -170,6 +171,7 @@ func (f *FactoidLua) OpenBot(L *lua.LState) int {
 	tab := L.NewTable()
 	tab.RawSetString("paste", L.NewFunction(f.mod.LuaPaste))
 	tab.RawSetString("now", L.NewFunction(lua_Now))
+	tab.RawSetString("uriencode", L.NewFunction(lua_URIEncode))
 	L.SetGlobal("bot", tab)
 	return 0
 }
@@ -186,13 +188,19 @@ func (mod *FactoidModule) LuaPaste(L *lua.LState) int {
 	if err != nil {
 		L.RaiseError("paste() failed: %s", err)
 	}
-	url := mod.pasteMod.(paste.API).GetURL(id)
-	L.Push(lua.LString(url))
+	pasteURL := mod.pasteMod.(paste.API).GetURL(id)
+	L.Push(lua.LString(pasteURL))
 	return 1
 }
 
 func lua_Now(L *lua.LState) int {
 	L.Push(lua.LNumber(time.Now().Unix()))
+	return 1
+}
+
+func lua_URIEncode(L *lua.LState) int {
+	str := L.CheckString(1)
+	L.Push(lua.LString(url.QueryEscape(str)))
 	return 1
 }
 
