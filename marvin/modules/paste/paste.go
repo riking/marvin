@@ -110,7 +110,7 @@ func (mod *PasteModule) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Location", redirect)
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.Header().Set("X-Content-Type-Options", "nosniff")
-		w.WriteHeader(http.StatusFound)
+		w.WriteHeader(http.StatusSeeOther)
 		fmt.Fprint(w, "<script>document.location = '")
 		template.JSEscape(w, []byte(redirect))
 		fmt.Fprint(w, "';")
