@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 
+	"github.com/google/gops/agent"
 	"github.com/pkg/errors"
 	"gopkg.in/ini.v1"
 
@@ -32,6 +33,10 @@ func main() {
 	}
 	if err != nil {
 		util.LogError(errors.Wrap(err, "loading config"))
+		return
+	}
+	if err := agent.Listen(nil); err != nil {
+		util.LogError(errors.Wrap(err, "starting gops agent"))
 		return
 	}
 
