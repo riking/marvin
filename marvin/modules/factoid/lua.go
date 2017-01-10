@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"net/url"
 	"strings"
 	"time"
 
@@ -169,7 +170,9 @@ func (f *FactoidLua) SetFactoidEnv() {
 func (f *FactoidLua) OpenBot(L *lua.LState) int {
 	tab := L.NewTable()
 	tab.RawSetString("paste", L.NewFunction(f.mod.LuaPaste))
+	tab.RawSetString("shortlink", L.NewFunction(f.mod.LuaShortLink))
 	tab.RawSetString("now", L.NewFunction(lua_Now))
+	tab.RawSetString("uriencode", L.NewFunction(lua_URIEncode))
 	L.SetGlobal("bot", tab)
 	return 0
 }
@@ -186,13 +189,36 @@ func (mod *FactoidModule) LuaPaste(L *lua.LState) int {
 	if err != nil {
 		L.RaiseError("paste() failed: %s", err)
 	}
-	url := mod.pasteMod.(paste.API).GetURL(id)
-	L.Push(lua.LString(url))
+	pasteURL := mod.pasteMod.(paste.API).URLForPaste(id)
+	L.Push(lua.LString(pasteURL))
+	return 1
+}
+
+func (mod *FactoidModule) LuaShortLink(L *lua.LState) int {
+	if mod.pasteMod == nil {
+		L.RaiseError("paste module not available")
+	}
+	if L.GetTop() != 1 {
+		L.RaiseError("shortlink() takes one argument: content")
+	}
+	str := L.CheckString(1)
+	id, err := mod.pasteMod.(paste.API).CreateLink(str)
+	if err != nil {
+		L.RaiseError("shortlink() failed: %s", err)
+	}
+	linkURL := mod.pasteMod.(paste.API).URLForLink(id)
+	L.Push(lua.LString(linkURL))
 	return 1
 }
 
 func lua_Now(L *lua.LState) int {
 	L.Push(lua.LNumber(time.Now().Unix()))
+	return 1
+}
+
+func lua_URIEncode(L *lua.LState) int {
+	str := L.CheckString(1)
+	L.Push(lua.LString(url.QueryEscape(str)))
 	return 1
 }
 

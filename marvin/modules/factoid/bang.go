@@ -84,8 +84,10 @@ func (mod *BangFactoidModule) OnMessage(_rtm slack.RTMRawMessage) {
 }
 
 func (mod *BangFactoidModule) OnEdit(_rtm slack.RTMRawMessage) {
-	rtm := slack.EditMessage{_rtm}
-	_ = rtm
+	rtm := slack.EditMessage{RTMRawMessage: _rtm}
+	if rtm.EditingUserID() == "" {
+		return // unfurl edit
+	}
 	time.Sleep(350 * time.Millisecond)
 
 	mod.messagesLock.Lock()
