@@ -1,57 +1,238 @@
 <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
-<svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve">
-<!--
-trapezoid bend: m8,0 l-3,0 l-5,5 l0,3 l4,0 l4,-4z
-    -->
+<svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" height="470" width="200">
     <defs>
-        <!--
-          ____
-         /  ___
-        |  /
-        -->
-        <path id="trp" fill="#e0e0e0" stroke="#e0e0e0" stroke-width="0" d="m8,0l-4,0l-4,4l0,4l4,0l4,-4z"/>
+        <path id="trp" fill="#e0e0e0" stroke-width="0" d="m8,0l-4,0l-4,4l0,4l4,0l4,-4z"/>
+        <path id="cap" fill="#e0e0e0" stroke-width="0" d="m5,0l-1,0l-4,4l0,4l4,0l4,-4l0,-1z"/>
+        <path id="com" transform="scale(2)" fill="currentColor" stroke-width="0" d="m2,0 l-2,2 l1,1 l2,-2 z"/>
+        <path id="comv" transform="scale(2)" fill="currentColor" stroke-width="0" d="m0,0 l3,0 l0,1.5 l-3,0 z"/>
     </defs>
-    <g transform="translate(10,30)" id="bench-row2">
-        <g transform="translate(0,20)">
-            <path transform="scale(2.5) rotate(270)" fill="#f0e0e0" stroke-width="0" d="m4,0 l-4,4l0,4l4,0l4,-4z"/>
+    <rect x="0" y="0" width="200" height="470" />
+    <g transform="translate(140,10)" id="bench-row1">
+        <g transform="translate(0,50) rotate(270)">
+            <use href="#cap" transform="scale(2.5)" width="20" height="20"/>
+        </g>
+        <rect x="20" y="40" height="10" width="10" fill="#e0e0e0"/>
+        <g transform="translate(50,50) rotate(0)"><use href="#trp" transform="scale(-2.5)" width="20" height="20"/></g>
+        <rect x="40" y="20" height="10" width="10" fill="#e0e0e0"/>
+        <g transform="translate(30,20) rotate(270)">
+            <use href="#cap" transform="scale(2.5)" width="20" height="20"/>
+        </g>
+    </g>
+    <g transform="translate(110,60)" id="bench-row2">
+        <rect x="0" y="0" height="10" width="10" fill="#e0e0e0"/>
+        <g transform="translate(00,30) rotate(90)"><use href="#trp" transform="scale(-2.5)" width="20" height="20"/></g>
+        <rect x="20" y="20" height="10" width="10" fill="#e0e0e0"/>
+        <g transform="translate(30,10) rotate(0)"><use href="#trp" transform="scale(2.5)" width="20" height="20"/></g>
+        <rect x="50" y="10" height="10" width="10" fill="#e0e0e0"/>
+        <g transform="translate(80,10) rotate(90)">
+            <use href="#cap" transform="scale(2.5)" width="20" height="20"/>
+        </g>
+    </g>
+    <g transform="translate(110,100)" id="bench-row3">
+        <g transform="translate(60,0) rotate(0)">
+            <use href="#cap" transform="scale(2.5)" width="20" height="20"/>
+            <use href="#com" id="e1z2r3p1" transform="translate(12,6)" width="6" height="6"/>
+            <use href="#com" id="e1z2r3p2" transform="translate(8,2)" width="6" height="6"/>
+            <use href="#com" id="e1z2r3p3" transform="translate(6,12)" width="6" height="6"/>
+            <use href="#com" id="e1z2r3p4" transform="translate(2,8)" width="6" height="6"/>
+        </g>
+        <g transform="translate(70,20) rotate(90)">
+            <rect x="0" y="0" height="10" width="10" fill="#e0e0e0"/>
+            <use href="#comv" id="e1z2r3p5" transform="translate(2,2)" width="6" height="6"/>
+        </g>
+        <g transform="translate(60,50) rotate(90)">
+            <use href="#trp" transform="scale(-2.5)" width="20" height="20"/>
+            <use href="#com" id="e1z2r3p6" transform="translate(-14,-8)" width="6" height="6"/>
+            <use href="#com" id="e1z2r3p7" transform="translate(-18,-12)" width="6" height="6"/>
+            <use href="#com" id="e1z2r3p8" transform="translate(-8,-14)" width="6" height="6"/>
+            <use href="#com" id="e1z2r3p9" transform="translate(-12,-18)" width="6" height="6"/>
+        </g>
+        <g transform="translate(70,60) rotate(270)">
+            <rect x="0" y="0" height="10" width="10" fill="#e0e0e0"/>
+            <use href="#comv" id="e1z2r3p10" transform="translate(2,2)" width="6" height="6"/>
+        </g>
+        <g transform="translate(60,60) rotate(0)">
+            <use href="#trp" transform="scale(2.5)" width="20" height="20"/>
+            <use href="#com" id="e1z2r3p11" transform="translate(12,6)" width="6" height="6"/>
+            <use href="#com" id="e1z2r3p12" transform="translate(8,2)" width="6" height="6"/>
+            <use href="#com" id="e1z2r3p13" transform="translate(6,12)" width="6" height="6"/>
+            <use href="#com" id="e1z2r3p14" transform="translate(2,8)" width="6" height="6"/>
+        </g>
+        <g transform="translate(50,70) rotate(0)">
+            <rect x="0" y="0" height="10" width="10" fill="#e0e0e0"/>
+            <use href="#comv" id="e1z2r3p16" transform="translate(2,2)" width="6" height="6"/>
+        </g>
+        <g transform="translate(30,80) rotate(90)">
+            <use href="#trp" transform=" scale(-2.5)" width="20" height="20"/>
+            <use href="#com" id="e1z2r3p17" transform="translate(-14,-8)" width="6" height="6"/>
+            <use href="#com" id="e1z2r3p20" transform="translate(-18,-12)" width="6" height="6"/>
+            <use href="#com" id="e1z2r3p15" transform="translate(-8,-14)" width="6" height="6"/>
+            <use href="#com" id="e1z2r3p18" transform="translate(-12,-18)" width="6" height="6"/>
+        </g>
+        <g transform="translate(40,50) rotate(90)">
+            <rect x="0" y="0" height="10" width="10" fill="#e0e0e0"/>
+            <use href="#comv" id="e1z2r3p19" transform="translate(2,2)" width="6" height="6"/>
+        </g>
+        <g transform="translate(30,30) rotate(0)">
+            <use href="#trp" transform="scale(2.5)" width="20" height="20"/>
+            <use href="#com" id="e1z2r3p11" transform="translate(12,6)" width="6" height="6"/>
+            <use href="#com" id="e1z2r3p12" transform="translate(8,2)" width="6" height="6"/>
+            <use href="#com" id="e1z2r3p13" transform="translate(6,12)" width="6" height="6"/>
+            <use href="#com" id="e1z2r3p14" transform="translate(2,8)" width="6" height="6"/>
+        </g>
+
+        <rect x="10" y="50" height="10" width="10" fill="#e0e0e0"/>
+        <g transform="translate(0,50) rotate(90)"><use href="#trp" transform="scale(-2.5)" width="20" height="20"/></g>
+        <rect x="0" y="20" height="10" width="10" fill="#e0e0e0"/>
+        <g transform="translate(0,0)">
+            <use href="#trp" transform="rotate(0) scale(2.5)" width="20" height="20"/>
+        </g>
+        <rect x="20" y="0" height="10" width="10" fill="#e0e0e0"/>
+        <g transform="translate(30,20) rotate(90)"><use href="#trp" transform="scale(-2.5)" width="20" height="20"/></g>
+        <rect x="40" y="20" height="10" width="10" fill="#e0e0e0"/>
+
+        <g transform="translate(20,80) rotate(180)">
+            <use href="#cap" transform="scale(2.5)" width="20" height="20"/>
+            <use href="#com" transform="translate(8,2)" width="6" height="6"/>
+            <use href="#com" transform="translate(2,8)" width="6" height="6"/>
+            <use href="#com" transform="translate(12,6)" width="6" height="6"/>
+            <use href="#com" transform="translate(6,12)" width="6" height="6"/>
+        </g>
+    </g>
+    <g transform="translate(10,100)" id="bench-row4">
+        <g transform="translate(0,20) rotate(270)">
+            <use href="#cap" transform="scale(2.5)" width="20" height="20"/>
         </g>
         <rect x="20" y="10" height="10" width="10" fill="#e0e0e0"/>
-        <g transform="translate(30,00)"><use href="#trp" transform="rotate(0) scale(2.5)" width="20" height="20"/></g>
+        <g transform="translate(30,00) rotate(0)"><use href="#trp" transform="scale(2.5)" width="20" height="20"/></g>
         <rect x="50" y="00" height="10" width="10" fill="#e0e0e0"/>
-        <g transform="translate(80,00)"><use href="#trp" transform="rotate(270) scale(-2.5)" width="20" height="20"/></g>
+        <g transform="translate(60,20) rotate(90)"><use href="#trp" transform="scale(-2.5)" width="20" height="20"/></g>
         <rect x="70" y="20" height="10" width="10" fill="#e0e0e0"/>
-        <g transform="translate(80,50)"><use href="#trp" transform="rotate(180) scale(2.5)" width="20" height="20"/></g>
+        <g transform="translate(60,30) rotate(0)"><use href="#trp" transform="scale(2.5)" width="20" height="20"/></g>
         <rect x="50" y="40" height="10" width="10" fill="#e0e0e0"/>
-        <g transform="translate(50,30)"><use href="#trp" transform="rotate(270) scale(-2.5)" width="20" height="20"/></g>
+        <g transform="translate(30,50) rotate(90)"><use href="#trp" transform="scale(-2.5)" width="20" height="20"/></g>
         <rect x="20" y="30" height="10" width="10" fill="#e0e0e0"/>
-        <g transform="translate(0,30)"><use href="#trp" transform="rotate(0) scale(2.5)" width="20" height="20"/></g>
+        <g transform="translate(0,30) rotate(0)"><use href="#trp" transform="scale(2.5)" width="20" height="20"/></g>
         <rect x="0" y="50" height="10" width="10" fill="#e0e0e0"/>
-        <g transform="translate(0,80)"><use href="#trp" transform="rotate(90) scale(-2.5)" width="20" height="20"/></g>
+        <g transform="translate(0,80) rotate(90)"><use href="#trp" transform="scale(-2.5)" width="20" height="20"/></g>
         <rect x="20" y="70" height="10" width="10" fill="#e0e0e0"/>
-        <g transform="translate(50,80)"><use href="#trp" transform="rotate(180) scale(2.5)" width="20" height="20"/></g>
+        <g transform="translate(30,60) rotate(0)"><use href="#trp" transform="scale(2.5)" width="20" height="20"/></g>
         <rect x="50" y="60" height="10" width="10" fill="#e0e0e0"/>
-        <g transform="translate(80,60)">
-            <path transform="scale(2.5) rotate(90)" fill="#e0e0e0" stroke-width="0" d="m4,0 l-4,4l0,4l4,0l4,-4z"/>
+        <g transform="translate(80,60) rotate(90)">
+            <use href="#cap" transform="scale(2.5)" width="20" height="20"/>
         </g>
     </g>
-    <g transform="translate(140,40)">
-        <g transform="translate(0,0)"><use href="#trp" transform="rotate(0) scale(2.5)" width="20" height="20"/></g>
-        <g transform="translate(50,0)"><use href="#trp" transform="rotate(270) scale(-2.5)" width="20" height="20"/></g>
-        <g transform="translate(50,50)"><use href="#trp" transform="rotate(180) scale(2.5)" width="20" height="20"/></g>
-        <g transform="translate(0,50)"><use href="#trp" transform="rotate(90) scale(-2.5)" width="20" height="20"/></g>
-        <rect x="20" y="0" height="10" width="10" fill="#e0e0e0"/>
-        <rect x="0" y="20" height="10" width="10" fill="#e0e0e0"/>
-        <rect x="20" y="40" height="10" width="10" fill="#e0e0e0"/>
-        <rect x="40" y="20" height="10" width="10" fill="#e0e0e0"/>
+    <g transform="translate(110, 200)" id="bench-row5">
+        <g transform="translate(0,20) rotate(270)">
+            <use href="#cap" transform="scale(2.5)" width="20" height="20"/>
+        </g>
+        <rect x="20" y="10" height="10" width="10" fill="#e0e0e0"/>
+        <g transform="translate(30,00) rotate(0)"><use href="#trp" transform="scale(2.5)" width="20" height="20"/></g>
+        <rect x="50" y="00" height="10" width="10" fill="#e0e0e0"/>
+        <g transform="translate(60,20) rotate(90)"><use href="#trp" transform="scale(-2.5)" width="20" height="20"/></g>
+        <rect x="70" y="20" height="10" width="10" fill="#e0e0e0"/>
+        <g transform="translate(60,30) rotate(0)"><use href="#trp" transform="scale(2.5)" width="20" height="20"/></g>
+        <rect x="50" y="40" height="10" width="10" fill="#e0e0e0"/>
+        <g transform="translate(30,50) rotate(90)"><use href="#trp" transform="scale(-2.5)" width="20" height="20"/></g>
+        <rect x="20" y="30" height="10" width="10" fill="#e0e0e0"/>
+        <g transform="translate(00,30) rotate(0)"><use href="#trp" transform="scale(2.5)" width="20" height="20"/></g>
+        <rect x="0" y="50" height="10" width="10" fill="#e0e0e0"/>
+        <g transform="translate(00,80) rotate(90)"><use href="#trp" transform="scale(-2.5)" width="20" height="20"/></g>
+        <rect x="20" y="70" height="10" width="10" fill="#e0e0e0"/>
+        <g transform="translate(30,60) rotate(0)"><use href="#trp" transform="scale(2.5)" width="20" height="20"/></g>
+        <rect x="50" y="60" height="10" width="10" fill="#e0e0e0"/>
+        <g transform="translate(80,60) rotate(90)">
+            <use href="#cap" transform="scale(2.5)" width="20" height="20"/>
+        </g>
     </g>
-    <g transform="translate(10,140)">
-        <g transform="translate(0,0)"><use href="#trp" transform="rotate(0) scale(2.5)" width="20" height="20"/></g>
-        <g transform="translate(50,0)"><use href="#trp" transform="rotate(270) scale(-2.5)" width="20" height="20"/></g>
-        <g transform="translate(50,50)"><use href="#trp" transform="rotate(180) scale(2.5)" width="20" height="20"/></g>
-        <g transform="translate(0,50)"><use href="#trp" transform="rotate(90) scale(-2.5)" width="20" height="20"/></g>
-        <rect x="20" y="0" height="10" width="10" fill="#e0e0e0"/>
-        <rect x="0" y="20" height="10" width="10" fill="#e0e0e0"/>
-        <rect x="20" y="40" height="10" width="10" fill="#e0e0e0"/>
-        <rect x="40" y="20" height="10" width="10" fill="#e0e0e0"/>
+    <g transform="translate(10, 200)" id="bench-row6">
+        <g transform="translate(60,00) rotate(0)">
+            <use href="#cap" transform="scale(2.5)" width="20" height="20"/>
+        </g>
+        <rect x="60" y="20" height="10" width="10" fill="#e0e0e0"/>
+        <g transform="translate(60,50) rotate(90)"><use href="#trp" transform="scale(-2.5)" width="20" height="20"/></g>
+        <rect x="70" y="50" height="10" width="10" fill="#e0e0e0"/>
+        <g transform="translate(60,60) rotate(0)"><use href="#trp" transform="scale(2.5)" width="20" height="20"/></g>
+        <rect x="50" y="70" height="10" width="10" fill="#e0e0e0"/>
     </g>
+    <g transform="translate(110, 290)" id="bench-row7">
+        <g transform="translate(20,80) rotate(180)">
+            <use href="#cap" transform="scale(2.5)" width="20" height="20"/>
+        </g>
+        <rect x="10" y="50" height="10" width="10" fill="#e0e0e0"/>
+        <g transform="translate(0,50) rotate(90)"><use href="#trp" transform="scale(-2.5)" width="20" height="20"/></g>
+        <rect x="0" y="20" height="10" width="10" fill="#e0e0e0"/>
+        <g transform="translate(0,0) rotate(0)"><use href="#trp" transform="scale(2.5)" width="20" height="20"/></g>
+        <rect x="20" y="0" height="10" width="10" fill="#e0e0e0"/>
+        <g transform="translate(30,20) rotate(90)"><use href="#trp" transform="scale(-2.5)" width="20" height="20"/></g>
+        <rect x="40" y="20" height="10" width="10" fill="#e0e0e0"/>
+        <g transform="translate(30,30) rotate(0)"><use href="#trp" transform="scale(2.5)" width="20" height="20"/></g>
+        <rect x="30" y="50" height="10" width="10" fill="#e0e0e0"/>
+        <g transform="translate(30,80) rotate(90)"><use href="#trp" transform="scale(-2.5)" width="20" height="20"/></g>
+        <rect x="50" y="70" height="10" width="10" fill="#e0e0e0"/>
+        <g transform="translate(60,60) rotate(0)"><use href="#trp" transform="scale(2.5)" width="20" height="20"/></g>
+        <rect x="70" y="50" height="10" width="10" fill="#e0e0e0"/>
+        <g transform="translate(60,50) rotate(90)"><use href="#trp" transform="scale(-2.5)" width="20" height="20"/></g>
+        <rect x="60" y="20" height="10" width="10" fill="#e0e0e0"/>
+        <g transform="translate(60,0) rotate(0)">
+            <use href="#cap" transform="scale(2.5)" width="20" height="20"/>
+        </g>
+    </g>
+    <g transform="translate(10, 290)" id="bench-row8">
+        <rect x="50" y="00" height="10" width="10" fill="#e0e0e0"/>
+        <g transform="translate(60,20) rotate(90)"><use href="#trp" transform="scale(-2.5)" width="20" height="20"/></g>
+        <rect x="70" y="20" height="10" width="10" fill="#e0e0e0"/>
+        <g transform="translate(60,30) rotate(0)"><use href="#trp" transform="scale(2.5)" width="20" height="20"/></g>
+        <rect x="50" y="40" height="10" width="10" fill="#e0e0e0"/>
+        <g transform="translate(30,50) rotate(90)"><use href="#trp" transform="scale(-2.5)" width="20" height="20"/></g>
+        <rect x="20" y="30" height="10" width="10" fill="#e0e0e0"/>
+        <g transform="translate(00,30) rotate(0)"><use href="#trp" transform="scale(2.5)" width="20" height="20"/></g>
+        <rect x="0" y="50" height="10" width="10" fill="#e0e0e0"/>
+        <g transform="translate(00,80) rotate(90)"><use href="#trp" transform="scale(-2.5)" width="20" height="20"/></g>
+        <rect x="20" y="70" height="10" width="10" fill="#e0e0e0"/>
+        <g transform="translate(30,60) rotate(0)"><use href="#trp" transform="scale(2.5)" width="20" height="20"/></g>
+        <rect x="50" y="60" height="10" width="10" fill="#e0e0e0"/>
+        <g transform="translate(80,60) rotate(90)">
+            <use href="#cap" transform="scale(2.5)" width="20" height="20"/>
+        </g>
+    </g>
+    <g transform="translate(110, 380)" id="bench-row9">
+        <g transform="translate(0,20) rotate(270)">
+            <use href="#cap" transform="scale(2.5)" width="20" height="20"/>
+        </g>
+        <rect x="20" y="10" height="10" width="10" fill="#e0e0e0"/>
+        <g transform="translate(30,00) rotate(0)"><use href="#trp" transform="scale(2.5)" width="20" height="20"/></g>
+        <rect x="50" y="00" height="10" width="10" fill="#e0e0e0"/>
+        <g transform="translate(60,20) rotate(90)"><use href="#trp" transform="scale(-2.5)" width="20" height="20"/></g>
+        <rect x="70" y="20" height="10" width="10" fill="#e0e0e0"/>
+        <g transform="translate(60,30) rotate(0)"><use href="#trp" transform="scale(2.5)" width="20" height="20"/></g>
+        <rect x="50" y="40" height="10" width="10" fill="#e0e0e0"/>
+        <g transform="translate(30,50) rotate(90)"><use href="#trp" transform="scale(-2.5)" width="20" height="20"/></g>
+        <rect x="20" y="30" height="10" width="10" fill="#e0e0e0"/>
+        <g transform="translate(00,30) rotate(0)"><use href="#trp" transform="scale(2.5)" width="20" height="20"/></g>
+        <rect x="0" y="50" height="10" width="10" fill="#e0e0e0"/>
+        <g transform="translate(00,80) rotate(90)"><use href="#trp" transform="scale(-2.5)" width="20" height="20"/></g>
+        <rect x="20" y="70" height="10" width="10" fill="#e0e0e0"/>
+        <g transform="translate(30,60) rotate(0)"><use href="#trp" transform="scale(2.5)" width="20" height="20"/></g>
+        <rect x="50" y="60" height="10" width="10" fill="#e0e0e0"/>
+        <g transform="translate(80,60) rotate(90)">
+            <use href="#cap" transform="scale(2.5)" width="20" height="20"/>
+        </g>
+    </g>
+    <g transform="translate(10, 380)" id="bench-row10">
+        <rect x="0" y="20" height="10" width="10" fill="#e0e0e0"/>
+        <g transform="translate(0,0) rotate(0)"><use href="#trp" transform="scale(2.5)" width="20" height="20"/></g>
+        <rect x="20" y="0" height="10" width="10" fill="#e0e0e0"/>
+        <g transform="translate(30,20) rotate(90)"><use href="#trp" transform="scale(-2.5)" width="20" height="20"/></g>
+        <rect x="40" y="20" height="10" width="10" fill="#e0e0e0"/>
+        <g transform="translate(30,30) rotate(0)"><use href="#trp" transform="scale(2.5)" width="20" height="20"/></g>
+
+        <rect x="70" y="50" height="10" width="10" fill="#e0e0e0"/>
+        <g transform="translate(60,50) rotate(90)"><use href="#trp" transform="scale(-2.5)" width="20" height="20"/></g>
+        <rect x="60" y="20" height="10" width="10" fill="#e0e0e0"/>
+        <g transform="translate(60,0) rotate(0)">
+            <use href="#cap" transform="scale(2.5)" width="20" height="20"/>
+        </g>
+    </g>
+
 </svg>
