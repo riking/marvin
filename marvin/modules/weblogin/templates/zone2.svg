@@ -1,0 +1,27 @@
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve">
+<!--
+trapezoid bend: m8,0 l-3,0 l-5,5 l0,3 l4,0 l4,-4z
+    -->
+    <defs>
+        <!--
+          ____
+         /  ___
+        |  /
+        -->
+        <path id="trp" fill="#e0e0e0" stroke="#e9e9e9" stroke-width="0" d="m8,0l-3,0l-5,5l0,3l4,0l4,-4z"/>
+    </defs>
+    <use href="#trp" x="10" y="10" transform="scale(2)"/>
+    <g transform="translate(10,70)">
+        <!--<g transform="translate(0,0)"><path transform="scale(2.5)" d="m8,0 l-3,0 l-5,5 l0,3 l4,0 l4,-4z"/></g> -->
+        <g transform="translate(0,0)"><use href="#trp" transform="rotate(0) scale(2.5)" width="20" height="20"/></g>
+        <g transform="translate(50,0)"><use href="#trp" transform="rotate(270) scale(-2.5)" width="20" height="20"/></g>
+        <g transform="translate(50,50)"><use href="#trp" transform="rotate(180) scale(2.5)" width="20" height="20"/></g>
+        <g transform="translate(0,50)"><use href="#trp" transform="rotate(90) scale(-2.5)" width="20" height="20"/></g>
+        <rect x="20" y="0" height="10" width="10" fill="#e0e0e0"/>
+        <rect x="0" y="20" height="10" width="10" fill="#e0e0e0"/>
+        <rect x="20" y="40" height="10" width="10" fill="#e0e0e0"/>
+        <rect x="40" y="20" height="10" width="10" fill="#e0e0e0"/>
+    </g>
+    <path transform="scale(2.5)" fill="#e0e0e0" stroke="#e9e9e9" stroke-width="0" d="m8,0 l-3,0 l-5,5 l0,3 l4,0 l4,-4z"/>
+</svg>
