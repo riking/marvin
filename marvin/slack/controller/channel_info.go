@@ -133,7 +133,7 @@ func (t *Team) cachedUserInfo(user slack.UserID) *slack.User {
 	for i, v := range t.client.Users {
 		if v.ID == user {
 			if v.CacheTS.Before(time.Now().Add(-24 * time.Hour)) {
-				return nil
+				go t.updateUserInfo(user)
 			}
 			return t.client.Users[i]
 		}
@@ -146,7 +146,10 @@ func (t *Team) UserInfo(user slack.UserID) (*slack.User, error) {
 	if info != nil {
 		return info, nil
 	}
+	return t.updateUserInfo(user)
+}
 
+func (t *Team) updateUserInfo(user slack.UserID) (*slack.User, error) {
 	form := url.Values{"user": []string{string(user)}}
 	var response struct {
 		User *slack.User `json:"user"`
