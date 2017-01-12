@@ -175,7 +175,10 @@ func (mod *LoggerModule) getHistory(method string, channel slack.ChannelID, stmt
 }
 
 func (mod *LoggerModule) BackfillAll() {
-	return // DO NOT COMMIT
+	if mod.team.TeamConfig().IsDevelopment {
+		return // do not backfill in development
+	}
+
 	stmt, err := mod.team.DB().Prepare(sqlGetLastMessage)
 	if err != nil {
 		util.LogError(errors.Wrap(err, "backfill database error"))
