@@ -98,6 +98,7 @@ func (c *Client) ReplaceUserObject(cacheTS time.Time, obj *slack.User) {
 	c.MetadataLock.Lock()
 	defer c.MetadataLock.Unlock()
 
+	obj.CacheTS = cacheTS
 	for i, v := range c.Users {
 		if v.ID == obj.ID {
 			c.Users[i] = obj
@@ -111,6 +112,7 @@ func (c *Client) ReplaceChannelObject(cacheTS time.Time, obj *slack.Channel) {
 	c.MetadataLock.Lock()
 	defer c.MetadataLock.Unlock()
 
+	obj.CacheTS = cacheTS
 	for i, v := range c.Channels {
 		if v.ID == obj.ID {
 			c.Channels[i] = obj
@@ -124,6 +126,7 @@ func (c *Client) ReplaceGroupObject(cacheTS time.Time, obj *slack.Channel) {
 	c.MetadataLock.Lock()
 	defer c.MetadataLock.Unlock()
 
+	obj.CacheTS = cacheTS
 	for i, v := range c.Groups {
 		if v.ID == obj.ID {
 			c.Groups[i] = obj
