@@ -80,6 +80,18 @@ func (mod *WebLoginModule) StartSlackURL(returnURL string, extraScopes ...string
 }
 
 func (mod *WebLoginModule) OAuthSlackStart(w http.ResponseWriter, r *http.Request) {
+	user, err := mod.GetCurrentUser(w, r)
+	if err != nil {
+		http.Error(w, errors.Wrap(err, "bad cookie data").Error(), http.StatusBadRequest)
+		return
+	}
+	// Require intra login first
+	if user == nil {
+		redirectURL := mod.StartIntraURL(r.RequestURI)
+		http.Redirect(w, r, redirectURL, http.StatusSeeOther)
+		return
+	}
+
 	loginSession, err := mod.getSession(w, r, cookieLoginTmp)
 	if err != nil {
 		return
