@@ -43,10 +43,10 @@ Content
 <ul class="factoid-list">
 {{ range .List }}
   <li><a href="/factoids/{{if eq .ScopeChannel ""}}_{{else}}{{.ScopeChannel}}{{end}}/{{.FactoidName}}">
-      <code>{{ .FactoidName }}</code>{{if ne .ScopeChannel ""}}<span class="is-channel-only">{{.ScopeChannel}}</span>{{end}}</a>
-      {{if .IsLocked}}(locked){{end}}
-      <span class="last-modified">last modified by @{{with user $.Team .LastUser}}{{.Name}}{{end}}
-        in {{channel_name $.Team .LastChannel}} {{reltime .LastTimestamp}}</span>
+      <code>{{ .FactoidName }}</code>{{if ne .ScopeChannel ""}}<span class="is-channel-only">{{channel_link $ .ScopeChannel}}</span>{{end}}</a>
+      {{if .IsLocked}}<i class="fa fa-lock"></i>{{end}}
+      <span class="last-modified">last modified by {{user_link $ .LastUser}}
+        in {{channel_link $ .LastChannel}} {{reltime .LastTimestamp}}</span>
       <pre class="source"><code>{{.RawSource}}</code></pre>
   </li>
 {{ end }}

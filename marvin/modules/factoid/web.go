@@ -21,6 +21,25 @@ func (mod *FactoidModule) registerHTTP() {
 
 var tmplListFactoids = template.Must(weblogin.LayoutTemplateCopy().Parse(string(weblogin.MustAsset("templates/factoid-list.html"))))
 
+type bodyList struct {
+	List []*Factoid
+	team marvin.Team
+}
+
+type bodyShow struct {
+	Factoid *Factoid
+	team    marvin.Team
+	History []Factoid
+}
+
+func (d bodyList) Team() marvin.Team { return d.team }
+func (d bodyShow) Team() marvin.Team { return d.team }
+
+var (
+	_ marvin.HasTeam = bodyList{}
+	_ marvin.HasTeam = bodyShow{}
+)
+
 func (mod *FactoidModule) HTTPListFactoids(w http.ResponseWriter, r *http.Request) {
 	lc, err := weblogin.NewLayoutContent(mod.team, w, r, weblogin.NavSectionFactoids)
 	if err != nil {
@@ -41,12 +60,9 @@ func (mod *FactoidModule) HTTPListFactoids(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	lc.BodyData = struct {
-		List []*Factoid
-		Team marvin.Team
-	}{
+	lc.BodyData = bodyList{
 		List: list,
-		Team: mod.team,
+		team: mod.team,
 	}
 	util.LogIfError(
 		tmplListFactoids.ExecuteTemplate(w, "layout", lc))
@@ -76,7 +92,7 @@ func (mod *FactoidModule) HTTPShowFactoid(w http.ResponseWriter, r *http.Request
 	}
 	name := m[2]
 
-	factoid, err := mod.GetFactoidInfo(name, slack.ChannelID(scopeChannel), false)
+	finfo, err := mod.GetFactoidInfo(name, slack.ChannelID(scopeChannel), false)
 	if err == ErrNoSuchFactoid {
 		mod.team.GetModule(weblogin.Identifier).(weblogin.API).HTTPError(w, r, nil)
 		return
@@ -85,12 +101,16 @@ func (mod *FactoidModule) HTTPShowFactoid(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	lc.BodyData = struct {
-		Factoid *Factoid
-		Team    marvin.Team
-	}{
-		Factoid: factoid,
-		Team:    mod.team,
+	history, err := mod.GetFactoidHistory(name, slack.ChannelID(scopeChannel))
+	if err != nil {
+		mod.team.GetModule(weblogin.Identifier).(weblogin.API).HTTPError(w, r, err)
+		return
+	}
+
+	lc.BodyData = bodyShow{
+		Factoid: finfo,
+		team:    mod.team,
+		History: history,
 	}
 
 	util.LogIfError(

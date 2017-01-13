@@ -148,6 +148,11 @@ type SendMessage interface {
 	SendComplexMessage(channelID slack.ChannelID, message url.Values) (slack.MessageID, slack.RTMRawMessage, error)
 }
 
+// HasTeam is a type that references a marvin.Team.
+type HasTeam interface {
+	Team() Team
+}
+
 // Team represents a Slack team, and is the "god object" for Marvin.
 //
 // Its implementation is in the marvin/slack/controller package.

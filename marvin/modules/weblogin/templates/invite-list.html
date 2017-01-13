@@ -66,7 +66,7 @@ section#channels {
     {{ range .Channels }}
     <div class="m-channel" data-id="{{.ID}}">
         <div class="m-channel-wrap">
-        <h3>{{.Name}} <span class="member-count"><i class="fa fa-user"></i> {{.MemberCount}}</span></h3>
+        <h3>{{channel_link $.Layout .ID}} <span class="member-count"><i class="fa fa-user"></i> {{.MemberCount}}</span></h3>
         <span class="join-btn">
         {{ if $.NotLoggedIn -}}
             <a class="btn btn-default" data-interact="1">Log In First</a>
@@ -82,7 +82,7 @@ section#channels {
         {{- end -}}
         {{- end }}
         </span>
-        <p class="meta">@{{.UserName}} created invite {{reltime .Timestamp}}</p>
+        <p class="meta">{{user_link $.Layout .User}} created invite {{reltime .Timestamp}}</p>
         <p class="message">{{.Text}}</p>
         <p class="purpose">{{.Purpose}}</p>
         </div>

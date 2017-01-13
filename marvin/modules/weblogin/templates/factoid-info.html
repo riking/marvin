@@ -5,17 +5,32 @@
 {{end}}
 {{define "content"}}
 <div class="container">
-{{with .Factoid}}
 <div class="page-header">
-    <h1>Factoid: {{.FactoidName}}</h1>
+    <h1>Factoid: <code>{{.Factoid.FactoidName}}</code> {{if .Factoid.IsLocked}}<i class="fa fa-lock"></i>{{end}}</h1>
 </div>
 
-    <p>Locked: {{if .IsLocked}}yes{{else}}no{{end}}</p>
-    <p>Last edit: @{{with user $.Team .LastUser}}{{.Name}}{{end}}
-        in {{channel_name $.Team .LastChannel}}
-        at {{reltime .LastTimestamp}}</p>
+    {{with .Factoid}}
+    <p>Last edit: {{user_link $ .LastUser}}
+        in {{channel_link $ .LastChannel}}
+        {{reltime .LastTimestamp}} - <a href="{{archive_href $ .LastChannel .LastMessage}}">Slack Archive</a></p>
 
     <pre class="source"><code>{{.RawSource}}</code></pre>
-</div>
+    {{end}}
+
+    <h2>History</h2>
+
+<div class="history-container">
+{{range .History}}
+    <div class="factoid {{if .IsForgotten}}forgotten{{end}}">
+        <div class="meta">
+            <p>Revision: {{.DbID}} {{if .IsForgotten}}<span class="muted">(deleted)</span>{{end}}
+        by {{user_link $ .LastUser}}
+        in {{channel_link $ .LastChannel}}
+        {{reltime .LastTimestamp}} &ndash; <a href="{{archive_href $ .LastChannel .LastMessage}}">Slack Archive</a></p>
+        </div>
+        <pre class="source"><code>{{.RawSource}}</code></pre>
+    </div>
 {{end}}
+</div>
+</div>
 {{end}}

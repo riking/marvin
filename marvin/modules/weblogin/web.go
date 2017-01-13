@@ -35,7 +35,7 @@ var NavbarContent = []struct {
 }
 
 type LayoutContent struct {
-	Team        marvin.Team
+	team        marvin.Team
 	WLMod       *WebLoginModule
 	Title       string
 	CurrentURL  string
@@ -57,7 +57,7 @@ func NewLayoutContent(team marvin.Team, w http.ResponseWriter, r *http.Request, 
 	wlMod := team.GetModule(Identifier).(*WebLoginModule)
 	user, err = wlMod.GetCurrentUser(w, r)
 	return &LayoutContent{
-		Team:          team,
+		team:          team,
 		WLMod:         wlMod,
 		NavbarCurrent: navSection,
 		CurrentURL:    r.URL.RequestURI(),
@@ -83,7 +83,7 @@ func (w *LayoutContent) SlackUser() (*slack.User, error) {
 		return nil, nil
 	}
 	var err error
-	w.slackUser, err = w.Team.UserInfo(w.CurrentUser.SlackUser)
+	w.slackUser, err = w.team.UserInfo(w.CurrentUser.SlackUser)
 	return w.slackUser, err
 }
 
@@ -102,15 +102,28 @@ func (w *LayoutContent) DCurrentUser() User {
 	return User{}
 }
 
-var tmplReltime = template.Must(template.New("reltime").Parse(`<span class="reltime" title="{{.RFC3339}}">{{.Relative}}</span>`))
+func (w *LayoutContent) Team() marvin.Team {
+	return w.team
+}
+
+var tmplReltime = template.Must(template.New("reltime").Parse(
+	`<span class="reltime" title="{{.RFC3339}}">{{.Relative}}</span>`))
+var tmplChannelLink = template.Must(template.New("channel_link").Parse(
+	`<a data-slackchannel="{{.ID}}" href="https://{{.Domain}}.slack.com/messages/{{.ID}}">{{.Name}}</a>`))
+var tmplUserLink = template.Must(template.New("user_link").Parse(
+	`<a href="https://{{.Domain}}.slack.com/team/{{.ID.Raw}}">@{{.Name}}</a>`))
+
 var tmplLayout = template.Must(template.New("layout").Parse(string(MustAsset("layout.html")))).Funcs(tmplFuncs)
 
 var tmplFuncs = template.FuncMap{
-	"user": func(team marvin.Team, userID slack.UserID) (*slack.User, error) {
-		return team.UserInfo(slack.UserID(userID))
+	"user": func(team marvin.HasTeam, userID slack.UserID) (*slack.User, error) {
+		return team.Team().UserInfo(slack.UserID(userID))
 	},
-	"channel_name": func(team marvin.Team, channelID slack.ChannelID) string {
-		return team.ChannelName(slack.ChannelID(channelID))
+	"channel_name": func(team marvin.HasTeam, channelID slack.ChannelID) string {
+		return team.Team().ChannelName(slack.ChannelID(channelID))
+	},
+	"archive_href": func(team marvin.HasTeam, channelID slack.ChannelID, messageTS slack.MessageTS) string {
+		return team.Team().ArchiveURL(slack.MessageID{ChannelID: channelID, MessageTS: messageTS})
 	},
 	"reltime": func(t time.Time) (template.HTML, error) {
 		var buf bytes.Buffer
@@ -122,6 +135,40 @@ var tmplFuncs = template.FuncMap{
 			Relative: humanize.Time(t),
 		}
 		err := tmplReltime.Execute(&buf, data)
+		if err != nil {
+			return "", err
+		}
+		return template.HTML(buf.String()), nil
+	},
+	"channel_link": func(team marvin.HasTeam, channelID slack.ChannelID) (template.HTML, error) {
+		data := struct {
+			ID     string
+			Domain string
+			Name   string
+		}{
+			ID:     string(channelID),
+			Domain: team.Team().Domain(),
+			Name:   team.Team().ChannelName(channelID),
+		}
+		var buf bytes.Buffer
+		err := tmplChannelLink.Execute(&buf, data)
+		if err != nil {
+			return "", err
+		}
+		return template.HTML(buf.String()), nil
+	},
+	"user_link": func(team marvin.HasTeam, userID slack.UserID) (template.HTML, error) {
+		data := struct {
+			ID     slack.UserID
+			Domain string
+			Name   string
+		}{
+			ID:     userID,
+			Domain: team.Team().Domain(),
+			Name:   team.Team().UserName(userID),
+		}
+		var buf bytes.Buffer
+		err := tmplUserLink.Execute(&buf, data)
 		if err != nil {
 			return "", err
 		}

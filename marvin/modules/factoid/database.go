@@ -53,6 +53,14 @@ const (
 	ORDER BY channel_only DESC, last_set DESC
 	LIMIT 1`
 
+	// $1 = name $2 = scopeChannel
+	sqlFactoidHistory = `
+	SELECT id, name, rawtext, channel_only, last_set_user, last_set_channel, last_set_ts, last_set, locked, forgotten
+	FROM module_factoid_factoids
+	WHERE name = $1 AND (channel_only IS NULL OR channel_only = $2)
+	ORDER BY channel_only DESC, last_set DESC
+	-- no LIMIT`
+
 	// $1 = name $2 = scopeChannel $3 = source $4 = userid $5 = msg_chan $6 = msg_ts
 	sqlMakeFactoid = `
 	INSERT INTO module_factoid_factoids
@@ -150,8 +158,13 @@ func (mod *FactoidModule) GetFactoidInfo(name string, channel slack.ChannelID, w
 	defer stmt.Close()
 
 	var scopeChannel sql.NullString
+	if channel == "" || channel == "_" {
+		scopeChannel.Valid = false
+	} else {
+		scopeChannel.String = string(channel)
+	}
 
-	row := stmt.QueryRow(name, string(channel), withForgotten)
+	row := stmt.QueryRow(name, scopeChannel, withForgotten)
 	err = row.Scan(
 		&result.DbID, &result.RawSource, &scopeChannel,
 		(*string)(&result.LastUser), (*string)(&result.LastChannel), (*string)(&result.LastMessage),
@@ -185,7 +198,14 @@ func (mod *FactoidModule) GetFactoidBare(name string, channel slack.ChannelID) (
 	}
 	defer stmt.Close()
 
-	row := stmt.QueryRow(name, string(channel))
+	var scopeChannel sql.NullString
+	if channel == "" || channel == "_" {
+		scopeChannel.Valid = false
+	} else {
+		scopeChannel.String = string(channel)
+	}
+
+	row := stmt.QueryRow(name, scopeChannel)
 	err = row.Scan(&result.RawSource, (*string)(&result.LastUser))
 	if err == sql.ErrNoRows {
 		return nil, ErrNoSuchFactoid
@@ -193,6 +213,50 @@ func (mod *FactoidModule) GetFactoidBare(name string, channel slack.ChannelID) (
 		return nil, errors.Wrap(err, "Database error")
 	}
 	return result, nil
+}
+
+func (mod *FactoidModule) GetFactoidHistory(name string, channel slack.ChannelID) ([]Factoid, error) {
+	var result Factoid
+
+	stmt, err := mod.team.DB().Prepare(sqlFactoidHistory)
+	if err != nil {
+		return nil, errors.Wrap(err, "Database error")
+	}
+	defer stmt.Close()
+
+	var scopeChannel sql.NullString
+	if channel == "" || channel == "_" {
+		scopeChannel.Valid = false
+	} else {
+		scopeChannel.String = string(channel)
+	}
+
+	rows, err := stmt.Query(name, scopeChannel)
+	if err != nil {
+		return nil, errors.Wrap(err, "Database error")
+	}
+
+	var resAry []Factoid
+
+	for rows.Next() {
+		result = Factoid{
+			Mod: mod,
+		}
+		err = rows.Scan(
+			&result.DbID, &result.FactoidName, &result.RawSource, &scopeChannel,
+			(*string)(&result.LastUser), (*string)(&result.LastChannel), (*string)(&result.LastMessage),
+			&result.LastTimestamp,
+			&result.IsLocked, &result.IsForgotten,
+		)
+		if err != nil {
+			return nil, errors.Wrap(err, "Database error")
+		}
+		resAry = append(resAry, result)
+	}
+	if rows.Err() != nil {
+		return nil, errors.Wrap(err, "Database error")
+	}
+	return resAry, nil
 }
 
 // FillInfo transforms a bare FactoidInfo into a full FactoidInfo.
