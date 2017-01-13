@@ -93,14 +93,7 @@ func (mod *AutoInviteModule) HTTPListInvites(w http.ResponseWriter, r *http.Requ
 		inviteUnix, _ := strconv.ParseInt(inviteTS[:idx], 10, 64)
 		inviteTime := time.Unix(inviteUnix, 0)
 		inviteChannelName := mod.team.ChannelName(slack.ChannelID(inviteChannelStr))
-		channelInfo, err := mod.team.PrivateChannelInfo(inviteChannelID)
-		var memberCount int
-		if err != nil {
-			util.LogError(err)
-			memberCount = 0
-		} else {
-			memberCount = len(channelInfo.Members)
-		}
+		channelInfo, _ := mod.team.PrivateChannelInfo(inviteChannelID)
 
 		data.Channels = append(data.Channels, singleChannel{
 			ID:          inviteChannelID,
@@ -110,7 +103,7 @@ func (mod *AutoInviteModule) HTTPListInvites(w http.ResponseWriter, r *http.Requ
 			UserName:    mod.team.UserName(slack.UserID(inviteUserStr)),
 			Timestamp:   inviteTime,
 			Text:        inviteText,
-			MemberCount: memberCount,
+			MemberCount: mod.team.ChannelMemberCount(inviteChannelID),
 			Purpose:     channelInfo.Purpose.Value,
 		})
 	}

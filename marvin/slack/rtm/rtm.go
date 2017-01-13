@@ -168,6 +168,13 @@ func Dial(team marvin.Team) (*Client, error) {
 		}
 		c.channelMembers[v.ID] = m
 	}
+	for _, v := range c.Mpims {
+		m := make(map[slack.UserID]bool)
+		for _, userID := range v.Members {
+			m[userID] = true
+		}
+		c.channelMembers[v.ID] = m
+	}
 	go c.membershipWorker()
 
 	util.LogGood("Connected to Slack", startResponse.CacheVersion)

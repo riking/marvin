@@ -62,8 +62,6 @@ func (t *Team) FormatChannel(channel slack.ChannelID) string {
 		}
 		if ch.IsMultiIM() {
 			var membersStr bytes.Buffer
-			ch.LockMemberList.Lock()
-			defer ch.LockMemberList.Unlock()
 			for i, v := range ch.Members {
 				if i != 0 {
 					membersStr.WriteByte(' ')
@@ -275,4 +273,18 @@ func (t *Team) GetIM(user slack.UserID) (slack.ChannelID, error) {
 		return "", err
 	}
 	return response.Channel.ID, nil
+}
+
+func (t *Team) ChannelMemberCount(channel slack.ChannelID) (int) {
+	if channel == "" {
+		return 0
+	}
+	if channel[0] == 'D' {
+		return 2
+	}
+	return t.client.MemberCount(channel)
+}
+
+func (t *Team) ChannelMemberList(channel slack.ChannelID) ([]slack.UserID) {
+	return t.client.MemberList(channel)
 }

@@ -50,6 +50,38 @@ func (c *Client) UserInChannels(user slack.UserID, channels ...slack.ChannelID) 
 	return (<-ch).(map[slack.ChannelID]bool)
 }
 
+func (c *Client) MemberCount(channel slack.ChannelID) int {
+	ch := make(chan interface{})
+	c.membershipCh <- membershipRequest{C: ch,
+		F: func(m membershipMap) interface{} {
+			chMap, ok := m[channel]
+			if !ok {
+				return int(0)
+			}
+			return int(len(chMap))
+		},
+	}
+	return (<-ch).(int)
+}
+
+func (c *Client) MemberList(channel slack.ChannelID) []slack.UserID {
+	ch := make(chan interface{})
+	c.membershipCh <- membershipRequest{C: ch,
+		F: func(m membershipMap) interface{} {
+			chMap, ok := m[channel]
+			if !ok {
+				return int(0)
+			}
+			users := make([]slack.UserID, 0, len(chMap))
+			for k := range chMap {
+				users = append(users, k)
+			}
+			return users
+		},
+	}
+	return (<-ch).([]slack.UserID)
+}
+
 func (c *Client) onUserJoinChannel(msg slack.RTMRawMessage) {
 	ch := make(chan interface{}, 1)
 	c.membershipCh <- membershipRequest{C: ch,

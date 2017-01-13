@@ -35,10 +35,10 @@ func (mod *LoggerModule) getPrivateChannels(userID slack.UserID, token string) (
 			continue
 		}
 		yourChannels = append(yourChannels, briefChannelInfo{
-			Name:    v.Name,
-			ID:      v.ID,
-			Purpose: v.Purpose,
-			Members: make([]struct{}, len(v.Members)), // no lock needed - this object returned by API
+			Name:        v.Name,
+			ID:          v.ID,
+			Purpose:     v.Purpose,
+			MemberCount: mod.team.ChannelMemberCount(v.ID),
 		})
 		g, _ := mod.team.PrivateChannelInfo(v.ID)
 		if g != nil {
@@ -53,11 +53,11 @@ func (mod *LoggerModule) getPrivateChannels(userID slack.UserID, token string) (
 var tmplIndex = template.Must(weblogin.LayoutTemplateCopy().Parse(string(weblogin.MustAsset("templates/logs-index.html"))))
 
 type briefChannelInfo struct {
-	Name      string
-	ID        slack.ChannelID
-	HasMarvin bool `json:"-"`
-	Purpose   slack.ChannelTopicPurpose
-	Members   []struct{}
+	Name        string
+	ID          slack.ChannelID
+	HasMarvin   bool `json:"-"`
+	Purpose     slack.ChannelTopicPurpose
+	MemberCount int
 }
 
 func (mod *LoggerModule) LogsIndex(w http.ResponseWriter, r *http.Request) {

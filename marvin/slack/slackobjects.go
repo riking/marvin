@@ -173,7 +173,8 @@ type Channel struct {
 	IsGeneral  bool `json:"is_general"`
 	HasPins    bool `json:"has_pins"`
 
-	LockMemberList sync.Mutex `json:"-"`
+	// The Members element may be out of date. The rtm.Client keeps an up-to-date list of
+	// channel memberships for public and private channels. This can be used for MPIMs, however.
 	Members        []UserID   `json:"members"`
 
 	// IM only
