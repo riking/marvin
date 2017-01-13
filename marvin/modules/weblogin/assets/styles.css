@@ -11,6 +11,10 @@ nav.navbar-inverse {
     border-width: 0 0 2px;
     border-color: rgba(77,57,75,0.5)
 }
+.navbar-inverse .navbar-nav>.active>a, .navbar-inverse .navbar-nav>.active>a:focus, .navbar-inverse .navbar-nav>.active>a:hover {
+    background-color: #3E313C;
+    font-weight: bold;
+}
 .navbar-nav>li>img[height="32"] {
     margin-right: 5px;
     display: inline-block;
@@ -29,6 +33,14 @@ nav.navbar-inverse {
     color: #888;
     margin-left: 8px;
     font-family: 'Alegreya Sans SC', sans-serif;
+}
+.btn-primary {
+    background-color: #38978D;
+    border-color: #4C9689;
+}
+.btn-primary:hover {
+    background-color: #3f796f;
+    border-color: #325d55;
 }
 
 /* Section: Callouts

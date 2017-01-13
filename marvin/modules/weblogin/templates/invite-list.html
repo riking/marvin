@@ -1,13 +1,15 @@
 {{define "styles"}}
 <style>
 .m-channel {
-    margin: 5px 2px 0 2px;
+    margin: 5px 3px 0;
+    flex-basis: calc(50% - 6px);
+    flex-grow: 1;
+
     background-color: #fff;
-    border: 1px solid #bb9cb8;
+    border: 1px solid #f0f0f0;
     border-radius: 6px;
 
-    flex-grow: 1;
-    flex-basis: calc(50% - 4px);
+    box-shadow: 0 2px 5px rgba(0,0,0,.26);
 }
 .m-channel-wrap {
     position: relative;
@@ -37,7 +39,7 @@ section#channels {
     display: flex;
     flex-flow: row wrap;
     justify-content: space-between;
-    margin: 0 -2px;
+    margin: 0 -3px 20px;
 }
 </style>
 {{end}}
