@@ -275,7 +275,7 @@ func (t *Team) GetIM(user slack.UserID) (slack.ChannelID, error) {
 	return response.Channel.ID, nil
 }
 
-func (t *Team) ChannelMemberCount(channel slack.ChannelID) (int) {
+func (t *Team) ChannelMemberCount(channel slack.ChannelID) int {
 	if channel == "" {
 		return 0
 	}
@@ -285,6 +285,6 @@ func (t *Team) ChannelMemberCount(channel slack.ChannelID) (int) {
 	return t.client.MemberCount(channel)
 }
 
-func (t *Team) ChannelMemberList(channel slack.ChannelID) ([]slack.UserID) {
+func (t *Team) ChannelMemberList(channel slack.ChannelID) []slack.UserID {
 	return t.client.MemberList(channel)
 }

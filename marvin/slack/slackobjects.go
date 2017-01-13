@@ -2,7 +2,6 @@ package slack
 
 import (
 	"fmt"
-	"sync"
 	"time"
 )
 
@@ -175,7 +174,7 @@ type Channel struct {
 
 	// The Members element may be out of date. The rtm.Client keeps an up-to-date list of
 	// channel memberships for public and private channels. This can be used for MPIMs, however.
-	Members        []UserID   `json:"members"`
+	Members []UserID `json:"members"`
 
 	// IM only
 	IsUserDeleted bool `json:"is_user_deleted"`

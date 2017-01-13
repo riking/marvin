@@ -224,7 +224,7 @@ type Team interface {
 	GetIMOtherUser(channel slack.ChannelID) (slack.UserID, error)
 	PublicChannelInfo(channel slack.ChannelID) (*slack.Channel, error)
 	PrivateChannelInfo(channel slack.ChannelID) (*slack.Channel, error)
-	ChannelMemberCount(channel slack.ChannelID) (int)
+	ChannelMemberCount(channel slack.ChannelID) int
 	ChannelMemberList(channel slack.ChannelID) []slack.UserID
 	UserInfo(user slack.UserID) (*slack.User, error)
 	UserInChannels(user slack.UserID, channels ...slack.ChannelID) map[slack.ChannelID]bool
