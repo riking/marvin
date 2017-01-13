@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dustin/go-humanize"
+	humanize "github.com/dustin/go-humanize"
 	"github.com/gorilla/csrf"
 
 	"github.com/riking/homeapi/marvin"

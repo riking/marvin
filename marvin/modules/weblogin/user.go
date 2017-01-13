@@ -91,7 +91,6 @@ func (u User) NameWarning() bool {
 	if u.IntraLogin == "" || u.SlackUser == "" {
 		return false
 	}
-	return true // TODO for debugging XXX
 	if u.SlackName == "" {
 		userInfo, err := u.mod.team.UserInfo(u.SlackUser)
 		if err != nil {
