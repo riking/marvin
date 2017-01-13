@@ -60,6 +60,18 @@ function doLogout() {
         </ul>
         <ul class="nav navbar-nav navbar-right">
             {{ if .DCurrentUser.IntraLogin -}}
+            {{- if .DCurrentUser.NameWarning }}
+            <li>
+            <div class="m-dropdown-wrap warning-dropdown" style="">
+                <span class="dropdown-icon"><i class="fa fa-warning"></i></span>
+                <div class="m-dropdown-content">
+                    <h4><i class="fa fa-warning"></i> Your Slack username is different from your Intra login</h4>
+                    <p>Please go to <a href="https://42schoolusa.slack.com/account/settings#username">your Slack settings</a> to change it.</p>
+                    <div class="m-dropdown-hover-shadow"></div>
+                </div>
+            </div>
+            </li>
+            {{ end -}}
             <li>
                 <!-- This might be wrong -->
                 <img height="32" src="https://cdn.intra.42.fr/users/medium_{{.DCurrentUser.IntraLogin}}.jpeg" />

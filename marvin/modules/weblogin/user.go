@@ -87,6 +87,26 @@ func (u *User) HasScopeSlack(scope string) bool {
 	return false
 }
 
+func (u User) NameWarning() bool {
+	if u.IntraLogin == "" || u.SlackUser == "" {
+		return false
+	}
+	return true // TODO for debugging XXX
+	if u.SlackName == "" {
+		userInfo, err := u.mod.team.UserInfo(u.SlackUser)
+		if err != nil {
+			return false
+		}
+		u.SlackName = userInfo.Name
+	}
+	if u.IntraLogin != u.SlackName {
+		return true
+	}
+	return false
+}
+
+// --- User save/load functions
+
 func (mod *WebLoginModule) GetUserByID(uid int64) (*User, error) {
 	stmt, err := mod.team.DB().Prepare(sqlLoadUser)
 	if err != nil {
@@ -117,7 +137,12 @@ func (mod *WebLoginModule) GetUserByID(uid int64) (*User, error) {
 	// Done, have valid user
 	if slackToken.Valid {
 		u.SlackUser = slack.UserID(slackUser.String)
-		u.SlackName = slackName.String
+		slackInfo, err := mod.team.UserInfo(u.SlackUser)
+		if err != nil {
+			u.SlackName = slackName.String
+		} else {
+			u.SlackName = slackInfo.Name
+		}
 		u.SlackToken = slackToken.String
 		err = json.Unmarshal(slackScopes, &u.SlackScopes)
 		if err != nil {
