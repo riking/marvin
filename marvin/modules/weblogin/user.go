@@ -245,6 +245,23 @@ func (u *User) Login(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
+// Logout deletes the auth cookie. Cannot be used with a User object not saved to the database.
+func (u *User) Logout(w http.ResponseWriter, r *http.Request) error {
+	if u.ID == -1 {
+		return ErrNotLoggedIn
+	}
+
+	sess, err := u.mod.getSession(w, r, cookieLongTerm)
+	if err != nil {
+		return err
+	}
+
+	sess.Values[cookieKeyUID] = int64(-1)
+	sess.Options.MaxAge = -1
+	sess.Save(r, w)
+	return nil
+}
+
 // Destroy removes the User's row in the database.
 func (u *User) Destroy() error {
 	stmt, err := u.mod.team.DB().Prepare(sqlDestroyUser)

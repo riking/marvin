@@ -24,7 +24,9 @@ func (mod *WebLoginModule) DestroySession(w http.ResponseWriter, r *http.Request
 
 	lc, _ := NewLayoutContent(mod.team, w, r, NavSectionInvite)
 
-	err = user.Destroy()
+	// Destroy cookies instead of destroying the user record
+
+	err = user.Logout(w, r)
 	if err != nil {
 		mod.HTTPError(w, r, errors.Wrap(err, "Could not complete logout"))
 		return
