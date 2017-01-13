@@ -25,8 +25,6 @@ func (t *Team) ChannelName(channel slack.ChannelID) string {
 		}
 		if ch.IsMultiIM() {
 			var membersStr bytes.Buffer
-			ch.LockMemberList.Lock()
-			defer ch.LockMemberList.Unlock()
 			for i, v := range ch.Members {
 				if i != 0 {
 					membersStr.WriteByte(' ')
