@@ -25,6 +25,9 @@ nav.navbar-inverse {
     margin-left: 5px;
 }
 /* Top of content */
+.page-header {
+    margin-top: 70px;
+}
 .page-header h1 {
     display: inline-block;
 }
