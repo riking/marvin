@@ -1,33 +1,44 @@
 {{define "styles"}}
 <style>
-    .m-channel {
-        margin-right: 0;
-        margin-left: 0;
-        background-color: #eee;
-        border: 1px inset #333;
-        border-radius: 6px;
-        margin-top: 5px;
-    }
-    .m-channel-wrap {
-        position: relative;
-        padding: 15px;
-    }
-    .m-channel h3 {
-        margin-top: 0;
-        font-size: 24px;
-    }
-    .join-btn {
-        position: absolute;
-        top: 1rem;
-        right: 15px;
-        text-transform: lowercase;
-    }
-    .m-channel .meta {
-        font-style: italic;
-    }
-    .m-channel .message {
-        font-size: 18px;
-    }
+.m-channel {
+    margin: 5px 2px 0 2px;
+    background-color: #fff;
+    border: 1px solid #bb9cb8;
+    border-radius: 6px;
+
+    flex-grow: 1;
+    flex-basis: calc(50% - 4px);
+}
+.m-channel-wrap {
+    position: relative;
+    padding: 15px;
+}
+.m-channel h3 {
+    margin-top: 0;
+    font-size: 24px;
+}
+.join-btn {
+    position: absolute;
+    top: 1rem;
+    right: 15px;
+    text-transform: lowercase;
+}
+.m-channel .meta {
+    font-style: italic;
+}
+.m-channel .message {
+    font-size: 18px;
+}
+.member-count {
+    font-size: 14px;
+    color: #888888;
+}
+section#channels {
+    display: flex;
+    flex-flow: row wrap;
+    justify-content: space-between;
+    margin: 0 -2px;
+}
 </style>
 {{end}}
 {{define "content"}}
@@ -49,11 +60,11 @@
         <p>Invitations sent to a private channel will not show up on the web interface; you must react to the message in Slack.</p>
     </div>
 
-<section>
+<section id="channels">
     {{ range .Channels }}
-    <div class="m-channel card card-block" data-id="{{.ID}}">
+    <div class="m-channel" data-id="{{.ID}}">
         <div class="m-channel-wrap">
-        <h3>{{.Name}}</h3>
+        <h3>{{.Name}} <span class="member-count"><i class="fa fa-user"></i> {{.MemberCount}}</span></h3>
         <span class="join-btn">
         {{ if $.NotLoggedIn -}}
             <a class="btn btn-default" data-interact="1">Log In First</a>
@@ -69,8 +80,9 @@
         {{- end -}}
         {{- end }}
         </span>
-        <p class="meta">@{{.UserName}} created invite on {{reltime .Timestamp}}</p>
+        <p class="meta">@{{.UserName}} created invite {{reltime .Timestamp}}</p>
         <p class="message">{{.Text}}</p>
+        <p class="purpose">{{.Purpose}}</p>
         </div>
     </div>
     {{ end }}

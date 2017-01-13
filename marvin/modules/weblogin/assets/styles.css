@@ -2,6 +2,15 @@
 body {
     background-color: #fefcfc;
 }
+nav.navbar-inverse {
+    background-color: #4D394B;
+    border-radius: 0;
+    position: fixed;
+    width: 100%;
+    z-index: 1000;
+    border-width: 0 0 2px;
+    border-color: rgba(77,57,75,0.5)
+}
 .navbar-nav>li>img[height="32"] {
     margin-right: 5px;
     display: inline-block;
