@@ -1,0 +1,27 @@
+syntax = "proto3";
+package pb;
+
+message Version {
+    int32 major = 1;
+    int32 minor = 2;
+}
+
+message Error {
+    enum ErrorType {
+        NO_ERROR = 0; // Zero value
+        TEMPORARY_ERROR = 1; // Basically a HTTP 503. Retry with exponential backoff.
+        BAD_REQUEST = 2; // Problem with the content of the request; e.g. no permission.
+        AGENT_NEEDS_UPDATE = 3; // Disconnect and do not try again until the agent has been updated.
+    }
+    ErrorType type = 1;
+    string message = 2;
+}
+
+message InternalSiteRequest {
+    string url = 1; // url must resolve to a private-network IP or the request is invalid
+}
+
+message HttpResponse {
+    int32 status_code = 1;
+    string body = 2;
+}
