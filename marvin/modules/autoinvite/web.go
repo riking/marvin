@@ -136,7 +136,7 @@ func (mod *AutoInviteModule) HTTPListInvites(w http.ResponseWriter, r *http.Requ
 var rgxAcceptInvite = regexp.MustCompile(`/invites/([A-Z0-9]+)`)
 
 type jsonResponse struct {
-	OK bool `json:"ok"`
+	OK    bool `json:"ok"`
 	Error struct {
 		Type    string `json:"type"`
 		Message string `json:"message"`

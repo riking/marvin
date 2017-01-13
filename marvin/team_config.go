@@ -1,12 +1,14 @@
 package marvin
 
 import (
-	"gopkg.in/ini.v1"
+	"fmt"
+	"net"
 	"os"
 	"strings"
-	"fmt"
+
+	"gopkg.in/ini.v1"
+
 	"github.com/riking/homeapi/marvin/slack"
-	"net"
 )
 
 // TeamConfig is loaded from the config.ini file.
@@ -56,4 +58,3 @@ func LoadTeamConfig(sec *ini.Section) *TeamConfig {
 	}
 	return c
 }
-

@@ -166,7 +166,6 @@ func (mod *LoggerModule) getHistory(method string, channel slack.ChannelID, stmt
 		return nil, errors.Wrapf(response, "Slack API %s error", method)
 	}
 	if len(response.Messages) > 0 {
-		b, _ := json.Marshal(response.Messages)
 		fmt.Println("[Backfill]", channel, len(response.Messages), "recent messages")
 	} else {
 		fmt.Println("[Backfill]", channel, "no recent messages")
