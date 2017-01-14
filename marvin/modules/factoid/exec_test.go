@@ -122,6 +122,7 @@ func TestLua(t *testing.T) {
 	testFactoidArgs(t, `{lua}return 42`, nil, s, "42")
 	testFactoidArgs(t, `{lua}print("hello") print(", ") print("world")`, nil, s, "hello, world")
 	testFactoidArgs(t, `{lua}return "hello" .. " world"`, nil, s, "hello world")
+	testFactoidArgs(t, `{lua}print(" $reverse( $munge((╯°□°）╯︵ ǝlqɐʇ)")`, nil, s, "$reverse( $munge((╯°□°）╯︵ ǝlqɐʇ)")
 }
 
 func TestFlipMunge(t *testing.T) {
