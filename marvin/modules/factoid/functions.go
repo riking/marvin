@@ -20,7 +20,7 @@ func setupFunctions(mod *FactoidModule) {
 	mod.RegisterFunctionSingleArg("lcase", funcLCase)
 
 	mod.RegisterFunctionSingleArg2("munge", funcMunge)
-	mod.RegisterFunctionSingleArg2("rawflip", funcRawFlip)
+	mod.RegisterFunctionSingleArg2("flipraw", funcRawFlip)
 	mod.RegisterFunctionSingleArg2("flip", funcFlip)
 	mod.RegisterFunctionSingleArg2("reverse", funcReverse)
 

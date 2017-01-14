@@ -27,6 +27,7 @@ func GetMockFactoidModule() *FactoidModule {
 			},
 		},
 	}
+	setupFunctions(fm)
 	return fm
 }
 
@@ -126,13 +127,13 @@ func TestLua(t *testing.T) {
 func TestFlipMunge(t *testing.T) {
 	s := mock.ActionSource{}
 
-	testFactoidArgs(t, `munge(jamie)`, nil, s, "ĵäṁíë")
-	testFactoidArgs(t, `munge(munge(jamie))`, nil, s, "ĵäṁíë")
-	testFactoidArgs(t, `munge(ĵäṁíë)`, nil, s, "ĵäṁíë")
-	testFactoidArgs(t, `flip(World)`, nil, s, "plɹoM")
-	testFactoidArgs(t, `flip(flip(World))`, nil, s, "World")
-	testFactoidArgs(t, `flip(plɹoM)`, nil, s, "World")
-	testFactoidArgs(t, `reverse(flipraw(World))`, nil, s, "plɹoM")
+	testFactoidArgs(t, `$munge(jamie)`, nil, s, "ĵäṁíë")
+	testFactoidArgs(t, `$munge($munge(jamie))`, nil, s, "ĵäṁíë")
+	testFactoidArgs(t, `$munge(ĵäṁíë)`, nil, s, "ĵäṁíë")
+	testFactoidArgs(t, `$flip(World)`, nil, s, "plɹoM")
+	testFactoidArgs(t, `$flip($flip(World))`, nil, s, "World")
+	testFactoidArgs(t, `$flip(plɹoM)`, nil, s, "World")
+	testFactoidArgs(t, `$reverse($flipraw(World))`, nil, s, "plɹoM")
 }
 
 func BenchmarkPlainFactoidParse(b *testing.B) {
