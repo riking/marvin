@@ -234,7 +234,11 @@ func lua_URIEncode(L *lua.LState) int {
 
 func lua_URIDecode(L *lua.LState) int {
 	str := L.CheckString(1)
-	L.Push(lua.LString(url.QueryUnescape(str)))
+	result, err := url.QueryUnescape(str)
+	if err != nil {
+		L.RaiseError("non-encoded string passed to uridecode: %s", err)
+	}
+	L.Push(lua.LString(result))
 	return 1
 }
 
