@@ -150,8 +150,8 @@ func luaFactoid__Index(L *lua.LState) int {
 		L.RaiseError("NotImplemented")
 		return 0
 	case "data":
-		L.RaiseError("NotImplemented")
-		return 0
+		L.Push(LNewFDataMap(lfv.flua, lfv.Name))
+		return 1
 	default:
 		L.RaiseError("No such method factoid.%s", method)
 		return 0
