@@ -211,7 +211,7 @@ func (mod *FactoidModule) collectTokenize(source string) []Token {
 func (mod *FactoidModule) tokenize(source string, recursed bool, tokenCh chan<- Token) {
 	// Function directives
 	m := FunctionTokenRgx.FindStringSubmatchIndex(source)
-	for m != nil {
+	for ; m != nil; m = FunctionTokenRgx.FindStringSubmatchIndex(source) {
 		fmt.Println(m)
 		if source[m[2]:m[3]] != "" {
 			m[0]++
@@ -222,43 +222,44 @@ func (mod *FactoidModule) tokenize(source string, recursed bool, tokenCh chan<- 
 		if !ok {
 			tokenCh <- TextToken{Text: "$" + funcName}
 			source = source[m[5]:]
-		} else {
-			start := m[5]
-			end := -999
-			nesting := 0
-			for i := start; i < len(source); i++ {
-				var b byte = source[i]
-				if b == '\\' {
-					i++
-					continue
-				} else if b == '(' {
-					nesting++
-				} else if b == ')' {
-					nesting--
-				}
-				if nesting == 0 {
-					end = i
-					break
-				}
-			}
-			if end == -999 {
-				panic(ErrSource{errors.Errorf("Unclosed function named '%s'", funcName)})
-			}
-			paramTokens := mod.collectTokenize(source[start+1 : end])
-			var funcParams [][]Token
-			if funcInfo.MultiArg {
-				funcParams = mod.splitParams(paramTokens)
-			} else {
-				funcParams = [][]Token{paramTokens}
-			}
-			tokenCh <- FunctionToken{
-				raw:             source[m[4]-1 : end+1],
-				FactoidFunction: funcInfo,
-				params:          funcParams,
-			}
-			source = source[end+1:]
+			continue
 		}
-		m = FunctionTokenRgx.FindStringSubmatchIndex(source)
+		start := m[5]
+		end := -999
+		nesting := 0
+		for i := start; i < len(source); i++ {
+			var b byte = source[i]
+			if b == '\\' {
+				i++
+				continue
+			} else if b == '(' {
+				nesting++
+			} else if b == ')' {
+				nesting--
+			}
+			if nesting == 0 {
+				end = i
+				break
+			}
+		}
+		if end == -999 {
+			tokenCh <- TextToken{Text: "$" + funcName}
+			source = source[m[5]:]
+			continue
+		}
+		paramTokens := mod.collectTokenize(source[start+1 : end])
+		var funcParams [][]Token
+		if funcInfo.MultiArg {
+			funcParams = mod.splitParams(paramTokens)
+		} else {
+			funcParams = [][]Token{paramTokens}
+		}
+		tokenCh <- FunctionToken{
+			raw:             source[m[4]-1 : end+1],
+			FactoidFunction: funcInfo,
+			params:          funcParams,
+		}
+		source = source[end+1:]
 	}
 	// Parameter directives
 	m = ParameterTokenRgx.FindStringSubmatchIndex(source)
