@@ -23,7 +23,6 @@ var (
 	cookieLoginTmp    = "oauth"
 	cookieKeyNonce    = "nonce"
 	cookieKeyRedirect = "redirect"
-	cookieKeyScope    = "scope"
 
 	ErrBadCookie = errors.New("Bad cookie data")
 )
@@ -86,11 +85,12 @@ func (mod *WebLoginModule) OAuthSlackStart(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	// Require intra login first
-	if user == nil {
-		redirectURL := mod.StartIntraURL(r.RequestURI)
-		http.Redirect(w, r, redirectURL, http.StatusSeeOther)
-		return
-	}
+	//if user == nil {
+	//	redirectURL := mod.StartIntraURL(r.RequestURI)
+	//	http.Redirect(w, r, redirectURL, http.StatusSeeOther)
+	//	return
+	//}
+	_ = user
 
 	loginSession, err := mod.getSession(w, r, cookieLoginTmp)
 	if err != nil {
