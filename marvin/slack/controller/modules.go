@@ -20,9 +20,6 @@ const ConfTurnOffModule = "off"
 // During loading, when the requested module has not been enabled yet, the function returns 0 and remembers the pointer.
 // If the requested module is not known, the function returns -1.
 func (t *Team) DependModule(self marvin.Module, dependID marvin.ModuleID, ptr *marvin.Module) int {
-	t.modulesLock.Lock()
-	defer t.modulesLock.Unlock()
-
 	selfMS := t.getModuleStatus(self.Identifier())
 	if selfMS == nil {
 		panic(errors.Errorf("DependModule() self parameter is not loaded?"))
@@ -74,8 +71,6 @@ func (t *Team) GetModuleStatus(ident marvin.ModuleID) marvin.ModuleStatus {
 func (t *Team) GetAllModules() []marvin.ModuleStatus {
 	var all []marvin.ModuleStatus
 
-	t.modulesLock.Lock()
-	defer t.modulesLock.Unlock()
 	for i := range t.modules {
 		all = append(all, t.modules[i])
 	}
@@ -85,8 +80,6 @@ func (t *Team) GetAllModules() []marvin.ModuleStatus {
 func (t *Team) GetAllEnabledModules() []marvin.ModuleStatus {
 	var all []marvin.ModuleStatus
 
-	t.modulesLock.Lock()
-	defer t.modulesLock.Unlock()
 	for _, v := range t.modules {
 		if v.state == marvin.ModuleStateEnabled {
 			all = append(all, v)
@@ -334,6 +327,19 @@ func (t *Team) enableModule2(ms *moduleStatus) error {
 	ms.state = marvin.ModuleStateEnabled
 	ms.degradeReason = nil
 	return nil
+}
+
+func (t *Team) disableModules() {
+	var modListCpy []*moduleStatus
+
+	modListCpy = make([]*moduleStatus, len(t.modules))
+	copy(modListCpy, t.modules)
+	sort.Sort(sort.Reverse(sortModules(modListCpy)))
+	for _, ms := range modListCpy {
+		util.LogIfError(
+			protectedCallT(t, ms.instance.Disable))
+		util.LogGood("Disabled module", ms.identifier)
+	}
 }
 
 func protectedCallT(t marvin.Team, f func(t marvin.Team)) (err error) {

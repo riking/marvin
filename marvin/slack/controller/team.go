@@ -30,8 +30,7 @@ type Team struct {
 	db         *database.Conn
 	commands   *marvin.ParentCommand
 
-	modulesLock sync.Mutex
-	modules     []*moduleStatus
+	modules []*moduleStatus
 
 	confLock sync.Mutex
 	confMap  map[marvin.ModuleID]*DBModuleConfig
@@ -90,6 +89,13 @@ func (t *Team) EnableModules() bool {
 		return false
 	}
 	return true
+}
+
+func (t *Team) Shutdown() {
+	t.disableModules()
+	util.LogIfError(errors.Wrap(
+		t.DB().Close(), "db shutdown"))
+	// t.client.Stop()
 }
 
 func (t *Team) Domain() string {

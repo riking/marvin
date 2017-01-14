@@ -7,15 +7,27 @@ import (
 	"github.com/yuin/gopher-lua"
 )
 
+type jsonNull struct{}
+
+func (jsonNull) MarshalJSON() ([]byte, error) {
+	return []byte("null"), nil
+}
+
 func OpenJson(L *lua.LState) int {
 	module := L.RegisterModule("json", jsonFuncs).(*lua.LTable)
+	load := module.RawGetString("load")
+	module.RawSetString("decode", load)
+	module.RawSetString("parse", load)
+	dump := module.RawGetString("dump")
+	module.RawSetString("encode", dump)
+
 	null := L.NewUserData()
 	tab := L.NewTypeMetatable("_metatable_JsonNull")
 	tab.RawSetString("__tostring", L.NewFunction(func(L *lua.LState) int {
 		L.Push(lua.LString("(null)"))
 		return 1
 	}))
-	null.Value = nil
+	null.Value = jsonNull{}
 	null.Metatable = tab
 	L.SetGlobal("jsonNull", null)
 	module.RawSetString("null", null)
@@ -38,7 +50,7 @@ var jsonFuncs = map[string]lua.LGFunction{
 func jsonToLua(L *lua.LState, obj interface{}) lua.LValue {
 	switch v := obj.(type) {
 	case nil:
-		return lua.LNil
+		return L.GetTable(L.GetGlobal("json"), lua.LString("null"))
 	case bool:
 		if v {
 			return lua.LTrue
@@ -82,7 +94,11 @@ func jsonFromLua(L *lua.LState, obj lua.LValue) interface{} {
 		return string(v)
 	case lua.LTUserData:
 		v := obj.(*lua.LUserData)
-		return v.Value
+		if m, ok := v.Value.(json.Marshaler); ok {
+			return m
+		}
+		L.RaiseError("Can't encode userdata object of type %T", v.Value)
+		return nil
 	case lua.LTTable:
 		tab := obj.(*lua.LTable)
 		isArray := false

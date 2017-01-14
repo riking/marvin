@@ -1,6 +1,5 @@
 package pb
 
-
 func (v *Version) Equal(other *Version) bool {
 	if v == nil && other == nil {
 		return true

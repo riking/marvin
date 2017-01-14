@@ -131,6 +131,7 @@ type Factoid struct {
 
 func (mod *FactoidModule) doMigrate(t marvin.Team) {
 	t.DB().MustMigrate(Identifier, 1478236994, sqlMigrate1, sqlMigrate2)
+	t.DB().MustMigrate(Identifier, 1484348222, sqlMigrate3)
 }
 
 func (mod *FactoidModule) doSyntaxCheck(t marvin.Team) {
@@ -142,6 +143,12 @@ func (mod *FactoidModule) doSyntaxCheck(t marvin.Team) {
 		sqlListMatchesWithInfo,
 		sqlLockFactoid,
 		sqlForgetFactoid,
+
+		sqlFDataGetOne,
+		sqlFDataGetAll,
+		sqlFDataMakeTempTable,
+		//sqlFDataSetFromTemp,
+		sqlFDataSet,
 	)
 }
 

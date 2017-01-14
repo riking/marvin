@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 )
 
 type FactoidFunction struct {
@@ -17,6 +18,12 @@ type FactoidFunction struct {
 func setupFunctions(mod *FactoidModule) {
 	mod.RegisterFunctionSingleArg("ucase", funcUCase)
 	mod.RegisterFunctionSingleArg("lcase", funcLCase)
+
+	mod.RegisterFunctionSingleArg2("munge", funcMunge)
+	mod.RegisterFunctionSingleArg2("rawflip", funcRawFlip)
+	mod.RegisterFunctionSingleArg2("flip", funcFlip)
+	mod.RegisterFunctionSingleArg2("reverse", funcReverse)
+
 	mod.RegisterFunctionMultiArg("repeat", funcRepeat)
 	mod.RegisterFunctionMultiArg("first", funcFirst)
 	mod.RegisterFunctionMultiArg("if", funcIf)
@@ -84,4 +91,52 @@ func funcIf(args ...string) string {
 
 func funcRand(args ...string) string {
 	return args[rand.Intn(len(args))]
+}
+
+func funcMunge(arg string) string {
+	return mungeReplacer.Replace(arg)
+}
+
+func funcRawFlip(arg string) string {
+	return flipReplacer.Replace(arg)
+}
+
+func funcFlip(arg string) string {
+	return funcReverse(funcRawFlip(arg))
+}
+
+func funcReverse(arg string) string {
+	runes := []rune(arg)
+	for i, j := 0, len(runes)-1; i < j; i, j = i+1, j-1 {
+		runes[i], runes[j] = runes[j], runes[i]
+	}
+	return string(runes)
+}
+
+var (
+	mungeReplacer = makeReplacer(false, "abcdefghijklmnoprstuwxyzABCDEGHIJKLMORSTUWYZ0123456789", "äḃċđëƒġħíĵķĺṁñöρŗšţüωχÿźÅḂÇĎĒĠĦÍĴĶĹṀÖŖŠŢŮŴỲŻ０１２３４５６７８９")
+	flipFrom      = "!().12345679<>?ABCDEFGJKLMPQRTUVWY[]_abcdefghijklmnpqrtuvwy{},'\"┳"
+	flipTo        = "¡)(˙⇂ᄅƐㄣϛ9Ɫ6><¿∀ᗺƆᗡƎℲפᒋ丬˥WԀΌᴚ⊥∩ΛMλ][‾ɐqɔpǝɟɓɥıɾʞlɯudbɹʇnʌʍʎ}{',„┻"
+	flipReplacer  = makeReplacer(true, flipFrom, flipTo)
+)
+
+func makeReplacer(inverse bool, fromStr, toStr string) *strings.Replacer {
+	size := 2 * len(fromStr) // XXX only works if from is ASCII-only
+	if inverse {
+		size = 2 * size
+	}
+	var args = make([]string, 0, size)
+	fromIdx := 0
+	toIdx := 0
+	for fromIdx < len(fromStr) && toIdx < len(toStr) {
+		_, fSize := utf8.DecodeRuneInString(fromStr[fromIdx:])
+		_, tSize := utf8.DecodeRuneInString(toStr[toIdx:])
+		args = append(args, fromStr[fromIdx:fromIdx+fSize], toStr[toIdx:toIdx+tSize])
+		if inverse {
+			args = append(args, toStr[toIdx:toIdx+tSize], fromStr[fromIdx:fromIdx+fSize])
+		}
+		fromIdx += fSize
+		toIdx += tSize
+	}
+	return strings.NewReplacer(args...)
 }

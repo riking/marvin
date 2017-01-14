@@ -18,6 +18,7 @@ type ErrSource struct{ error }
 
 type Token interface {
 	Run(mod *FactoidModule, args []string, actionSource marvin.ActionSource) (string, error)
+	Source() string
 }
 
 var DirectiveTokenRgx = regexp.MustCompile(`^{([a-z]+)}`)
@@ -26,9 +27,13 @@ type DirectiveToken struct {
 	Directive string
 }
 
+func (d DirectiveToken) Source() string { return "{" + d.Directive + "}" }
+
 type TextToken struct {
 	Text string
 }
+
+func (t TextToken) Source() string { return t.Text }
 
 func (t TextToken) Run(mod *FactoidModule, args []string, actionSource marvin.ActionSource) (string, error) {
 	return t.Text, nil
@@ -43,7 +48,10 @@ var FunctionTokenRgx = regexp.MustCompile(`(^|[^\\])\$([a-zA-Z_][a-zA-Z0-9_]*)\(
 type FunctionToken struct {
 	FactoidFunction
 	params [][]Token
+	raw    string
 }
+
+func (p FunctionToken) Source() string { return p.raw }
 
 func (p FunctionToken) Run(mod *FactoidModule, args []string, actionSource marvin.ActionSource) (string, error) {
 	funcParams := make([]string, len(p.params))
@@ -86,6 +94,8 @@ func NewParameterToken(rawStr, opStr, startStr, rangeStr, endStr string) Token {
 		isRange: rangeStr == "-",
 	}
 }
+
+func (p ParameterToken) Source() string { return p.raw }
 
 func (p ParameterToken) Run(mod *FactoidModule, args []string, actionSource marvin.ActionSource) (string, error) {
 	switch p.op {

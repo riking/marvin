@@ -94,7 +94,7 @@ func (mod *FactoidModule) exec_parse(ctx context.Context, f *Factoid, raw string
 
 	var directives []DirectiveToken
 	var tokens []Token
-	if f != nil {
+	if f != nil && f.RawSource == raw {
 		directives, tokens = f.Tokens()
 	} else {
 		var remainder string
@@ -103,8 +103,11 @@ func (mod *FactoidModule) exec_parse(ctx context.Context, f *Factoid, raw string
 	}
 
 directives_loop:
-	for _, v := range directives {
+	for i, v := range directives {
 		switch v.Directive {
+		case "raw":
+			// Immediately stop processing
+			return tokensToSource(directives[i:], tokens)
 		case "say":
 			of.Say = true
 		case "pre":
@@ -115,20 +118,41 @@ directives_loop:
 			return "", nil
 		case "skip":
 			break directives_loop
-		case "lua":
-			luaSource, err := mod.exec_processTokens(tokens, args, actionSource)
+		case "lua", "luar":
+			if of.DisallowLua {
+				continue
+			}
+			var luaSource string
+			var err error
+			if v.Directive == "luar" { // raw
+				luaSource, err = tokensToSource(directives[i:], tokens)
+			} else {
+				luaSource, err = mod.exec_processTokens(tokens, args, actionSource)
+			}
 			if err != nil {
 				return "", err
 			}
-			result, err := RunFactoidLua(ctx, mod, luaSource, args, of, actionSource)
+
+			result, err := RunFactoidLua(ctx, mod, f.FactoidName, luaSource, args, of, actionSource)
 			if err != nil {
 				return "", err
 			}
 			of.DisallowLua = true
-			return mod.exec_parse(ctx, nil, result, args, of, actionSource)
+			return mod.exec_parse(ctx, f, result, args, of, actionSource)
 		}
 	}
 	return mod.exec_processTokens(tokens, args, actionSource)
+}
+
+func tokensToSource(directives []DirectiveToken, tokens []Token) (string, error) {
+	var buf bytes.Buffer
+	for _, v := range directives {
+		buf.WriteString(v.Source())
+	}
+	for _, v := range tokens {
+		buf.WriteString(v.Source())
+	}
+	return buf.String(), nil
 }
 
 func (mod *FactoidModule) exec_processTokens(tokens []Token, args []string, actionSource marvin.ActionSource) (string, error) {
@@ -220,11 +244,17 @@ func (mod *FactoidModule) tokenize(source string, recursed bool, tokenCh chan<- 
 			if end == -999 {
 				panic(ErrSource{errors.Errorf("Unclosed function named '%s'", funcName)})
 			}
-			params := mod.collectTokenize(source[start+1 : end])
+			paramTokens := mod.collectTokenize(source[start+1 : end])
+			var funcParams [][]Token
 			if funcInfo.MultiArg {
-				tokenCh <- FunctionToken{FactoidFunction: funcInfo, params: mod.splitParams(params)}
+				funcParams = mod.splitParams(paramTokens)
 			} else {
-				tokenCh <- FunctionToken{FactoidFunction: funcInfo, params: [][]Token{params}}
+				funcParams = [][]Token{paramTokens}
+			}
+			tokenCh <- FunctionToken{
+				raw:             source[m[4]-1 : end+1],
+				FactoidFunction: funcInfo,
+				params:          funcParams,
 			}
 			source = source[end+1:]
 		}

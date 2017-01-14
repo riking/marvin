@@ -36,7 +36,7 @@ func (c *Conn) SyntaxCheck(query ...string) {
 	for _, v := range query {
 		stmt, err := c.DB.Prepare(v)
 		if err != nil {
-			panic(errors.Wrap(err, "SQL syntax check failed"))
+			panic(errors.Wrapf(err, "SQL syntax check failed. Query:\n%s\nError", v))
 		}
 		stmt.Close()
 	}

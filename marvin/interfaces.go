@@ -171,6 +171,7 @@ type Team interface {
 	// EnableModules loads every module and attempts to transition them to
 	// the state listed in the configuration.
 	EnableModules() bool
+	Shutdown()
 
 	// DependModule places the instance of the requested module in the
 	// given pointer.

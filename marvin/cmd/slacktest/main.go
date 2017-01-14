@@ -5,8 +5,10 @@ import (
 	"flag"
 	"fmt"
 	"net"
+	"os"
+	"os/signal"
+	"syscall"
 
-	"github.com/google/gops/agent"
 	"github.com/pkg/errors"
 	"gopkg.in/ini.v1"
 
@@ -33,10 +35,6 @@ func main() {
 	}
 	if err != nil {
 		util.LogError(errors.Wrap(err, "loading config"))
-		return
-	}
-	if err := agent.Listen(nil); err != nil {
-		util.LogError(errors.Wrap(err, "starting gops agent"))
 		return
 	}
 
@@ -125,5 +123,8 @@ func main() {
 	client.Start()
 
 	fmt.Println("started")
-	select {}
+	signalCh := make(chan os.Signal)
+	signal.Notify(signalCh, syscall.SIGINT)
+	<-signalCh
+	team.Shutdown()
 }

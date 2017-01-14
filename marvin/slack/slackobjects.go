@@ -12,7 +12,7 @@ type FileID string
 type FileCommentID string
 type MessageTS string
 
-func (u UserID) Raw() string { return string(u) }
+func (u UserID) Raw() string      { return string(u) }
 func (u UserID) ToAtForm() string { return fmt.Sprintf("<@%s>", string(u)) }
 
 func (u UserID) Format(f fmt.State, c rune) {

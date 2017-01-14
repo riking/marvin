@@ -22,36 +22,38 @@ type FactoidLua struct {
 	L   *lua.LState
 	Ctx context.Context
 
-	Args      []string
-	OFlags    *OutputFlags
-	ActSource marvin.ActionSource
+	FactoidName string
+	Args        []string
+	OFlags      *OutputFlags
+	ActSource   marvin.ActionSource
 
 	printBuf bytes.Buffer
 }
 
-func RunFactoidLua(ctx context.Context, mod *FactoidModule, factoidSource string, factoidArgs []string, of *OutputFlags, actSource marvin.ActionSource) (string, error) {
+func RunFactoidLua(ctx context.Context, mod *FactoidModule, factoidName, factoidSource string, factoidArgs []string, of *OutputFlags, actSource marvin.ActionSource) (string, error) {
 	var result string
 	err := util.PCall(func() error {
 		var err error
-		result, err = runLua(ctx, mod, factoidSource, factoidArgs, of, actSource)
+		result, err = runLua(ctx, mod, factoidName, factoidSource, factoidArgs, of, actSource)
 		return err
 	})
 	return result, err
 }
 
-func runLua(ctx context.Context, mod *FactoidModule, factoidSource string, factoidArgs []string, of *OutputFlags, actionSource marvin.ActionSource) (string, error) {
+func runLua(ctx context.Context, mod *FactoidModule, factoidName, factoidSource string, factoidArgs []string, of *OutputFlags, actionSource marvin.ActionSource) (string, error) {
 	L := lua.NewState(lua.Options{
 		IncludeGoStackTrace: true,
 		SkipOpenLibs:        true,
 	})
 	L.Ctx = ctx
 	fl := &FactoidLua{
-		mod:       mod,
-		L:         L,
-		Ctx:       ctx,
-		Args:      factoidArgs,
-		OFlags:    of,
-		ActSource: actionSource,
+		mod:         mod,
+		L:           L,
+		Ctx:         ctx,
+		FactoidName: factoidName,
+		Args:        factoidArgs,
+		OFlags:      of,
+		ActSource:   actionSource,
 	}
 	fl.Setup()
 	fl.SetFactoidEnv()
@@ -108,9 +110,7 @@ func (f *FactoidLua) OpenFactoid(L *lua.LState) int {
 	u.Metatable = tab
 	L.SetGlobal("factoid", u)
 
-	LFactoid{}.SetupMetatable(L)
-	LUser{}.SetupMetatable(L)
-	LChannel{}.SetupMetatable(L)
+	L.SetGlobal("factoidname", lua.LString(f.FactoidName))
 
 	return 0
 }
@@ -129,24 +129,31 @@ func luaFactoidModule__index(L *lua.LState) int {
 }
 
 func (f *FactoidLua) Setup() {
-	lua.OpenBase(f.L)
-	basemod := f.L.CheckTable(1)
-	basemod.RawSetString("print", f.L.NewFunction(f.luaPrint))
+	L := f.L
+	lua.OpenBase(L)
+	basemod := L.CheckTable(1)
+	basemod.RawSetString("print", L.NewFunction(f.luaPrint))
 	for k, v := range forbiddenBase {
-		basemod.RawSetString(k, f.L.NewFunction(v))
+		basemod.RawSetString(k, L.NewFunction(v))
 	}
-	lua.OpenTable(f.L)
-	lua.OpenString(f.L)
-	lua.OpenMath(f.L)
-	lua.OpenDebug(f.L)
-	lualib.OpenBit(f.L)
-	lualib.OpenJson(f.L)
-	lualib.OpenRequests(f.L)
-	lualib.OpenCorpus(f.L)
+	lua.OpenTable(L)
+	lua.OpenString(L)
+	lua.OpenMath(L)
+	lua.OpenDebug(L)
+	lualib.OpenBit(L)
+	lualib.OpenJson(L)
+	lualib.OpenRequests(L)
+	lualib.OpenCorpus(L)
 
-	f.OpenFactoid(f.L)
-	f.OpenBot(f.L)
-	f.L.SetGlobal("ptable", f.L.NewFunction(f.lua_printTable))
+	LFactoid{}.SetupMetatable(L)
+	LUser{}.SetupMetatable(L)
+	LChannel{}.SetupMetatable(L)
+	LFDataMap{}.SetupMetatable(L)
+
+	f.OpenFactoid(L)
+	f.OpenFData(L)
+	f.OpenBot(L)
+	L.SetGlobal("ptable", f.L.NewFunction(f.lua_printTable))
 }
 
 func (f *FactoidLua) SetFactoidEnv() {

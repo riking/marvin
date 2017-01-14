@@ -37,6 +37,10 @@ Content
 ```</code></pre>
     <p>If you need multiple multiline parts, just add a &2. This works for all commands in Marvin - but not for
     bang-factoids, as they always use the entire message!</p>
+    <hr>
+    <p>If you're having trouble with phrases like %args% and $flip(...) being interpreted in the output of your Lua script,
+        either preface your output with <code>{raw}</code> or change the <code>{lua}</code> directive to <code>{luar}</code>.
+        The second prevents interpretation before the Lua code executes, while <code>{raw}</code> disables interpretation of the output. </p>
 </div>
 
 <h3>Factoid List</h3>

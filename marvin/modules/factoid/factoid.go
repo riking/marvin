@@ -5,6 +5,7 @@ import (
 
 	"github.com/riking/homeapi/marvin"
 	"github.com/riking/homeapi/marvin/modules/paste"
+	"github.com/riking/homeapi/marvin/util"
 )
 
 type API interface {
@@ -28,12 +29,21 @@ type FactoidModule struct {
 
 	functions map[string]FactoidFunction
 	pasteMod  marvin.Module
+
+	fdataReqChan chan fdataReq
+	fdataMap     map[string]map[string]fdataVal
+	// send false for normal, true for urgent
+	fdataSyncSignal chan bool
 }
 
 func NewFactoidModule(t marvin.Team) marvin.Module {
 	mod := &FactoidModule{
 		team:      t,
 		functions: make(map[string]FactoidFunction),
+
+		fdataMap:        make(map[string]map[string]fdataVal),
+		fdataReqChan:    make(chan fdataReq),
+		fdataSyncSignal: make(chan bool),
 	}
 	return mod
 }
@@ -70,9 +80,16 @@ func (mod *FactoidModule) Enable(team marvin.Team) {
 	team.RegisterCommand("rem", remember)
 	team.RegisterCommand("r", remember)
 	team.RegisterCommand("forget", forget)
+
+	go mod.workerFDataChan()
+	go mod.workerFDataSync()
 }
 
 func (mod *FactoidModule) Disable(t marvin.Team) {
+	util.LogGood("Saving persistent factoid data...")
+	mod.fdataSyncSignal <- true  // trigger immediate save
+	mod.fdataSyncSignal <- false // ensure that save completed
+	util.LogGood("... done saving factoid data.")
 	t.UnregisterCommand("factoid")
 	t.UnregisterCommand("f")
 	t.UnregisterCommand("remember")
