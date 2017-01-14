@@ -14,6 +14,7 @@ import (
 	"github.com/riking/homeapi/marvin"
 	"github.com/riking/homeapi/marvin/modules/factoid/lualib"
 	"github.com/riking/homeapi/marvin/modules/paste"
+	"github.com/riking/homeapi/marvin/slack"
 	"github.com/riking/homeapi/marvin/util"
 )
 
@@ -180,6 +181,8 @@ func (f *FactoidLua) OpenBot(L *lua.LState) int {
 	tab.RawSetString("shortlink", L.NewFunction(f.mod.LuaShortLink))
 	tab.RawSetString("now", L.NewFunction(lua_Now))
 	tab.RawSetString("uriencode", L.NewFunction(lua_URIEncode))
+	tab.RawSetString("uridecode", L.NewFunction(lua_URIDecode))
+	tab.RawSetString("unescape", L.NewFunction(lua_SlackUnescape))
 	L.SetGlobal("bot", tab)
 	return 0
 }
@@ -226,6 +229,18 @@ func lua_Now(L *lua.LState) int {
 func lua_URIEncode(L *lua.LState) int {
 	str := L.CheckString(1)
 	L.Push(lua.LString(url.QueryEscape(str)))
+	return 1
+}
+
+func lua_URIDecode(L *lua.LState) int {
+	str := L.CheckString(1)
+	L.Push(lua.LString(url.QueryUnescape(str)))
+	return 1
+}
+
+func lua_SlackUnescape(L *lua.LState) int {
+	str := L.CheckString(1)
+	L.Push(lua.LString(slack.UnescapeText(str)))
 	return 1
 }
 
