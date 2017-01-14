@@ -244,7 +244,7 @@ func lua_URIDecode(L *lua.LState) int {
 
 func lua_SlackUnescape(L *lua.LState) int {
 	str := L.CheckString(1)
-	L.Push(lua.LString(slack.UnescapeText(str)))
+	L.Push(lua.LString(slack.UnescapeTextAll(str)))
 	return 1
 }
 

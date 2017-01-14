@@ -56,3 +56,10 @@ func UnescapeText(msg string) string {
 	msg = strings.Replace(msg, "&amp;", "&", -1)
 	return msg
 }
+
+func UnescapeTextAll(msg string) string {
+	msg = UnescapeText(msg)
+	msg = strings.Replace(msg, "&lt;", "<", -1)
+	msg = strings.Replace(msg, "&gt;", ">", -1)
+	return msg
+}
