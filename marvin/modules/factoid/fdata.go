@@ -377,8 +377,10 @@ func (LFDataMap) SetupMetatable(L *lua.LState) {
 	tab := L.NewTypeMetatable(metatableFDataMap)
 	tab.RawSetString("__index", L.NewFunction(luaFData_get))
 	tab.RawSetString("__newindex", L.NewFunction(luaFData_set))
+	tab.RawSetString("__len", L.NewFunction(luaFData_count))
 	tab.RawSetString("__preload", L.NewFunction(luaFData_preload))
 
+	L.SetGlobal("iterfdata", L.NewFunction(luaFData_iter))
 	L.SetGlobal("iterfmap", L.NewFunction(luaFData_iter))
 }
 
@@ -505,16 +507,37 @@ func luaFData_preload(L *lua.LState) int {
 	return 0
 }
 
+func luaFData_count(L *lua.LState) int {
+	u := L.CheckUserData(1)
+	fdm, ok := u.Value.(*LFDataMap)
+	if !ok {
+		L.RaiseError("fmap.__len requires a fmap as argument #1, got %T", u.Value)
+	}
+
+	// preload full table
+	if fdm.fullContent == nil {
+		L.Push(L.GetTable(u.Metatable, lua.LString("__preload")))
+		L.Push(u)
+		L.Call(1, 0)
+	}
+
+	L.Push(lua.LNumber(len(fdm.fullContent)))
+	return 1
+}
+
 func luaFData_iter(L *lua.LState) int {
 	u := L.CheckUserData(1)
 	fdm, ok := u.Value.(*LFDataMap)
 	if !ok {
-		L.RaiseError("iterfmap() requires a fmap as argument #1, got %T", u.Value)
+		L.RaiseError("iterfdata() requires a fmap as argument #1, got %T", u.Value)
 	}
+
 	// preload full table
-	L.Push(L.GetTable(u.Metatable, lua.LString("__preload")))
-	L.Push(u)
-	L.Call(1, 0)
+	if fdm.fullContent == nil {
+		L.Push(L.GetTable(u.Metatable, lua.LString("__preload")))
+		L.Push(u)
+		L.Call(1, 0)
+	}
 
 	keys := make([]string, 0, len(fdm.fullContent))
 	for k := range fdm.fullContent {
@@ -522,6 +545,7 @@ func luaFData_iter(L *lua.LState) int {
 	}
 	var idx int = 0
 	cl := L.NewFunction(func(L *lua.LState) int {
+		fmt.Println("ITERATOR:", idx, keys, L)
 		if idx >= len(keys) {
 			return 0
 		}
