@@ -252,6 +252,9 @@ func (mod *FactoidModule) GetFDataAll(mapName string) (map[string][]byte, error)
 	if rows.Err() != nil {
 		return nil, errors.Wrapf(err, "fdata query map=%s", mapName)
 	}
+
+	// Fill in dirty values that haven't hit the DB
+	mod.fdataFreshenMap(mapName, result)
 	return result, nil
 }
 
@@ -287,6 +290,24 @@ func (mod *FactoidModule) fdataGetCachedEntry(mapName, keyName string) fdataVal 
 		},
 	}
 	return (<-ch).(fdataVal)
+}
+
+func (mod *FactoidModule) fdataFreshenMap(mapName string, content map[string][]byte) {
+	ch := make(chan interface{})
+	mod.fdataReqChan <- fdataReq{C: ch,
+		F: func(mod *FactoidModule) interface{} {
+			m := mod.fdataMap[mapName]
+			if m == nil {
+				return nil
+			}
+			for k, v := range m {
+				content[k] = v.JSON
+			}
+			return nil
+		},
+	}
+	<-ch
+	return
 }
 
 func fdataFuncSetEntry(mapName, keyName string, data []byte) fdataReqFunc {
@@ -545,7 +566,6 @@ func luaFData_iter(L *lua.LState) int {
 	}
 	var idx int = 0
 	cl := L.NewFunction(func(L *lua.LState) int {
-		fmt.Println("ITERATOR:", idx, keys, L)
 		if idx >= len(keys) {
 			return 0
 		}
