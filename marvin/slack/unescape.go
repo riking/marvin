@@ -57,9 +57,13 @@ func UnescapeText(msg string) string {
 	return msg
 }
 
-func UnescapeTextAll(msg string) string {
-	msg = UnescapeText(msg)
+
+func UnescapeAngleBrackets(msg string) string {
 	msg = strings.Replace(msg, "&lt;", "<", -1)
 	msg = strings.Replace(msg, "&gt;", ">", -1)
 	return msg
+}
+
+func UnescapeTextAll(msg string) string {
+	return UnescapeAngleBrackets(UnescapeText(msg))
 }

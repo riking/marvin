@@ -134,7 +134,7 @@ func (mod *BangFactoidModule) Process(rtm slack.SlackTextMessage) (string, Outpu
 	if !strings.ContainsAny(rtm.Text()[:1], fchars) {
 		return "", of
 	}
-	text := slack.UnescapeText(rtm.Text()[1:])
+	text := slack.UnescapeTextAll(rtm.Text()[1:])
 	line := strings.Split(text, " ")
 
 	ctx := context.Background()
