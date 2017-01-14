@@ -521,13 +521,13 @@ func luaFData_iter(L *lua.LState) int {
 		keys = append(keys, k)
 	}
 	var idx int = 0
-	cl := L.NewClosure(func(L *lua.LState) int {
+	cl := L.NewFunction(func(L *lua.LState) int {
 		if idx >= len(keys) {
 			return 0
 		}
 		k := keys[idx]
 		idx++
-		val := L.GetField(L.Get(1), k)
+		val := L.GetField(u, k)
 		L.Push(lua.LString(k))
 		L.Push(val)
 		return 2
