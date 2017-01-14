@@ -61,7 +61,7 @@ func (mod *FactoidModule) CmdRemember(t marvin.Team, args *marvin.CommandArgumen
 	if !flags.makeLocal {
 		scopeChannel = ""
 	}
-	factoidSource := slack.UnescapeText(strings.Join(flags.flagSet.Args()[1:], " "))
+	factoidSource := slack.UnescapeTextAll(strings.Join(flags.flagSet.Args()[1:], " "))
 
 	if len(factoidName) > FactoidNameMaxLen {
 		return marvin.CmdFailuref(args, "Factoid name is too long: %s", factoidName).WithEdit().WithSimpleUndo()
