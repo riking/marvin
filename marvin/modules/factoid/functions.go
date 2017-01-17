@@ -115,8 +115,8 @@ func funcReverse(arg string) string {
 
 var (
 	mungeReplacer = makeReplacer(false, "abcdefghijklmnoprstuwxyzABCDEGHIJKLMORSTUWYZ0123456789", "äḃċđëƒġħíĵķĺṁñöρŗšţüωχÿźÅḂÇĎĒĠĦÍĴĶĹṀÖŖŠŢŮŴỲŻ０１２３４５６７８９")
-	flipFrom      = "!().12345679<>?ABCDEFGJKLMPQRTUVWY[]_abcdefghijklmnpqrtuvwy{},'\"┳"
-	flipTo        = "¡)(˙⇂ᄅƐㄣϛ9Ɫ6><¿∀ᗺƆᗡƎℲפᒋ丬˥WԀΌᴚ⊥∩ΛMλ][‾ɐqɔpǝɟɓɥıɾʞlɯudbɹʇnʌʍʎ}{',„┻"
+	flipFrom      = "!().12345679<>?ABCDEFGJKLMPQRTUVWY[]_abcdefghijklmnpqrtuvwy{},'\"┳（"
+	flipTo        = "¡)(˙⇂ᄅƐㄣϛ9Ɫ6><¿∀ᗺƆᗡƎℲפᒋ丬˥WԀΌᴚ⊥∩ΛMλ][‾ɐqɔpǝɟɓɥıɾʞlɯudbɹʇnʌʍʎ}{',„┻）"
 	flipReplacer  = makeReplacer(true, flipFrom, flipTo)
 )
 
