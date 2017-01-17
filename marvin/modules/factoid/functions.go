@@ -9,35 +9,37 @@ import (
 	"unicode/utf8"
 )
 
-type FactoidFunction struct {
+type Function struct {
 	F func(args ...string) string
 
 	MultiArg bool
 }
 
-func setupFunctions(mod *FactoidModule) {
-	mod.RegisterFunctionSingleArg("ucase", funcUCase)
-	mod.RegisterFunctionSingleArg("lcase", funcLCase)
+var knownFunctions = make(map[string]Function)
 
-	mod.RegisterFunctionSingleArg2("munge", funcMunge)
-	mod.RegisterFunctionSingleArg2("flipraw", funcRawFlip)
-	mod.RegisterFunctionSingleArg2("flip", funcFlip)
-	mod.RegisterFunctionSingleArg2("reverse", funcReverse)
+func init() {
+	RegisterFunctionSingleArg("ucase", funcUCase)
+	RegisterFunctionSingleArg("lcase", funcLCase)
 
-	mod.RegisterFunctionMultiArg("repeat", funcRepeat)
-	mod.RegisterFunctionMultiArg("first", funcFirst)
-	mod.RegisterFunctionMultiArg("if", funcIf)
-	mod.RegisterFunctionMultiArg("rnd", funcRand)
+	RegisterFunctionSingleArg2("munge", funcMunge)
+	RegisterFunctionSingleArg2("flipraw", funcRawFlip)
+	RegisterFunctionSingleArg2("flip", funcFlip)
+	RegisterFunctionSingleArg2("reverse", funcReverse)
+
+	RegisterFunctionMultiArg("repeat", funcRepeat)
+	RegisterFunctionMultiArg("first", funcFirst)
+	RegisterFunctionMultiArg("if", funcIf)
+	RegisterFunctionMultiArg("rnd", funcRand)
 }
 
-func (mod *FactoidModule) RegisterFunctionMultiArg(name string, f func(args ...string) string) {
-	mod.functions[name] = FactoidFunction{F: f, MultiArg: true}
+func RegisterFunctionMultiArg(name string, f func(args ...string) string) {
+	knownFunctions[name] = Function{F: f, MultiArg: true}
 }
-func (mod *FactoidModule) RegisterFunctionSingleArg(name string, f func(args ...string) string) {
-	mod.functions[name] = FactoidFunction{F: f, MultiArg: false}
+func RegisterFunctionSingleArg(name string, f func(args ...string) string) {
+	knownFunctions[name] = Function{F: f, MultiArg: false}
 }
-func (mod *FactoidModule) RegisterFunctionSingleArg2(name string, f func(arg string) string) {
-	mod.functions[name] = FactoidFunction{F: func(args ...string) string { return f(args[0]) }, MultiArg: false}
+func RegisterFunctionSingleArg2(name string, f func(arg string) string) {
+	knownFunctions[name] = Function{F: func(args ...string) string { return f(args[0]) }, MultiArg: false}
 }
 
 func funcUCase(args ...string) string {

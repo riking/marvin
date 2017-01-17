@@ -18,7 +18,7 @@ type MockFactoidModule struct {
 func GetMockFactoidModule() *FactoidModule {
 	fm := &FactoidModule{
 		team: nil,
-		functions: map[string]FactoidFunction{
+		functions: map[string]Function{
 			"add1": {
 				F: func(args ...string) string {
 					return "1" + strings.Join(args, "")
