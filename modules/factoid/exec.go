@@ -218,7 +218,7 @@ func (mod *FactoidModule) tokenize(source string, recursed bool, tokenCh chan<- 
 		}
 		mod.tokenize(source[:m[0]], true, tokenCh)
 		funcName := source[m[4]:m[5]]
-		funcInfo, ok := mod.functions[funcName]
+		funcInfo, ok := knownFunctions[funcName]
 		if !ok {
 			tokenCh <- TextToken{Text: "$" + funcName}
 			source = source[m[5]:]
@@ -256,7 +256,7 @@ func (mod *FactoidModule) tokenize(source string, recursed bool, tokenCh chan<- 
 		}
 		tokenCh <- FunctionToken{
 			raw:             source[m[4]-1 : end+1],
-			FactoidFunction: funcInfo,
+			Function: funcInfo,
 			params:          funcParams,
 		}
 		source = source[end+1:]

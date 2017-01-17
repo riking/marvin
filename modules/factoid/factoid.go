@@ -27,7 +27,6 @@ const Identifier = "factoid"
 type FactoidModule struct {
 	team marvin.Team
 
-	functions map[string]FactoidFunction
 	pasteMod  marvin.Module
 
 	fdataReqChan chan fdataReq
@@ -39,7 +38,6 @@ type FactoidModule struct {
 func NewFactoidModule(t marvin.Team) marvin.Module {
 	mod := &FactoidModule{
 		team:      t,
-		functions: make(map[string]FactoidFunction),
 
 		fdataMap:        make(map[string]map[string]fdataVal),
 		fdataReqChan:    make(chan fdataReq),
@@ -56,7 +54,6 @@ func (mod *FactoidModule) Load(t marvin.Team) {
 	mod.doMigrate(t)
 	mod.doSyntaxCheck(t)
 
-	setupFunctions(mod)
 	t.DependModule(mod, paste.Identifier, &mod.pasteMod) // TODO - softdepend?
 	mod.registerHTTP()
 }

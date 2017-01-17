@@ -46,7 +46,7 @@ func (t TextToken) Run(mod *FactoidModule, args []string, actionSource marvin.Ac
 var FunctionTokenRgx = regexp.MustCompile(`(^|[^\\])\$([a-zA-Z_][a-zA-Z0-9_]*)\(.*?\)`)
 
 type FunctionToken struct {
-	FactoidFunction
+	Function
 	params [][]Token
 	raw    string
 }
