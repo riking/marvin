@@ -1,0 +1,9 @@
+
+[Test]
+TeamDomain=kanetestingslack
+ClientID=12739766038.90774711220
+ClientSecret=a960a05bbfd9e2ea5d57b1f6e714fd0e
+VerifyToken=SKnoAl36kEGrAr7FBHHouOdY
+DatabaseURL = dbname=marvin_test user=marvin_test password=marvin_test sslmode=disable
+UserToken=xoxp-12739766038-90783338945-90791661072-cfc39c9b5c262133beef1b41fb290f61
+
