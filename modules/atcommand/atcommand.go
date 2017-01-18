@@ -278,7 +278,7 @@ func (mod *AtCommandModule) HandleEdit(_rtm slack.RTMRawMessage) {
 	if _rtm.Subtype() != "message_changed" {
 		return
 	}
-	rtm := slack.EditMessage{_rtm}
+	rtm := slack.EditMessage{RTMRawMessage: _rtm}
 	if !rtm.AssertText() {
 		return
 	}

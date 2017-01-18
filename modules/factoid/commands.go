@@ -35,12 +35,11 @@ var rememberArgsPool = sync.Pool{New: makeRememberArgs}
 const (
 	helpRemember = "`@marvin remember [--local] [name] [value]` (alias `r`) saves a factoid."
 	helpGet      = "`factoid get <name> [args...]` runs a factoid with the standard argument parsing instead of the factoid argument parsing."
-	helpSend     = "`factoid send <channel> <name> [args...]` sends the result of a factoid to another channel."
 	helpSource   = "`factoid source <name>` views the source of a factoid."
 	helpInfo     = "`factoid info [-f] <name>` views detailed information about a factoid."
 	helpList     = "`factoid list [pattern]` lists all factoids with `pattern` in their name."
-	helpForget   = "`factoid forget <name>` forgets a factoid."
-	helpUnforget = "`factoid forget <name>` un-forgets a previously forgotten factoid."
+	helpForget   = "`factoid forget <name>` forgets the most recent version of a factoid."
+	helpUnforget = "`factoid unforget <name>` un-forgets a previously forgotten factoid."
 )
 
 func (mod *FactoidModule) CmdRemember(t marvin.Team, args *marvin.CommandArguments) marvin.CommandResult {
@@ -145,49 +144,6 @@ func (mod *FactoidModule) CmdGet(t marvin.Team, args *marvin.CommandArguments) m
 		cmdResult.Message = ""
 	} else if of.Say {
 		cmdResult = cmdResult.WithReplyType(marvin.ReplyTypeFlagOmitUsername)
-	}
-	return cmdResult
-}
-
-func (mod *FactoidModule) CmdSend(t marvin.Team, args *marvin.CommandArguments) marvin.CommandResult {
-	if len(args.Arguments) < 2 {
-		return marvin.CmdUsage(args, helpSend)
-	}
-
-	channelName := args.Pop()
-	channelID := slack.ParseChannelID(channelName)
-	if channelID == "" {
-		userID := slack.ParseUserMention(channelName)
-		if userID != "" {
-			channelID, _ = mod.team.GetIM(userID)
-		}
-	}
-	if channelID == "" {
-		return marvin.CmdFailuref(args, "You must specify a target channel")
-	}
-
-	var of OutputFlags
-	result, err := mod.RunFactoid(context.Background(), args.Arguments, &of, args.Source)
-	if err == ErrNoSuchFactoid {
-		return marvin.CmdFailuref(args, "No such factoid %s", result).WithEdit().WithReplyType(marvin.ReplyTypeInChannel)
-	} else if err != nil {
-		cErr := errors.Cause(err)
-		if _, ok := cErr.(ErrUser); ok {
-			return marvin.CmdFailuref(args, "Failed: %s", cErr).WithReplyType(marvin.ReplyTypeInChannel)
-		}
-		return marvin.CmdError(args, err, "Factoid run error")
-	}
-
-	panic("NotImplemented")
-	// TODO sending messages to other channels
-	_ = result
-
-	cmdResult := marvin.CmdSuccess(args, "").WithEdit()
-	if of.SideEffects {
-		cmdResult = cmdResult.WithNoEdit().WithNoUndo()
-	}
-	if of.NoReply {
-		return cmdResult
 	}
 	return cmdResult
 }

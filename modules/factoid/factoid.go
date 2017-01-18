@@ -61,12 +61,11 @@ func (mod *FactoidModule) Load(t marvin.Team) {
 func (mod *FactoidModule) Enable(team marvin.Team) {
 	parent := marvin.NewParentCommand()
 	remember := parent.RegisterCommandFunc("remember", mod.CmdRemember, helpRemember)
-	forget := parent.RegisterCommandFunc("forget", mod.CmdForget, helpList)
+	forget := parent.RegisterCommandFunc("forget", mod.CmdForget, helpForget)
 	parent.RegisterCommand("rem", remember)
 	parent.RegisterCommand("r", remember)
 	parent.RegisterCommand("fg", forget)
 	parent.RegisterCommandFunc("get", mod.CmdGet, helpGet)
-	parent.RegisterCommandFunc("send", mod.CmdSend, helpSend)
 	parent.RegisterCommandFunc("source", mod.CmdSource, helpSource)
 	parent.RegisterCommandFunc("info", mod.CmdInfo, helpInfo)
 	parent.RegisterCommandFunc("list", mod.CmdList, helpList)

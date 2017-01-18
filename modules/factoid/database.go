@@ -223,8 +223,6 @@ func (mod *FactoidModule) GetFactoidBare(name string, channel slack.ChannelID) (
 }
 
 func (mod *FactoidModule) GetFactoidHistory(name string, channel slack.ChannelID) ([]Factoid, error) {
-	var result Factoid
-
 	stmt, err := mod.team.DB().Prepare(sqlFactoidHistory)
 	if err != nil {
 		return nil, errors.Wrap(err, "Database error")
@@ -246,7 +244,7 @@ func (mod *FactoidModule) GetFactoidHistory(name string, channel slack.ChannelID
 	var resAry []Factoid
 
 	for rows.Next() {
-		result = Factoid{
+		result := Factoid{
 			Mod: mod,
 		}
 		err = rows.Scan(

@@ -40,7 +40,7 @@ func (*LUser) SetupMetatable(L *lua.LState) {
 
 func LNewUser(g *G, user slack.UserID, preload bool) (lua.LValue, error) {
 	v := &LUser{g: g, ID: user, Info: nil}
-	if g.Team != nil {
+	if g.Team() != nil {
 		v.Acc = g.Team().UserLevel(user)
 	}
 	if preload {

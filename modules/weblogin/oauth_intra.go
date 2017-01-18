@@ -1,7 +1,6 @@
 package weblogin
 
 import (
-	"context"
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
@@ -115,14 +114,15 @@ func (mod *WebLoginModule) OAuthIntraCallback(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	token, err := mod.IntraOAuthConfig.Exchange(context.Background(), r.Form.Get("code"))
+	ctx := r.Context()
+	token, err := mod.IntraOAuthConfig.Exchange(ctx, r.Form.Get("code"))
 	if err != nil {
 		util.LogError(err)
 		http.Error(w, fmt.Sprintf("could not contact Intra: %s", err), http.StatusInternalServerError)
 		return
 	}
 
-	cl := intra.Client(mod.IntraOAuthConfig, token)
+	cl := intra.Client(ctx, mod.IntraOAuthConfig, token)
 	var response struct {
 		Login  string `json:"login"`
 		Campus []struct {
@@ -130,7 +130,7 @@ func (mod *WebLoginModule) OAuthIntraCallback(w http.ResponseWriter, r *http.Req
 		} `json:"campus"`
 	}
 	const fremontCampusID = 7
-	httpResp, err := cl.DoGetFormJSON(r.Context(),"/v2/me", nil, &response)
+	httpResp, err := cl.DoGetFormJSON(ctx, "/v2/me", nil, &response)
 	fmt.Println(httpResp.Status, httpResp.Header)
 	if err != nil {
 		err = errors.Wrap(err, "contacting intra")
