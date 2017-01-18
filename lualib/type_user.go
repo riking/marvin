@@ -14,6 +14,7 @@ import (
 //   user.is_admin
 //   user.is_controller
 //   user.username -> "slackbot"
+//    fname, lname, name
 //   user.tz -> "America/Los_Angeles"
 //   user.tz_offset -> -28800 (seconds)
 //   user.profile.real
