@@ -104,7 +104,6 @@ func jsonFromLua(L *lua.LState, obj lua.LValue) interface{} {
 		isArray := false
 		isOOBNumbers := false
 		isHash := false
-		var maxNum int64 = 0
 
 		tab.ForEach(func(key lua.LValue, _ lua.LValue) {
 			switch k := key.(type) {
@@ -114,7 +113,6 @@ func jsonFromLua(L *lua.LState, obj lua.LValue) interface{} {
 					isOOBNumbers = true
 					return
 				}
-				maxNum = int64(k)
 			case lua.LString:
 				isHash = true
 			default:

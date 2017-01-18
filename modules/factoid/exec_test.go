@@ -15,19 +15,16 @@ type MockFactoidModule struct {
 	*FactoidModule
 }
 
+func init() {
+	RegisterFunctionSingleArg("add1", func(args ...string) string {
+		return "1" + strings.Join(args, "")
+	})
+}
+
 func GetMockFactoidModule() *FactoidModule {
 	fm := &FactoidModule{
 		team: nil,
-		functions: map[string]Function{
-			"add1": {
-				F: func(args ...string) string {
-					return "1" + strings.Join(args, "")
-				},
-				MultiArg: false,
-			},
-		},
 	}
-	setupFunctions(fm)
 	return fm
 }
 

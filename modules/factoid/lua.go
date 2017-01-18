@@ -12,7 +12,7 @@ import (
 	"github.com/yuin/gopher-lua"
 
 	"github.com/riking/marvin"
-	"github.com/riking/marvin/modules/factoid/lualib"
+	"github.com/riking/marvin/luautil/lualib"
 	"github.com/riking/marvin/modules/paste"
 	"github.com/riking/marvin/slack"
 	"github.com/riking/marvin/util"
