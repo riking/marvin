@@ -130,7 +130,7 @@ func (mod *WebLoginModule) OAuthIntraCallback(w http.ResponseWriter, r *http.Req
 		} `json:"campus"`
 	}
 	const fremontCampusID = 7
-	httpResp, err := cl.GetJSON("/v2/me", &response)
+	httpResp, err := cl.DoGetFormJSON(r.Context(),"/v2/me", nil, &response)
 	fmt.Println(httpResp.Status, httpResp.Header)
 	if err != nil {
 		err = errors.Wrap(err, "contacting intra")
@@ -139,7 +139,7 @@ func (mod *WebLoginModule) OAuthIntraCallback(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	fmt.Println(response)
+	fmt.Println("Intra sign in:", response)
 	ok := false
 	for _, v := range response.Campus {
 		if v.ID == fremontCampusID {
