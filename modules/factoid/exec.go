@@ -255,9 +255,9 @@ func (mod *FactoidModule) tokenize(source string, recursed bool, tokenCh chan<- 
 			funcParams = [][]Token{paramTokens}
 		}
 		tokenCh <- FunctionToken{
-			raw:             source[m[4]-1 : end+1],
+			raw:      source[m[4]-1 : end+1],
 			Function: funcInfo,
-			params:          funcParams,
+			params:   funcParams,
 		}
 		source = source[end+1:]
 	}

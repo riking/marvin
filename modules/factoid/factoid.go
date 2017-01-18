@@ -27,7 +27,7 @@ const Identifier = "factoid"
 type FactoidModule struct {
 	team marvin.Team
 
-	pasteMod  marvin.Module
+	pasteMod marvin.Module
 
 	fdataReqChan chan fdataReq
 	fdataMap     map[string]map[string]fdataVal
@@ -37,7 +37,7 @@ type FactoidModule struct {
 
 func NewFactoidModule(t marvin.Team) marvin.Module {
 	mod := &FactoidModule{
-		team:      t,
+		team: t,
 
 		fdataMap:        make(map[string]map[string]fdataVal),
 		fdataReqChan:    make(chan fdataReq),

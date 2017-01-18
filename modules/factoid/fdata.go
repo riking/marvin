@@ -10,6 +10,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/riking/marvin"
+	"github.com/riking/marvin/lualib"
 	"github.com/riking/marvin/util"
 	"github.com/yuin/gopher-lua"
 )
@@ -363,29 +364,11 @@ func (mod *FactoidModule) SetFDataValue(mapName, keyName string, val []byte) {
 }
 
 func (f *FactoidLua) OpenFData(L *lua.LState) int {
-	u := L.NewUserData()
-	u.Value = f
-	mt := L.NewTable()
-	mt.RawSetString("__index", L.NewFunction(luaFMap__index))
-	u.Metatable = mt
-	L.SetGlobal("fmap", u)
-	L.SetGlobal("fdata", LNewFDataMap(f, "F-"+f.FactoidName))
 	return 0
 }
 
-func luaFMap__index(L *lua.LState) int {
-	u := L.CheckUserData(1)
-	mapName := L.CheckString(2)
-	flua, ok := u.Value.(*FactoidLua)
-	if !ok {
-		L.RaiseError("Wrong self for fmap.__index, got %T", u.Value)
-	}
-	L.Push(LNewFDataMap(flua, "M-"+mapName))
-	return 1
-}
-
 type LFDataMap struct {
-	flua    *FactoidLua
+	mod     *FactoidModule
 	MapName string
 
 	lcache      *lua.LTable
@@ -405,12 +388,12 @@ func (LFDataMap) SetupMetatable(L *lua.LState) {
 	L.SetGlobal("iterfmap", L.NewFunction(luaFData_iter))
 }
 
-func LNewFDataMap(flua *FactoidLua, mapName string) lua.LValue {
-	v := &LFDataMap{flua: flua, MapName: mapName}
-	v.lcache = flua.L.NewTable()
-	u := flua.L.NewUserData()
+func LNewFDataMap(g *lualib.G, mod *FactoidModule, mapName string) lua.LValue {
+	v := &LFDataMap{mod: mod, MapName: mapName}
+	v.lcache = g.L.NewTable()
+	u := g.L.NewUserData()
 	u.Value = v
-	u.Metatable = flua.L.GetTypeMetatable(metatableFDataMap)
+	u.Metatable = g.L.GetTypeMetatable(metatableFDataMap)
 	return u
 }
 
@@ -445,7 +428,7 @@ func luaFData_get(L *lua.LState) int {
 		}
 		jsonBytes = b
 	} else {
-		b, err := fdm.flua.mod.GetFDataValue(fdm.MapName, key)
+		b, err := fdm.mod.GetFDataValue(fdm.MapName, key)
 		if err != nil {
 			L.RaiseError("Factoid map error: %s", err)
 		}
@@ -484,7 +467,7 @@ func luaFData_set(L *lua.LState) int {
 		if fdm.fullContent != nil {
 			delete(fdm.fullContent, key)
 		}
-		fdm.flua.mod.SetFDataValue(fdm.MapName, key, nil)
+		fdm.mod.SetFDataValue(fdm.MapName, key, nil)
 		return 0
 	}
 
@@ -504,7 +487,7 @@ func luaFData_set(L *lua.LState) int {
 	if fdm.fullContent != nil {
 		fdm.fullContent[key] = jsonData
 	}
-	fdm.flua.mod.SetFDataValue(fdm.MapName, key, jsonData)
+	fdm.mod.SetFDataValue(fdm.MapName, key, jsonData)
 	return 0
 }
 
@@ -519,7 +502,7 @@ func luaFData_preload(L *lua.LState) int {
 		return 0
 	}
 
-	m, err := fdm.flua.mod.GetFDataAll(fdm.MapName)
+	m, err := fdm.mod.GetFDataAll(fdm.MapName)
 	if err != nil {
 		L.RaiseError("preload(): database error: %s", err)
 	}
