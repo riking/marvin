@@ -363,10 +363,6 @@ func (mod *FactoidModule) SetFDataValue(mapName, keyName string, val []byte) {
 	return
 }
 
-func (f *FactoidLua) OpenFData(L *lua.LState) int {
-	return 0
-}
-
 type LFDataMap struct {
 	mod     *FactoidModule
 	MapName string

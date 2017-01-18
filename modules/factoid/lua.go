@@ -1,7 +1,6 @@
 package factoid
 
 import (
-	"bytes"
 	"context"
 	"strings"
 
@@ -12,19 +11,6 @@ import (
 	"github.com/riking/marvin/lualib"
 	"github.com/riking/marvin/util"
 )
-
-type FactoidLua struct {
-	mod *FactoidModule
-	L   *lua.LState
-	Ctx context.Context
-
-	FactoidName string
-	Args        []string
-	OFlags      *OutputFlags
-	ActSource   marvin.ActionSource
-
-	printBuf bytes.Buffer
-}
 
 type ctxKeyOutputFlags struct{}
 
@@ -41,6 +27,7 @@ func RunFactoidLua(ctx context.Context, mod *FactoidModule, factoidName, factoid
 func runLua(ctx context.Context, mod *FactoidModule, factoidName, factoidSource string, factoidArgs []string, of *OutputFlags, actionSource marvin.ActionSource) (string, error) {
 	ctx = context.WithValue(ctx, ctxKeyOutputFlags{}, of)
 	g := lualib.NewLua(ctx, mod.team, actionSource)
+	g.OpenLibraries()
 
 	// Set globals
 	argv := g.L.NewTable()
@@ -88,7 +75,7 @@ func runLua(ctx context.Context, mod *FactoidModule, factoidName, factoidSource 
 
 	// ------- setup done
 
-	// Load and run
+	// Load and call factoid code
 	fn, err := g.L.Load(strings.NewReader(factoidSource), "<factoid>")
 	if err != nil {
 		return "", ErrUser{errors.Wrap(err, "lua.compile")}
