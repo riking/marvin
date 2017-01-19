@@ -64,7 +64,7 @@ section#channels {
 
 <section id="channels">
     {{ range .Channels }}
-    <div class="m-channel" data-id="{{.ID}}">
+    <div class="m-channel" id="{{.Name}}" data-id="{{.ID}}">
         <div class="m-channel-wrap">
         <h3>{{channel_link $.Layout .ID}} <span class="member-count"><i class="fa fa-user"></i> {{.MemberCount}}</span></h3>
         <span class="join-btn">
