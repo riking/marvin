@@ -143,23 +143,30 @@ func OpenCorpus(L *lua.LState) int {
 }
 
 func (c *corpusCache) lua_Get(L *lua.LState) int {
+	corpusTable := L.CheckTable(1)
+	key := L.CheckString(2)
 	req := corpusReq{
-		key:   fmt.Sprintf("data/%s.json", L.CheckString(1)),
+		key:   fmt.Sprintf("data/%s.json", key),
 		reply: make(chan CorpusData),
 	}
 	c.reqCh <- req
 	data := <-req.reply
-	ary := L.NewTable()
-	for i, v := range data.Content {
-		ary.RawSetInt(i+1, lua.LString(v))
+	if data.Content == nil {
+		return 0
 	}
-	L.Push(lua.LValue(ary))
+	tab := L.NewTable()
+	for i, v := range data.Content {
+		tab.RawSetInt(i+1, lua.LString(v))
+	}
+	L.Push(tab)
+	corpusTable.RawSetString(key, tab)
 	return 1
 }
 
 func (c *corpusCache) lua_GetInfo(L *lua.LState) int {
+	_ = L.CheckTable(1)
 	req := corpusReq{
-		key:   fmt.Sprintf("data/%s.json", L.CheckString(1)),
+		key:   fmt.Sprintf("data/%s.json", L.CheckString(2)),
 		reply: make(chan CorpusData),
 	}
 	c.reqCh <- req
