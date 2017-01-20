@@ -64,7 +64,8 @@ func (h *Helper) getJSON(ctx context.Context, uri *url.URL, v interface{}) (*htt
 		return nil, errors.Wrapf(err, "intra: failed GET %s", uri.RequestURI())
 	}
 	if resp.StatusCode == 401 {
-		h.Token.Expiry = time.Now().Add(-1*time.Minute)
+		h.Token.Expiry = time.Now().Add(-1 * time.Minute)
+		// TODO use client credentials instead
 		resp, err = h.Do(req)
 		if err != nil {
 			return nil, errors.Wrapf(err, "intra: failed GET %s", uri.RequestURI())
@@ -193,7 +194,7 @@ var rgxUrlParam = regexp.MustCompile(`:([a-zA-Z_]+)`)
 func subPathPlaceholders(path string, params url.Values) (string, error) {
 	var m = rgxUrlParam.FindStringIndex(path)
 	for ; m != nil; m = rgxUrlParam.FindStringIndex(path) {
-		paramName := path[m[0] + 1: m[1]]
+		paramName := path[m[0]+1 : m[1]]
 		if params.Get(paramName) == "" {
 			return "", errUrlFormMissing{ParamName: paramName}
 		}

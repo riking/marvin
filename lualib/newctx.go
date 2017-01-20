@@ -68,6 +68,7 @@ func (g *G) OpenLibraries() {
 	OpenBot(g.team)(L)
 	OpenCorpus(L)
 	OpenJson(L)
+	OpenIntra(g, L)
 	OpenRequests(L)
 
 	(*LUser)(nil).SetupMetatable(L)

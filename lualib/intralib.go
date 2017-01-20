@@ -1,14 +1,14 @@
 package lualib
 
 import (
+	"fmt"
 	"net/url"
+	"time"
 
-	"github.com/pkg/errors"
 	"github.com/yuin/gopher-lua"
 
 	"github.com/riking/marvin/intra"
 	"github.com/riking/marvin/modules/weblogin"
-	"github.com/riking/marvin/util"
 )
 
 const fremontCampusString = "7"
@@ -36,7 +36,10 @@ func OpenIntra(g *G, L *lua.LState) int {
 		if user.IntraToken == nil {
 			return nil
 		}
-		return intra.Client(L.Ctx, intra.OAuthConfig(g.Team()), user.IntraToken)
+		token := user.IntraToken
+		// TODO client credentials
+		token.Expiry = time.Now().Add(2 * time.Hour)
+		return intra.Client(L.Ctx, intra.OAuthConfig(g.Team()), token)
 	}
 
 	tab.RawSetString("valid_token", L.NewFunction(func(L *lua.LState) int {
@@ -47,7 +50,7 @@ func OpenIntra(g *G, L *lua.LState) int {
 			return 2
 		}
 		var t intra.Campus
-		resp, err := client.DoGetFormJSON(L.Ctx, "/v2/campus/" + fremontCampusString,
+		resp, err := client.DoGetFormJSON(L.Ctx, "/v2/campus/"+fremontCampusString,
 			nil, &t)
 		if err != nil {
 			L.Push(lua.LFalse)
@@ -67,7 +70,7 @@ func OpenIntra(g *G, L *lua.LState) int {
 		L.Push(lua.LTrue)
 		return 1
 	}))
-	tab.RawSetString("get", L.NewFunction(func(L *lua.LState) int {
+	tab.RawSetString("getall", L.NewFunction(func(L *lua.LState) int {
 		client := getClient(L)
 		if client == nil {
 			L.RaiseError("intra: no client")
@@ -80,33 +83,67 @@ func OpenIntra(g *G, L *lua.LState) int {
 		if args.Type() != lua.LTTable {
 			L.TypeError(2, lua.LTTable)
 		}
+		var argsTab *lua.LTable = args.(*lua.LTable)
+
 		var form url.Values
-		args.(*lua.LTable).ForEach(func(k, v lua.LValue) {
+		argsTab.ForEach(func(k, v lua.LValue) {
 			if v.Type() == lua.LTTable {
 				vtable := v.(*lua.LTable)
 				var ary []string
 				for i := 0; i < vtable.Len(); i++ {
-					ary = append(ary, lua.LVAsString(L.ToStringMeta(vtable.RawGetInt(i + 1))))
+					ary = append(ary, lua.LVAsString(L.ToStringMeta(vtable.RawGetInt(i+1))))
 				}
 				form[lua.LVAsString(L.ToStringMeta(k))] = ary
 			} else {
 				form.Set(lua.LVAsString(L.ToStringMeta(k)), lua.LVAsString(L.ToStringMeta(v)))
 			}
 		})
-		var json interface{}
-		resp, err := client.DoGetFormJSON(L.Ctx, endpoint, form, &json)
-		if err != nil {
-			util.LogError(errors.Wrap(err, "intra http error"))
-			L.Push(lua.LNil)
-			L.Push(LNewResponse(L, resp))
-			L.Push(lua.LString(err.Error()))
-			return 3
+		var j interface{}
+		resultCh := client.PaginatedGet(L.Ctx, endpoint, form, &j)
+		var err error
+		tab := L.NewTable()
+		for q := range resultCh {
+			if !q.OK {
+				err = q.Error
+				L.Push(lua.LNil)
+				L.Push(lua.LString(err.Error()))
+				return 2
+			}
+			tab.Append(jsonToLua(L, q.Value))
 		}
-		parsed := jsonToLua(L, json)
-		L.Push(parsed)
-		L.Push(LNewResponse(L, resp))
-		L.Push(lua.LNil)
-		return 3
+		L.Push(tab)
+		return 1
+	}))
+	tab.RawSetString("getch", L.NewFunction(func(L *lua.LState) int {
+		client := getClient(L)
+		if client == nil {
+			L.RaiseError("intra: no client")
+		}
+		endpoint := L.CheckString(1)
+		args := L.CheckTable(2)
+		ch := L.CheckChannel(3)
+		var form url.Values
+		args.ForEach(func(k, v lua.LValue) {
+			if v.Type() == lua.LTTable {
+				vtable := v.(*lua.LTable)
+				var ary []string
+				for i := 0; i < vtable.Len(); i++ {
+					ary = append(ary, lua.LVAsString(L.ToStringMeta(vtable.RawGetInt(i+1))))
+				}
+				form[lua.LVAsString(L.ToStringMeta(k))] = ary
+			} else {
+				form.Set(lua.LVAsString(L.ToStringMeta(k)), lua.LVAsString(L.ToStringMeta(v)))
+			}
+		})
+
+		var typ interface{}
+		resultCh := client.PaginatedGet(L.Ctx, endpoint, form, &typ)
+		go func() {
+			for v := range resultCh {
+				ch <- GoToLua(L, v)
+			}
+		}()
+		return 0
 	}))
 	// .user_id
 	mt := L.NewTable()
@@ -136,25 +173,70 @@ func OpenIntra(g *G, L *lua.LState) int {
 	usersT := L.NewTable()
 	usersT.Metatable = mt
 	mt.RawSetString("__index", L.NewFunction(func(L *lua.LState) int {
+		tab := L.CheckTable(1)
+		id := L.CheckNumber(2)
+		// normal indexing uses the array, but we want to use the hashtable to save memory
+		// so we must explicitly re-check the lua cache
+		val := tab.RawGetH(lua.LNumber(id))
+		if val != lua.LNil {
+			L.Push(val)
+			return 1
+		}
+
 		client := getClient(L)
 		if client == nil {
 			L.RaiseError("intra: no client")
 		}
-		table := L.CheckTable(1)
-		id := L.CheckNumber(2)
 		intraUser, err := client.UserByID(L.Ctx, int(id))
 		if err != nil {
 			L.RaiseError(err.Error())
 			return 0
 		}
-		// TODO GoToLua()
-		_ = intraUser
-		_ = table
-		L.RaiseError("TODO not implemented")
-		L.Push(lua.LNil)
+		val = GoToLua(L, intraUser)
+		tab.RawSetH(lua.LNumber(id), val)
+		L.Push(val)
 		return 1
 	}))
 	tab.RawSetString("users", usersT)
+	// .campus
+	mt = L.NewTable()
+	campusT := L.NewTable()
+	campusT.Metatable = mt
+	mt.RawSetString("__index", L.NewFunction(func(L *lua.LState) int {
+		client := getClient(L)
+		if client == nil {
+			L.RaiseError("intra: no client")
+		}
+
+		tab := L.CheckTable(1)
+		key := L.Get(2)
+		switch key.Type() {
+		case lua.LTNumber:
+			intKey := int(key.(lua.LNumber))
+			campus, err := client.CampusByID(L.Ctx, intKey)
+			if err != nil {
+				L.RaiseError(err.Error())
+			}
+			val := GoToLua(L, campus)
+			tab.RawSetInt(intKey, val)
+			L.Push(val)
+			return 1
+		case lua.LTString:
+			strKey := string(key.(lua.LString))
+			campus, err := client.CampusByName(L.Ctx, strKey)
+			if err != nil {
+				L.RaiseError(err.Error())
+			}
+			fmt.Println("CampusByName return", campus, err)
+			val := GoToLua(L, campus)
+			tab.RawSetString(strKey, val)
+			L.Push(val)
+			return 1
+		default:
+			return 0
+		}
+	}))
+	tab.RawSetString("campus", campusT)
 
 	L.SetGlobal("intra", tab)
 	L.Push(tab)

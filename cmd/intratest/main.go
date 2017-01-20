@@ -14,7 +14,6 @@ import (
 	"github.com/riking/marvin/modules/weblogin"
 	"github.com/riking/marvin/slack/controller"
 	"github.com/riking/marvin/util"
-	"golang.org/x/oauth2"
 	"gopkg.in/ini.v1"
 )
 
@@ -53,7 +52,7 @@ func main() {
 	}
 
 	client := intra.Client(ctx, intra.OAuthConfig(team), user.IntraToken)
-	kyorkID, err := client.UserIDByLogin(ctx,"kyork")
+	kyorkID, err := client.UserIDByLogin(ctx, "kyork")
 	if err != nil {
 		util.LogError(errors.Wrap(err, "get kyork user id"))
 		return
