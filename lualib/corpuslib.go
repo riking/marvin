@@ -79,7 +79,7 @@ func (c *corpusCache) loadData(key string) (result CorpusData) {
 		return
 	}
 	var stringArray []string
-	stringArray = make([]string, 0, len(genericArray))
+	stringArray = make([]string, len(genericArray))
 	for i, v := range genericArray {
 		stringArray[i] = v.(string)
 	}
