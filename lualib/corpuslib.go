@@ -146,7 +146,7 @@ func (c *corpusCache) lua_Get(L *lua.LState) int {
 	corpusTable := L.CheckTable(1)
 	key := L.CheckString(2)
 	req := corpusReq{
-		key:   fmt.Sprintf("data/%s.json", key),
+		key:   key,
 		reply: make(chan CorpusData),
 	}
 	c.reqCh <- req
@@ -166,7 +166,7 @@ func (c *corpusCache) lua_Get(L *lua.LState) int {
 func (c *corpusCache) lua_GetInfo(L *lua.LState) int {
 	_ = L.CheckTable(1)
 	req := corpusReq{
-		key:   fmt.Sprintf("data/%s.json", L.CheckString(2)),
+		key:   L.CheckString(2),
 		reply: make(chan CorpusData),
 	}
 	c.reqCh <- req
