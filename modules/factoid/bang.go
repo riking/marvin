@@ -68,6 +68,10 @@ type resultInfo struct {
 func (mod *BangFactoidModule) OnMessage(_rtm slack.RTMRawMessage) {
 	rtm := slack.SlackTextMessage(_rtm)
 
+	if _, isThread := rtm["thread_ts"]; isThread {
+		// TODO thread operation
+		return
+	}
 	result, of := mod.Process(rtm)
 	if result == "" {
 		return
