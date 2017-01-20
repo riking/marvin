@@ -41,6 +41,10 @@ section#channels {
     justify-content: space-between;
     margin: 0 -3px 20px;
 }
+.anchor {
+    position: absolute;
+    top: -60px;
+}
 </style>
 {{end}}
 {{define "content"}}
@@ -66,6 +70,7 @@ section#channels {
     {{ range .Channels }}
     <div class="m-channel" data-id="{{.ID}}">
         <div class="m-channel-wrap">
+        <div id="{{.NameAnchor}}" class="anchor"></div>
         <h3>{{channel_link $.Layout .ID}} <span class="member-count"><i class="fa fa-user"></i> {{.MemberCount}}</span></h3>
         <span class="join-btn">
         {{ if $.NotLoggedIn -}}

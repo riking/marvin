@@ -243,6 +243,10 @@ func (mod *AtCommandModule) HandleMessage(_rtm slack.RTMRawMessage) {
 	if rtm.UserID() == "USLACKBOT" {
 		return
 	}
+	if _, isThread := _rtm["thread_ts"]; isThread {
+		// TODO thread operation
+		return
+	}
 
 	parseResult := mod.ParseMessage(rtm)
 	fciResult.parseResult = parseResult

@@ -43,8 +43,9 @@ func (mod *AutoInviteModule) HTTPListInvites(w http.ResponseWriter, r *http.Requ
 	}
 
 	type singleChannel struct {
-		Name string
-		ID   slack.ChannelID
+		Name       string
+		NameAnchor string
+		ID         slack.ChannelID
 
 		Available bool
 
@@ -94,10 +95,12 @@ func (mod *AutoInviteModule) HTTPListInvites(w http.ResponseWriter, r *http.Requ
 		inviteTime := time.Unix(inviteUnix, 0)
 		inviteChannelName := mod.team.ChannelName(slack.ChannelID(inviteChannelStr))
 		channelInfo, _ := mod.team.PrivateChannelInfo(inviteChannelID)
+		inviteChannelAnchor := inviteChannelName[1:]
 
 		data.Channels = append(data.Channels, singleChannel{
 			ID:          inviteChannelID,
 			Name:        inviteChannelName,
+			NameAnchor:  inviteChannelAnchor,
 			Available:   false,
 			User:        slack.UserID(inviteUserStr),
 			UserName:    mod.team.UserName(slack.UserID(inviteUserStr)),
@@ -129,7 +132,7 @@ func (mod *AutoInviteModule) HTTPListInvites(w http.ResponseWriter, r *http.Requ
 var rgxAcceptInvite = regexp.MustCompile(`/invites/([A-Z0-9]+)`)
 
 type jsonResponse struct {
-	OK    bool `json:"ok"`
+	OK bool `json:"ok"`
 	Error struct {
 		Type    string `json:"type"`
 		Message string `json:"message"`
