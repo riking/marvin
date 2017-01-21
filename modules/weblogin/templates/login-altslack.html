@@ -4,12 +4,26 @@
     text-align: center;
     font-size: 18px;
 }
-.instructions pre {
-    font-size: 22px;
-}
 .btn-giant {
     font-size: 150%;
     line-height: 150%;
+}
+#code-box {
+    display: block;
+    padding: 9.5px;
+    margin: 0 0 10px;
+    /*font-size: 13px;*/
+    line-height: 1.42857143;
+    color: #333;
+    word-break: break-all;
+    word-wrap: break-word;
+    background-color: #f5f5f5;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 22px;
+    font-family: Menlo,Monaco,Consolas,"Courier New",monospace;
+    width: 100%;
+    text-align: center;
 }
 </style>
 {{end}}
@@ -28,16 +42,28 @@
     <div class="instructions">
         <p>You are already logged in. If you were sent here by a permission prompt, contact your Slack admins.</p>
     </div>
-    {{else}}
+    {{end}}
     <div class="instructions">
         <p>To associate your Intra login with a Slack user, as Slack usernames can change and OAuth is not available (contact your Slack admins for more information), you will instead send a random code in a message.</p>
         <h3>Your Code:</h3>
-        <pre><code>@marvin web-authenticate {{.RandomToken}} {{.RedirectB64}}</code></pre>
+        <form onsubmit="return false;">
+        <input id="code-box" type="text" class="input-monospace js-copyme" value="@marvin web-authenticate {{.RandomToken}} {{.RedirectB64}}">
+        </form>
         <p><small>This token is valid for twenty minutes.</small></p>
         <p><a class="btn btn-primary btn-giant" href="https://42schoolusa.slack.com/messages/@marvin">Click Here and Paste</a></p>
         <p>When you are done, reload this tab.</p>
     </div>
     {{end}}
-    {{end}}
+    {{/* end */}}
 </div>
+<script>
+var copybox = document.getElementById('code-box');
+copybox.addEventListener('click', function() {
+    this.focus();
+    this.select();
+    if (!document.execCommand) return;
+    var r = this.createTextRange();
+    r.execCommand("copy");
+});
+</script>
 {{end}}
