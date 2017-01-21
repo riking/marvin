@@ -158,7 +158,7 @@ func luaUser__Index(L *lua.LState) int {
 		}
 		L.Push(u.getProfile(L))
 		return 1
-	case "username", "tz", "tz_offset", "fname", "lname", "name":
+	case "username", "tz", "tz_offset", "fname", "lname", "name", "deleted":
 		err := u.loadInfo()
 		if err != nil {
 			L.RaiseError("Error getting information for user %v", u.ID)
@@ -189,6 +189,8 @@ func luaUser__Index(L *lua.LState) int {
 			L.Push(lua.LString(u.Info.Tz))
 		case "tz_offset":
 			L.Push(lua.LNumber(u.Info.TzOffset))
+		case "deleted":
+			L.Push(lua.LBool(u.Info.Deleted))
 		}
 		return 1
 	default:

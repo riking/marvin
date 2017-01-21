@@ -50,8 +50,7 @@ func OpenIntra(g *G, L *lua.LState) int {
 			return 2
 		}
 		var t intra.Campus
-		resp, err := client.DoGetFormJSON(L.Ctx, "/v2/campus/"+fremontCampusString,
-			nil, &t)
+		resp, err := client.DoGetFormJSON(L.Ctx, "/v2/campus/7", nil, &t)
 		if err != nil {
 			L.Push(lua.LFalse)
 			L.Push(lua.LString("verify_err_connect"))
