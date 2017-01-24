@@ -237,6 +237,10 @@ func (c *Client) UnregisterAllMatching(mod marvin.ModuleID) {
 // SendMessage sends a simple message over the RTM api.
 // When the Slack API returns an error, the error will be of type slack.CodedError.
 func (c *Client) SendMessage(channelID slack.ChannelID, message string) (slack.RTMRawMessage, error) {
+	if len(message) > 4000 {
+		return nil, errors.Errorf("Message too long (%d > 4000)", len(message))
+	}
+
 	var msg struct {
 		ID      int32  `json:"id"`
 		Type    string `json:"type"`
