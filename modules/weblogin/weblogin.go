@@ -3,7 +3,6 @@ package weblogin
 import (
 	"crypto/aes"
 	"crypto/rand"
-	"crypto/sha256"
 	"encoding/hex"
 	"net/http"
 	"net/url"
@@ -14,7 +13,6 @@ import (
 	"github.com/antonlindstrom/pgstore"
 	"github.com/gorilla/sessions"
 	"github.com/pkg/errors"
-	"golang.org/x/crypto/hkdf"
 	"golang.org/x/oauth2"
 
 	"github.com/riking/marvin"
@@ -100,17 +98,14 @@ func (mod *WebLoginModule) Identifier() marvin.ModuleID {
 }
 
 func (mod *WebLoginModule) Load(t marvin.Team) {
-	kdf := hkdf.New(sha256.New,
-		[]byte(t.TeamConfig().CookieSecretKey),
-		[]byte(`session protection`), []byte(`session protection`))
 	var signKey [32]byte
 	var encKey [aes.BlockSize]byte
 
-	_, err := kdf.Read(signKey[:])
+	_, err := t.TeamConfig().GetSecretKey("session sign key", signKey[:])
 	if err != nil {
 		panic("could not read from kdf")
 	}
-	_, err = kdf.Read(encKey[:])
+	_, err = t.TeamConfig().GetSecretKey("session encrypt key", encKey[:])
 	if err != nil {
 		panic("could not read from kdf")
 	}

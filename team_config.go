@@ -1,11 +1,13 @@
 package marvin
 
 import (
+	"crypto/sha256"
 	"fmt"
 	"net"
 	"os"
 	"strings"
 
+	"golang.org/x/crypto/hkdf"
 	"gopkg.in/ini.v1"
 
 	"github.com/riking/marvin/slack"
@@ -57,4 +59,13 @@ func LoadTeamConfig(sec *ini.Section) *TeamConfig {
 		c.HTTPURL = fmt.Sprintf("http://%s:%s", hostname[:idx], port)
 	}
 	return c
+}
+
+// GetSecretKey expands the CookieSecretKey value using the 'purpose' parameter as a salt.
+// An example value for 'purpose' would be "csrf protection".
+func (t *TeamConfig) GetSecretKey(purpose string, p []byte) (n int, err error) {
+	kdf := hkdf.New(sha256.New,
+		[]byte(t.CookieSecretKey),
+		[]byte(purpose), []byte(purpose))
+	return kdf.Read(p)
 }

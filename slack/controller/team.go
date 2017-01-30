@@ -2,7 +2,6 @@
 package controller
 
 import (
-	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -15,7 +14,6 @@ import (
 	"github.com/gorilla/csrf"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
-	"golang.org/x/crypto/hkdf"
 
 	"github.com/riking/marvin"
 	"github.com/riking/marvin/database"
@@ -303,21 +301,19 @@ func (t *Team) OffAllEvents(mod marvin.ModuleID) {
 // ---
 
 func (t *Team) ConnectHTTP(l net.Listener) {
-	kdf := hkdf.New(sha256.New,
-		[]byte(t.TeamConfig().CookieSecretKey),
-		[]byte(`csrf protection`), []byte(`csrf protection`))
-	var csrfKey [32]byte
-	var args []csrf.Option
+	var csrfArgs []csrf.Option
 
-	_, err := kdf.Read(csrfKey[:])
-	if err != nil {
-		panic("could not expand CookieSecretKey using hkdf")
-	}
 	if !strings.HasPrefix(t.teamConfig.HTTPURL, "https") {
-		args = append(args, csrf.Secure(false))
+		csrfArgs = append(csrfArgs, csrf.Secure(false))
 	}
-	args = append(args, csrf.RequestHeader("x-csrf-token"))
-	csrfProtect := csrf.Protect(csrfKey[:], args...)
+	csrfArgs = append(csrfArgs, csrf.RequestHeader("x-csrf-token"))
+
+	var csrfKey [32]byte
+	_, err := t.TeamConfig().GetSecretKey("csrf protection", csrfKey[:])
+	if err != nil {
+		panic("could not expand secret key using hkdf")
+	}
+	csrfProtect := csrf.Protect(csrfKey[:], csrfArgs...)
 
 	go func() {
 		err := http.Serve(l, csrfProtect(t.httpMux))
