@@ -373,7 +373,7 @@ type LFDataMap struct {
 
 const metatableFDataMap = "_metatable_FDataMap"
 
-func (LFDataMap) SetupMetatable(L *lua.LState) {
+func (*LFDataMap) SetupMetatable(L *lua.LState) {
 	tab := L.NewTypeMetatable(metatableFDataMap)
 	tab.RawSetString("__index", L.NewFunction(luaFData_get))
 	tab.RawSetString("__newindex", L.NewFunction(luaFData_set))

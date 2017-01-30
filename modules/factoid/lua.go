@@ -60,6 +60,7 @@ func runLua(ctx context.Context, mod *FactoidModule, factoidName, factoidSource 
 	g.L.SetGlobal("factoid", fmodUD)
 
 	// factoidmap data
+	(*LFDataMap)(nil).SetupMetatable(g.L)
 	mt = g.L.NewTable()
 	mt.RawSetString("__index", g.L.NewFunction(func(L *lua.LState) int {
 		L.CheckUserData(1)
