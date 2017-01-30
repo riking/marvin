@@ -2,9 +2,11 @@ package weblogin
 
 import (
 	"crypto/aes"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/hex"
 	"net/http"
 	"net/url"
-	"crypto/sha256"
 	"strings"
 	"sync"
 	"time"
@@ -113,9 +115,19 @@ func (mod *WebLoginModule) Load(t marvin.Team) {
 		panic("could not read from kdf")
 	}
 
+	// load old style key - because it's second, won't be used for any new operations
+	var oldKey []byte
+	oldKey, err = hex.DecodeString(t.TeamConfig().CookieSecretKey)
+	if err != nil || len(oldKey) != aes.BlockSize {
+		// create phony alternate key
+		oldKey = make([]byte, aes.BlockSize)
+		rand.Read(oldKey)
+	}
+
 	store, err := pgstore.NewPGStoreFromPool(
 		t.DB().DB,
 		signKey[:], encKey[:],
+		oldKey, oldKey,
 	)
 	if err != nil {
 		panic(errors.Wrap(err, "Could not setup session store"))
