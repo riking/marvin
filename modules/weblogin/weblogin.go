@@ -2,9 +2,9 @@ package weblogin
 
 import (
 	"crypto/aes"
-	"encoding/hex"
 	"net/http"
 	"net/url"
+	"crypto/sha256"
 	"strings"
 	"sync"
 	"time"
@@ -12,6 +12,7 @@ import (
 	"github.com/antonlindstrom/pgstore"
 	"github.com/gorilla/sessions"
 	"github.com/pkg/errors"
+	"golang.org/x/crypto/hkdf"
 	"golang.org/x/oauth2"
 
 	"github.com/riking/marvin"
@@ -97,14 +98,24 @@ func (mod *WebLoginModule) Identifier() marvin.ModuleID {
 }
 
 func (mod *WebLoginModule) Load(t marvin.Team) {
-	keyBytes, err := hex.DecodeString(t.TeamConfig().CookieSecretKey)
-	if err != nil || len(keyBytes) != aes.BlockSize {
-		panic(errors.Errorf("CookieSecretKey must be a %d-byte hex string", aes.BlockSize))
+	kdf := hkdf.New(sha256.New,
+		[]byte(t.TeamConfig().CookieSecretKey),
+		[]byte(`session protection`), []byte(`session protection`))
+	var signKey [32]byte
+	var encKey [aes.BlockSize]byte
+
+	_, err := kdf.Read(signKey[:])
+	if err != nil {
+		panic("could not read from kdf")
+	}
+	_, err = kdf.Read(encKey[:])
+	if err != nil {
+		panic("could not read from kdf")
 	}
 
 	store, err := pgstore.NewPGStoreFromPool(
 		t.DB().DB,
-		keyBytes, keyBytes,
+		signKey[:], encKey[:],
 	)
 	if err != nil {
 		panic(errors.Wrap(err, "Could not setup session store"))

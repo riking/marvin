@@ -32,35 +32,35 @@ var common = map[string]string{
 	"n": "m",
 
 	"qu": "w",
-	"w": "qu",
+	"w":  "qu",
 
 	"x": "z",
 	"z": "x",
 }
 
 var englishOnly = map[string][]string{
-	"i": {"yu", "y"},
-	"th": {"ch"},
-	"ch": {"se"},
-	"wh": {"quo"},
+	"i":   {"yu", "y"},
+	"th":  {"ch"},
+	"ch":  {"se"},
+	"wh":  {"quo"},
 	"ing": {"ot"},
-	"gr": {"tul"},
-	"ss": {"ais"},
-	"ll": {"ra"},
-	"sh": {"us"},
+	"gr":  {"tul"},
+	"ss":  {"ais"},
+	"ll":  {"ra"},
+	"sh":  {"us"},
 }
 
 var uryuOnly = map[string][]string{
-	"i": {"y"},
-	"yu": {"i"},
-	"ch": {"th"},
-	"se": {"ch"},
+	"i":   {"y"},
+	"yu":  {"i"},
+	"ch":  {"th"},
+	"se":  {"ch"},
 	"quo": {"wh"},
-	"ot": {"ing"},
+	"ot":  {"ing"},
 	"tul": {"gr"},
 	"ais": {"ss"},
-	"ra": {"ll"},
-	"us": {"sh"},
+	"ra":  {"ll"},
+	"us":  {"sh"},
 }
 
 // A StemRule is applied when a Uryuomoco word ends in a certain letter.

@@ -2,8 +2,7 @@
 package controller
 
 import (
-	"crypto/aes"
-	"encoding/hex"
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -16,6 +15,7 @@ import (
 	"github.com/gorilla/csrf"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
+	"golang.org/x/crypto/hkdf"
 
 	"github.com/riking/marvin"
 	"github.com/riking/marvin/database"
@@ -303,17 +303,21 @@ func (t *Team) OffAllEvents(mod marvin.ModuleID) {
 // ---
 
 func (t *Team) ConnectHTTP(l net.Listener) {
-	keyBytes, err := hex.DecodeString(t.TeamConfig().CookieSecretKey)
-	if err != nil || len(keyBytes) != aes.BlockSize {
-		panic(errors.Errorf("CookieSecretKey must be a %d-byte hex string", aes.BlockSize))
-	}
+	kdf := hkdf.New(sha256.New,
+		[]byte(t.TeamConfig().CookieSecretKey),
+		[]byte(`csrf protection`), []byte(`csrf protection`))
+	var csrfKey [32]byte
 	var args []csrf.Option
 
+	_, err := kdf.Read(csrfKey[:])
+	if err != nil {
+		panic("could not expand CookieSecretKey using hkdf")
+	}
 	if !strings.HasPrefix(t.teamConfig.HTTPURL, "https") {
 		args = append(args, csrf.Secure(false))
 	}
 	args = append(args, csrf.RequestHeader("x-csrf-token"))
-	csrfProtect := csrf.Protect(keyBytes, args...)
+	csrfProtect := csrf.Protect(csrfKey[:], args...)
 
 	go func() {
 		err := http.Serve(l, csrfProtect(t.httpMux))

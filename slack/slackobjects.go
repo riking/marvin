@@ -79,7 +79,9 @@ type TeamInfo struct {
 }
 
 type User struct {
-	CacheTS  time.Time   `json:"-"`
+	CacheTS  time.Time `json:"-"`
+	NotExist bool      `json:"-"`
+
 	ID       UserID      `json:"id"`
 	TeamID   TeamID      `json:"team_id"`
 	Name     string      `json:"name"`
@@ -161,7 +163,9 @@ type ChannelTopicPurpose struct {
 }
 
 type Channel struct {
-	CacheTS    time.Time `json:"-"`
+	CacheTS  time.Time `json:"-"`
+	NotExist bool      `json:"-"`
+
 	ID         ChannelID
 	Name       string
 	IsChannel  bool        `json:"is_channel"`
@@ -185,7 +189,7 @@ type Channel struct {
 	Purpose ChannelTopicPurpose
 }
 
-type ChannelDM struct {
+type ChannelIM struct {
 	ID            ChannelID `json:"id"`
 	User          UserID    `json:"user"`
 	Created       int64     `json:"created"`

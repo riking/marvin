@@ -69,7 +69,7 @@ func (c *Client) onUserChange(msg slack.RTMRawMessage) {
 
 func (c *Client) onIMCreate(msg slack.RTMRawMessage) {
 	var resp struct {
-		Channel *slack.ChannelDM `json:"channel"`
+		Channel *slack.ChannelIM `json:"channel"`
 	}
 	msg.ReMarshal(&resp)
 

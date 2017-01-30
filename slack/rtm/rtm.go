@@ -50,7 +50,7 @@ type Client struct {
 	Channels  []*slack.Channel   // C
 	Groups    []*slack.Channel   // G
 	Mpims     []*slack.Channel   // G
-	Ims       []*slack.ChannelDM // D
+	Ims       []*slack.ChannelIM // D
 	Bots      []struct {
 		ID      string `json:"id"`
 		Deleted bool   `json:"deleted"`
