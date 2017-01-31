@@ -8,7 +8,33 @@ import (
 
 // https://github.com/slack-ruby/slack-ruby-client/blob/master/lib/slack/messages/formatting.rb
 
+type Entity struct {
+	Type  string
+	Left  string
+	Mid   string
+	Right string
+}
+
 var entityRgx = regexp.MustCompile(`<([?@#!]?)(.*?)>`)
+
+func ReplaceEntities(msg string, f func(e Entity) string) string {
+	return entityRgx.ReplaceAllStringFunc(msg, func(entityRaw string) string {
+		match := entityRgx.FindStringSubmatch(entityRaw)
+		rhsSplit := strings.SplitN(match[2], "|", 2)
+		mid := ""
+		rhs := rhsSplit[0]
+		if len(rhsSplit) == 2 {
+			mid = rhsSplit[0]
+			rhs = rhsSplit[1]
+		}
+		return f(Entity{
+			Type:  match[1],
+			Left:  rhsSplit[0],
+			Mid:   mid,
+			Right: rhs,
+		})
+	})
+}
 
 // UnescapeText unwraps URLs in a Slack message and otherwise canonicalizes
 // certain entities for use by Marvin.

@@ -35,12 +35,17 @@ type LChannel struct {
 }
 
 const metatableLChannel = "_metatable_LChannel"
+const metatableLChannelIdx = "_metatable_LChannelIndex"
 
-func (*LChannel) SetupMetatable(L *lua.LState) {
+func (*LChannel) SetupMetatable(L *lua.LState) int {
 	tab := L.NewTypeMetatable(metatableLChannel)
 	tab.RawSetString("__tostring", L.NewFunction(luaChannel__ToString))
 	tab.RawSetString("__eq", L.NewFunction(luaChannel__Eq))
 	tab.RawSetString("__index", L.NewFunction(luaChannel__Index))
+
+	tab = L.NewTypeMetatable(metatableLChannelIdx)
+	tab.RawSetString("__index", L.NewFunction(luaChannelIndex__Index))
+	return 0
 }
 
 func LNewChannel(g *G, ch slack.ChannelID) lua.LValue {
@@ -70,6 +75,72 @@ func LNewChannel(g *G, ch slack.ChannelID) lua.LValue {
 	u.Value = v
 	u.Metatable = g.L.GetTypeMetatable(metatableLChannel)
 	return u
+}
+
+type LChannelIndex struct {
+	g *G
+}
+
+func luaChannelIndex__Index(L *lua.LState) int {
+	ud := L.CheckUserData(1)
+	nameV := L.Get(2)
+	if nameV.Type() != lua.LTString {
+		return 0
+	}
+	name := L.CheckString(2)
+	lci := ud.Value.(*LChannelIndex)
+	g := lci.g
+
+	if name == "" {
+		return 0
+	}
+	chID := ""
+	if name[0] == 'C' || name[0] == 'G' {
+		chID = name
+	} else if name[0] == 'D' {
+		chID, _ := g.Team().GetIM(g.ActionSource().UserID())
+		if slack.ChannelID(name) != chID {
+			// vischeck: only the IM of marvin<=>the active user may be used
+			// TODO - different vischeck for admins?
+			return 0
+		}
+		tab := L.NewTable()
+		tab.RawSetString("id", lua.LString(chID))
+		tab.RawSetString("type", lua.LString("im"))
+		u, _ := LNewUser(g, g.ActionSource().UserID(), false)
+		tab.RawSetString("im_user", u)
+		L.Push(tab)
+		return 1
+	} else {
+		chID = string(g.Team().ChannelIDByName(name))
+	}
+
+	if chID == "" {
+		return 0
+	}
+	top := L.GetTop()
+	err := L.GPCall(func(L *lua.LState) int {
+		L.Push(LNewChannel(g, slack.ChannelID(chID)))
+		return 1
+	}, lua.LNil)
+	if err != nil {
+		// remove the gpcall() return, if any
+		L.SetTop(L.GetTop() - top - 1)
+		L.Push(lua.LNil)
+		L.Push(err.(*lua.ApiError).Object)
+		return 2
+	}
+
+	// vischeck the channel
+	// this has an timing attack showing the channel exists but not what's in it
+	if chID[0] == 'G' {
+		memberMap := g.Team().UserInChannels(g.ActionSource().UserID(), slack.ChannelID(chID))
+		if !memberMap[slack.ChannelID(chID)] {
+			// vischeck failed
+			return 0
+		}
+	}
+	return 1
 }
 
 func luaChannel__ToString(L *lua.LState) int {
@@ -128,13 +199,6 @@ func luaChannel__Index(L *lua.LState) int {
 		}
 		L.Push(lua.LString(lc.Info.Name))
 		return 1
-	case "im_other":
-		if lc.IsIM {
-			otherUser, _ := lc.g.Team().GetIMOtherUser(lc.ID)
-			L.Push(lua.LString(otherUser))
-			return 1
-		}
-		return 0
 	case "creator":
 		if lc.Creator == nil {
 			u, _ := LNewUser(lc.g, lc.Info.Creator, false)

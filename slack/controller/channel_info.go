@@ -177,6 +177,23 @@ func (t *Team) cachedPublicChannelInfo(channel slack.ChannelID) *slack.Channel {
 	return nil
 }
 
+func (t *Team) ChannelIDByName(chName string) slack.ChannelID {
+	t.client.MetadataLock.RLock()
+	defer t.client.MetadataLock.RUnlock()
+
+	for _, v := range t.client.Channels {
+		if v.Name == chName {
+			return v.ID
+		}
+	}
+	for _, v := range t.client.Groups {
+		if v.Name == chName {
+			return v.ID
+		}
+	}
+	return ""
+}
+
 func (t *Team) PublicChannelInfo(channel slack.ChannelID) (*slack.Channel, error) {
 	result := t.cachedPublicChannelInfo(channel)
 	if result != nil {

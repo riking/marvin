@@ -73,6 +73,7 @@ func (g *G) OpenLibraries() {
 
 	(*LUser)(nil).SetupMetatable(L)
 	(*LChannel)(nil).SetupMetatable(L)
+	L.SetGlobal("slack", LNewTeam(g))
 }
 
 func (g *G) lua_print(L *lua.LState) int {
