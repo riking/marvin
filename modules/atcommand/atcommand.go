@@ -240,7 +240,7 @@ func (mod *AtCommandModule) HandleMessage(_rtm slack.RTMRawMessage) {
 	if strings.ContainsAny(rtm.Text()[:1], factoidChars) {
 		return
 	}
-	if rtm.UserID() == "USLACKBOT" || rtm.UserID() == mod.team.BotUser() {
+	if rtm.UserID() == "USLACKBOT" || rtm.UserID() == mod.team.BotUser() || rtm.ChannelID() == "D00" {
 		return
 	}
 	if _, isThread := _rtm["thread_ts"]; isThread {
