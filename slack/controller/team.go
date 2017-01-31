@@ -172,7 +172,6 @@ func (t *Team) Help(args *marvin.CommandArguments) marvin.CommandResult {
 // ---
 
 func (t *Team) SendMessage(channel slack.ChannelID, message string) (slack.MessageTS, slack.RTMRawMessage, error) {
-	fmt.Printf("[%s] [@marvin] %s\n", t.ChannelName(channel), message)
 	msg, err := t.client.SendMessage(channel, message)
 	if err != nil {
 		return "", msg, err

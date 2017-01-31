@@ -240,28 +240,40 @@ func (c *Client) SendMessage(channelID slack.ChannelID, message string) (slack.R
 	if len(message) > 4000 {
 		return nil, errors.Errorf("Message too long (%d > 4000)", len(message))
 	}
+	outgoing := make(slack.RTMRawMessage)
+	outgoing["channel"] = string(channelID)
+	outgoing["text"] = message
+	return c.SendMessageRaw(outgoing)
+}
 
-	var msg struct {
-		ID      int32  `json:"id"`
-		Type    string `json:"type"`
-		Channel string `json:"channel"`
-		Text    string `json:"text"`
-	}
-	msg.ID = c.rtmMsgId.Get()
-	msg.Type = "message"
-	msg.Channel = string(channelID)
-	msg.Text = message
-	bytes, err := json.Marshal(msg)
+func (c *Client) SendMessageRaw(rtmOut slack.RTMRawMessage) (slack.RTMRawMessage, error) {
+	id := int32(c.rtmMsgId.Get())
+	rtmOut["id"] = id
+	rtmOut["type"] = "message"
+	bytes, err := json.Marshal(rtmOut)
 	if err != nil {
 		return nil, errors.Wrap(err, "json marshal")
 	}
 	respChan := make(chan slack.RTMRawMessage)
 	c.sendCbsLock.Lock()
-	c.sendCbs[int(msg.ID)] = respChan
+	c.sendCbs[int(id)] = respChan
 	c.sendCbsLock.Unlock()
 	c.sendChan <- bytes
 	select {
 	case respMsg := <-respChan:
+		fakeEvent := make(slack.RTMRawMessage)
+		for k, v := range respMsg {
+			if k != "reply_to" && k != "ok" && k != "_rawBytes" {
+				fakeEvent[k] = v
+			}
+		}
+		fakeEvent["team"] = string(c.AboutTeam.ID)
+		fakeEvent["type"] = "message"
+		fakeEvent["channel"] = rtmOut["channel"]
+		fakeEvent["user"] = string(c.Self.ID)
+		fakeEvent["_rawBytes"], _ = json.Marshal(fakeEvent)
+		go c.dispatchMessage(fakeEvent)
+
 		var resp struct {
 			Ok    bool             `json:"ok"`
 			Error slack.CodedError `json:"error"`
@@ -273,6 +285,7 @@ func (c *Client) SendMessage(channelID slack.ChannelID, message string) (slack.R
 			return respMsg, resp.Error
 		}
 	case <-time.After(1 * time.Minute):
-		return nil, errors.Errorf("[TIMEOUT] Reply to %d timed out after 60 seconds", msg.ID)
+		util.LogBadf("[TIMEOUT] Reply to sent message %d timed out after 60 seconds", id)
+		return nil, errors.Errorf("[TIMEOUT] Reply to %d timed out after 60 seconds", id)
 	}
 }

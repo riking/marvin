@@ -24,6 +24,7 @@ import (
 func main() {
 	teamName := flag.String("team", "Test", "which team to use")
 	configFile := flag.String("conf", "", "override config file")
+	dumpMessages := flag.Bool("msgdump", false, "dump message events")
 	flag.Parse()
 
 	var cfg *ini.File
@@ -64,9 +65,10 @@ func main() {
 				return
 			}
 		case "message":
+		subtypeswitch:
 			switch msg.Subtype() {
 			case "", "channel_leave", "channel_join", "group_join", "group_leave":
-				break
+				break subtypeswitch
 			case "message_changed":
 				type structMessage struct {
 					Edited struct {
@@ -89,11 +91,17 @@ func main() {
 				}
 				json.Unmarshal(msg.Original(), &msgStruct)
 				fmt.Printf("[%s] [EDIT BY %s] [@%s] %s\n", team.ChannelName(msgStruct.Channel), team.UserName(msgStruct.Message.Edited.User), team.UserName(msgStruct.Message.User), msgStruct.Message.Text)
+				if *dumpMessages {
+					break typeswitch
+				}
 				return
 			default:
 				break typeswitch
 			}
 			fmt.Printf("[%s] [@%s] %s\n", team.ChannelName(msg.ChannelID()), team.UserName(msg.UserID()), msg.Text())
+			if *dumpMessages {
+				break typeswitch
+			}
 			return
 		case "reaction_added":
 			item, ok := msg["item"].(map[string]interface{})
