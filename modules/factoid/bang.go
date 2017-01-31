@@ -68,6 +68,9 @@ type resultInfo struct {
 func (mod *BangFactoidModule) OnMessage(_rtm slack.RTMRawMessage) {
 	rtm := slack.SlackTextMessage(_rtm)
 
+	if rtm.UserID() == "USLACKBOT" || rtm.UserID() == mod.team.BotUser() {
+		return
+	}
 	if _, isThread := _rtm["thread_ts"]; isThread {
 		// TODO thread operation
 		return
