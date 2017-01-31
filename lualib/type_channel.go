@@ -5,6 +5,7 @@ import (
 
 	"github.com/yuin/gopher-lua"
 
+	"github.com/riking/marvin"
 	"github.com/riking/marvin/slack"
 )
 
@@ -101,8 +102,9 @@ func luaChannelIndex__Index(L *lua.LState) int {
 		chID, _ := g.Team().GetIM(g.ActionSource().UserID())
 		if slack.ChannelID(name) != chID {
 			// vischeck: only the IM of marvin<=>the active user may be used
-			// TODO - different vischeck for admins?
-			return 0
+			if g.ActionSource().AccessLevel() < marvin.AccessLevelAdmin {
+				return 0
+			}
 		}
 		tab := L.NewTable()
 		tab.RawSetString("id", lua.LString(chID))
@@ -137,7 +139,9 @@ func luaChannelIndex__Index(L *lua.LState) int {
 		memberMap := g.Team().UserInChannels(g.ActionSource().UserID(), slack.ChannelID(chID))
 		if !memberMap[slack.ChannelID(chID)] {
 			// vischeck failed
-			return 0
+			if g.ActionSource().AccessLevel() < marvin.AccessLevelAdmin {
+				return 0
+			}
 		}
 	}
 	return 1
