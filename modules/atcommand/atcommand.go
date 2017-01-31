@@ -194,8 +194,14 @@ type parseMessageReturn struct {
 	lenientNoSuchCommand bool
 }
 
-func (mod *AtCommandModule) ParseMessage(rtm slack.SlackTextMessage) parseMessageReturn {
-	result := parseMessageReturn{}
+func (mod *AtCommandModule) ParseMessage(rtm slack.SlackTextMessage) (result parseMessageReturn) {
+	factoidChars, _ := mod.team.ModuleConfig("factoid").Get("factoid-char")
+	if rtm.Text() == "" || strings.ContainsAny(rtm.Text()[:1], factoidChars) {
+		return
+	}
+	if rtm.UserID() == "USLACKBOT" || rtm.UserID() == mod.team.BotUser() || rtm.ChannelID() == "D00" {
+		return
+	}
 
 	msgText := rtm.Text()
 	matches := mod.mentionRgx2.FindStringSubmatchIndex(msgText)
@@ -209,7 +215,6 @@ func (mod *AtCommandModule) ParseMessage(rtm slack.SlackTextMessage) parseMessag
 			m := mod.mentionRgx1.FindString(msgText)
 			if m != "" {
 				result.wave = true
-				return result
 			}
 			return result
 		}
@@ -234,13 +239,6 @@ func (mod *AtCommandModule) HandleMessage(_rtm slack.RTMRawMessage) {
 	fciResult.OriginalMsg = _rtm
 	rtm := slack.SlackTextMessage(_rtm)
 	if !rtm.AssertText() {
-		return
-	}
-	factoidChars, _ := mod.team.ModuleConfig("factoid").Get("factoid-char")
-	if strings.ContainsAny(rtm.Text()[:1], factoidChars) {
-		return
-	}
-	if rtm.UserID() == "USLACKBOT" || rtm.UserID() == mod.team.BotUser() || rtm.ChannelID() == "D00" {
 		return
 	}
 	if _, isThread := _rtm["thread_ts"]; isThread {
