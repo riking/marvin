@@ -37,9 +37,9 @@ const phpFormat = "2006-01-02T15:04:05-0700"
 const facebookFavicon = "https://static.xx.fbcdn.net/rsrc.php/yV/r/hzMapiNYYpW.ico"
 const facebookColor = "#3b5998"
 
-type phpTime struct{ time.Time }
+type PHPTime struct{ time.Time }
 
-func (t *phpTime) UnmarshalJSON(data []byte) error {
+func (t *PHPTime) UnmarshalJSON(data []byte) error {
 	var err error
 	t.Time, err = time.Parse(`"`+phpFormat+`"`, string(data))
 	return err
@@ -60,10 +60,10 @@ type FacebookFeedDataItem struct {
 	Story       string `json:"story"`
 	Description string
 
-	PermalinkURL string `json:"permalink_url"`
-	CreatedTime phpTime `json:"created_time"`
-	FullPicture string  `json:"full_picture"`
-	ID          string  `json:"id"`
+	PermalinkURL string  `json:"permalink_url"`
+	CreatedTime  PHPTime `json:"created_time"`
+	FullPicture  string  `json:"full_picture"`
+	ID           string  `json:"id"`
 }
 
 func (f FacebookFeedDataItem) Render(parent *FacebookFeed) slack.OutgoingSlackMessage {

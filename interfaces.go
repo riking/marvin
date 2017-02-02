@@ -145,7 +145,7 @@ type HTTPDoer interface {
 
 type SendMessage interface {
 	SendMessage(channelID slack.ChannelID, message string) (slack.MessageTS, slack.RTMRawMessage, error)
-	SendComplexMessage(channelID slack.ChannelID, message url.Values) (slack.MessageID, slack.RTMRawMessage, error)
+	SendComplexMessage(channelID slack.ChannelID, message slack.OutgoingSlackMessage) (slack.MessageTS, slack.RTMRawMessage, error)
 }
 
 // HasTeam is a type that references a marvin.Team.

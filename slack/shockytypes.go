@@ -120,9 +120,6 @@ const (
 )
 
 type OutgoingSlackMessage struct {
-	Domain      string        `json:"domain,omitempty"`
-	ChannelID   ChannelID     `json:"channel,omitempty"`
-	Username    UserID        `json:"username,omitempty"`
 	Text        string        `json:"text,omitempty"`
 	Attachments []Attachment  `json:"attachments,omitempty"`
 	UnfurlLinks util.TriValue `json:"unfurl_links,omitempty"`

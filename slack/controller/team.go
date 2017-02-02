@@ -179,21 +179,23 @@ func (t *Team) SendMessage(channel slack.ChannelID, message string) (slack.Messa
 	return msg.MessageTS(), msg, err
 }
 
-func (t *Team) SendComplexMessage(channelID slack.ChannelID, form url.Values) (slack.MessageID, slack.RTMRawMessage, error) {
-	form.Set("channel", string(channelID))
-	form.Set("token", t.teamConfig.UserToken)
-	form.Set("as_user", "true")
-
-	var response struct {
-		TS      slack.MessageTS     `json:"ts"`
-		Channel slack.ChannelID     `json:"channel"`
-		Message slack.RTMRawMessage `json:"message"`
-	}
-	err := t.SlackAPIPostJSON("chat.postMessage", form, &response)
+func (t *Team) SendComplexMessage(channelID slack.ChannelID, message slack.OutgoingSlackMessage) (slack.MessageTS, slack.RTMRawMessage, error) {
+	form := make(slack.RTMRawMessage)
+	form["channel"] = string(channelID)
+	form["as_user"] = "true"
+	b, err := json.Marshal(message)
 	if err != nil {
-		return slack.MessageID{}, nil, err
+		return "", nil, errors.Wrap(err, "building messsage")
 	}
-	return slack.MsgID(response.Channel, response.TS), response.Message, nil
+	err = json.Unmarshal(b, &form)
+	if err != nil {
+		return "", nil, errors.Wrap(err, "building messsage")
+	}
+	msg, err := t.client.SendMessageRaw(form)
+	if err != nil {
+		return "", nil, err
+	}
+	return msg.MessageTS(), msg, err
 }
 
 func (t *Team) ReactMessage(msgID slack.MessageID, emojiName string) error {

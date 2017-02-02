@@ -20,8 +20,10 @@ func TestFacebookFeedDataItem_Render(t *testing.T) {
 		fmt.Println(string(b))
 	}
 
+	b, _ := json.Marshal(feed.Feed.Data[14])
+	fmt.Println(string(b))
 	result := feed.Feed.Data[14].Render(&feed)
-	b, _ := json.Marshal(result)
+	b, _ = json.Marshal(result)
 	fmt.Println(string(b))
 }
 
