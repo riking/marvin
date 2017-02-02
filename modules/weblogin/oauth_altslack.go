@@ -38,6 +38,7 @@ func (mod *WebLoginModule) newAuthToken(u *User) string {
 func (mod *WebLoginModule) findAuthToken(token string) (userID int64) {
 	mod.authTokenLock.Lock()
 	item, ok := mod.authTokenMap[token]
+	delete(mod.authTokenMap, token)
 	mod.authTokenLock.Unlock()
 	if !ok {
 		return -1
@@ -134,13 +135,13 @@ func (mod *WebLoginModule) CommandWebAuthenticate(t marvin.Team, args *marvin.Co
 	user, err := mod.GetUserByID(userID)
 	if err != nil {
 		util.LogWarn(err)
-		return marvin.CmdError(args, err, "Error loading user info; you were not logged in.")
+		return marvin.CmdError(args, err, "Error loading user info; you were not logged in. Auth token has been expired, you must generate a new one.")
 	}
 
 	slackUser, _ := mod.team.UserInfo(args.Source.UserID())
 	err = user.UpdateSlack(args.Source.UserID(), slackUser.Name, "", []string{})
 	if err != nil {
-		return marvin.CmdError(args, err, "Error saving user info; you were not logged in.")
+		return marvin.CmdError(args, err, "Error saving user info; you were not logged in. The auth token has been expired, you must generate a new one.")
 	}
 	return marvin.CmdSuccess(args, fmt.Sprintf("You have been logged in. Return to %s .",
 		mod.team.AbsoluteURL(redirectURL)))
