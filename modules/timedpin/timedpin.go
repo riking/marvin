@@ -19,13 +19,13 @@ func init() {
 const Identifier = "timedpin"
 
 type TimedPinModule struct {
-	team marvin.Team
+	team     marvin.Team
 	notifyCh chan struct{}
 }
 
 func NewTimedPinModule(t marvin.Team) marvin.Module {
 	mod := &TimedPinModule{
-		team: t,
+		team:     t,
 		notifyCh: make(chan struct{}, 1),
 	}
 	return mod

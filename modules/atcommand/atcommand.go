@@ -355,10 +355,10 @@ func (mod *AtCommandModule) HandleEdit(_rtm slack.RTMRawMessage) {
 
 func (mod *AtCommandModule) canEdit(fciMeta *FinishedCommandInfo) (canEdit bool) {
 
-	if fciMeta.CommandResult.CanEdit == marvin.TriYes {
+	if fciMeta.CommandResult.CanEdit == util.TriYes {
 		// Custom edit
 		return true
-	} else if fciMeta.CommandResult.CanEdit == marvin.TriNo {
+	} else if fciMeta.CommandResult.CanEdit == util.TriNo {
 		return false
 	} else { // TriDefault
 		switch fciMeta.CommandResult.Code {
@@ -380,7 +380,7 @@ func (mod *AtCommandModule) canUndo(fciMeta *FinishedCommandInfo) (canUndo, cust
 		return false, false
 	}
 
-	if fciMeta.CommandResult.CanEdit == marvin.TriNo {
+	if fciMeta.CommandResult.CanEdit == util.TriNo {
 		// Undo not supported
 		return false, false
 	} else if fciMeta.CommandResult.CanEdit == marvin.UndoCustom {

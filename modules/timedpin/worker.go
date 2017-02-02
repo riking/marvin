@@ -21,7 +21,7 @@ func (mod *TimedPinModule) unpinLoop() {
 			return
 		}
 		if until > 0 {
-			if until < 5 * time.Second {
+			if until < 5*time.Second {
 				until = 5 * time.Second
 			} else {
 				until += 5 * time.Second
@@ -56,7 +56,7 @@ func nextUnpinTime(t marvin.Team) (time.Duration, error) {
 	var nextUnpin *time.Time
 	err = res.Scan(&nextUnpin)
 	if err == sql.ErrNoRows || nextUnpin == nil {
-		return 24 * time.Hour - 5 * time.Second, nil
+		return 24*time.Hour - 5*time.Second, nil
 	} else if err != nil {
 		return 0, errors.Wrap(err, "unpin: read from db")
 	}

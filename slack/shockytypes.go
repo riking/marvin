@@ -1,6 +1,10 @@
 package slack
 
-import "encoding/json"
+import (
+	"encoding/json"
+
+	"github.com/riking/marvin/util"
+)
 
 type RTMRawMessage map[string]interface{}
 
@@ -116,17 +120,15 @@ const (
 )
 
 type OutgoingSlackMessage struct {
-	Domain      string       `json:"domain,omitempty"`
-	ChannelID   ChannelID    `json:"channel"`
-	Username    UserID       `json:"username"`
-	Text        string       `json:"text"`
-	IconEmoji   string       `json:"icon_emoji,omitempty"`
-	IconURL     string       `json:"icon_url,omitempty"`
-	Attachments []Attachment `json:"attachments,omitempty"`
-	UnfurlLinks bool         `json:"unfurl_links,omitempty"`
-	Parse       ParseStyle   `json:"parse,omitempty"`
-	LinkNames   bool         `json:"link_names,omitempty"`
-	Markdown    bool         `json:"mrkdwn,omitempty"`
+	Domain      string        `json:"domain,omitempty"`
+	ChannelID   ChannelID     `json:"channel,omitempty"`
+	Username    UserID        `json:"username,omitempty"`
+	Text        string        `json:"text,omitempty"`
+	Attachments []Attachment  `json:"attachments,omitempty"`
+	UnfurlLinks util.TriValue `json:"unfurl_links,omitempty"`
+	Parse       ParseStyle    `json:"parse,omitempty"`
+	LinkNames   util.TriValue `json:"link_names,omitempty"`
+	Markdown    util.TriValue `json:"mrkdwn,omitempty"`
 }
 
 type SlashCommandRequest struct {
@@ -162,18 +164,15 @@ type Attachment struct {
 	Text       string            `json:"text,omitempty"`
 	Color      string            `json:"color,omitempty"`
 	Fields     []AttachmentField `json:"fields,omitempty"`
-	MarkdownIn []MarkdownField   `json:"mrkdown_in,omitempty"`
+	AuthorName string            `json:"author_name,omitempty"`
+	AuthorLink string            `json:"author_link,omitempty"`
+	AuthorIcon string            `json:"author_icon,omitempty"`
+	Title      string            `json:"title,omitempty"`
+	TitleLink  string            `json:"title_link,omitempty"`
+	TS         int64             `json:"ts,omitempty"`
+	ImageURL   string            `json:"image_url,omitempty"`
+	Footer     string            `json:"footer,omitempty"`
 }
-
-type MarkdownField string
-
-var (
-	MarkdownFieldPretext  = MarkdownField("pretext")
-	MarkdownFieldText     = MarkdownField("text")
-	MarkdownFieldTitle    = MarkdownField("title")
-	MarkdownFieldFields   = MarkdownField("fields")
-	MarkdownFieldFallback = MarkdownField("fallback")
-)
 
 type AttachmentField struct {
 	Title string `json:"title"`

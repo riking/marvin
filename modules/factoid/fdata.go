@@ -9,7 +9,6 @@ import (
 	"github.com/lib/pq"
 	"github.com/pkg/errors"
 
-	"github.com/riking/marvin"
 	"github.com/riking/marvin/lualib"
 	"github.com/riking/marvin/util"
 	"github.com/yuin/gopher-lua"
@@ -64,7 +63,7 @@ type fdataVal struct {
 	//  - TriYes when the value is fresh with the database.
 	//  - TriNo when the value is dirty and needs to be saved.
 	//  - TriDefault when the entry is missing
-	DBSync marvin.TriValue
+	DBSync util.TriValue
 }
 
 type fdataReqFunc func(*FactoidModule) interface{}
@@ -117,7 +116,7 @@ func (mod *FactoidModule) workerFDataSync() {
 				for mapName, mapContent := range mod.fdataMap {
 					key.Map = mapName
 					for keyName, keyContent := range mapContent {
-						if keyContent.DBSync == marvin.TriYes {
+						if keyContent.DBSync == util.TriYes {
 							continue
 						}
 						key.Key = keyName
@@ -149,10 +148,10 @@ func (mod *FactoidModule) workerFDataSync() {
 					}
 					q := m[key.Key]
 					if bytes.Equal(m[key.Key].JSON, val) {
-						q.DBSync = marvin.TriYes
+						q.DBSync = util.TriYes
 						m[key.Key] = q
 					} else {
-						q.DBSync = marvin.TriNo
+						q.DBSync = util.TriNo
 						m[key.Key] = q
 					}
 				}
@@ -285,7 +284,7 @@ func (mod *FactoidModule) fdataGetCachedEntry(mapName, keyName string) fdataVal 
 		F: func(mod *FactoidModule) interface{} {
 			m := mod.fdataMap[mapName]
 			if m == nil {
-				return fdataVal{JSON: nil, DBSync: marvin.TriDefault}
+				return fdataVal{JSON: nil, DBSync: util.TriDefault}
 			}
 			return m[keyName]
 		},
@@ -320,7 +319,7 @@ func fdataFuncSetEntry(mapName, keyName string, data []byte) fdataReqFunc {
 		}
 		m[keyName] = fdataVal{
 			JSON:   data,
-			DBSync: marvin.TriNo,
+			DBSync: util.TriNo,
 		}
 
 		mod.fdataTriggerSync()
@@ -337,7 +336,7 @@ func fdataFuncStoreCache(mapName, keyName string, data []byte) fdataReqFunc {
 		}
 		m[keyName] = fdataVal{
 			JSON:   data,
-			DBSync: marvin.TriYes,
+			DBSync: util.TriYes,
 		}
 		return nil
 	}
@@ -345,7 +344,7 @@ func fdataFuncStoreCache(mapName, keyName string, data []byte) fdataReqFunc {
 
 func (mod *FactoidModule) GetFDataValue(mapName, keyName string) ([]byte, error) {
 	fval := mod.fdataGetCachedEntry(mapName, keyName)
-	if fval.DBSync != marvin.TriDefault {
+	if fval.DBSync != util.TriDefault {
 		return fval.JSON, nil
 	}
 	b, err := mod.fdataDBGetOne(mapName, keyName)

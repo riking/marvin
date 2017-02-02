@@ -55,41 +55,6 @@ func (mod *DebugModule) Disable(t marvin.Team) {
 
 // ---
 
-func (mod *DebugModule) CommandConfigGet(t marvin.Team, args *marvin.CommandArguments) marvin.CommandResult {
-	switch len(args.Arguments) {
-	default:
-		fallthrough
-	case 0:
-		return marvin.CmdUsage(args, "Usage: `@marvin config get [module] [key]`")
-	case 1:
-		return mod.CommandConfigList(t, args)
-	case 2:
-		break
-	}
-
-	module := marvin.ModuleID(args.Arguments[0])
-	key := args.Arguments[1]
-
-	var val string
-	var isDefault bool
-	var err error
-	if args.Source.AccessLevel() >= marvin.AccessLevelAdmin && slack.IsDMChannel(args.Source.ChannelID()) {
-		val, isDefault, err = mod.team.ModuleConfig(module).GetIsDefault(key)
-	} else {
-		val, isDefault, err = mod.team.ModuleConfig(module).GetIsDefaultNotProtected(key)
-	}
-	if _, ok := err.(marvin.ErrConfProtected); ok {
-		return marvin.CmdFailuref(args, "`%s.%s` is a protected configuration value. Viewing is restricted to admin DMs.", module, key)
-	} else if _, ok := err.(marvin.ErrConfNoDefault); ok {
-		return marvin.CmdFailuref(args, "`%s.%s` is not a configuration value.", module, key)
-	} else if err != nil {
-		return marvin.CmdError(args, err, "Database error")
-	} else if isDefault {
-		return marvin.CmdSuccess(args, fmt.Sprintf("%s _(default)_", val))
-	}
-	return marvin.CmdSuccess(args, val)
-}
-
 func (mod *DebugModule) CommandConfigList(t marvin.Team, args *marvin.CommandArguments) marvin.CommandResult {
 	switch len(args.Arguments) {
 	case 0:
@@ -125,15 +90,63 @@ func (mod *DebugModule) CommandConfigList(t marvin.Team, args *marvin.CommandArg
 	return marvin.CmdSuccess(args, fmt.Sprintf("Configuration values for %s:\n%s", module, strings.Join(keyList, ", ")))
 }
 
+func (mod *DebugModule) CommandConfigGet(t marvin.Team, args *marvin.CommandArguments) marvin.CommandResult {
+	switch len(args.Arguments) {
+	default:
+		fallthrough
+	case 0:
+		return marvin.CmdUsage(args, "Usage: `@marvin config get [module] [key]`")
+	case 1:
+		return mod.CommandConfigList(t, args)
+	case 2:
+		break
+	}
+
+	module := marvin.ModuleID(args.Arguments[0])
+	key := args.Arguments[1]
+
+	var val string
+	var isDefault bool
+	var err error
+	if args.Source.AccessLevel() >= marvin.AccessLevelAdmin && slack.IsDMChannel(args.Source.ChannelID()) {
+		val, isDefault, err = mod.team.ModuleConfig(module).GetIsDefault(key)
+	} else {
+		val, isDefault, err = mod.team.ModuleConfig(module).GetIsDefaultNotProtected(key)
+	}
+	if _, ok := err.(marvin.ErrConfProtected); ok {
+		return marvin.CmdFailuref(args, "`%s.%s` is a protected configuration value. Viewing is restricted to admin DMs.", module, key)
+	} else if _, ok := err.(marvin.ErrConfNoDefault); ok {
+		return marvin.CmdFailuref(args, "`%s.%s` is not a configuration value.", module, key)
+	} else if err != nil {
+		return marvin.CmdError(args, err, "Database error")
+	} else if isDefault {
+		return marvin.CmdSuccess(args, fmt.Sprintf("%s _(default)_", val))
+	}
+	return marvin.CmdSuccess(args, val)
+}
+
 func (mod *DebugModule) CommandConfigSet(t marvin.Team, args *marvin.CommandArguments) marvin.CommandResult {
+	switch len(args.Arguments) {
+	default:
+		fallthrough
+	case 0, 1, 2:
+		return marvin.CmdUsage(args, "Usage: `@marvin config set [module] [key] [value]`")
+	case 3:
+		break
+	}
 	if args.Source.AccessLevel() < marvin.AccessLevelAdmin {
 		return marvin.CmdFailuref(args, "No can do. `config set` is restricted to admins.")
 	}
 
-	panic("NotImplemented")
-	switch len(args.Arguments) {
-	case 0:
+	module := marvin.ModuleID(args.Arguments[0])
+	key := args.Arguments[1]
+	value := args.Arguments[2]
 
+	conf := mod.team.ModuleConfig(module)
+	err := conf.Set(key, value)
+	if err != nil {
+		return marvin.CmdError(args, err, "Database error")
 	}
-	return marvin.CmdSuccess(args, "hi")
+
+	return marvin.CmdSuccess(args, "Configuration value set")
 }

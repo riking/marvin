@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/pkg/errors"
+	"github.com/riking/marvin/util"
 )
 
 // CommandArguments contains the post-split arguments arrays. The pre-split
@@ -49,16 +50,8 @@ const (
 	CmdResultPrintHelp
 )
 
-type TriValue int
-
-const (
-	TriNo      = -1
-	TriDefault = 0
-	TriYes     = 1
-)
-
 const UndoSimple = 2
-const UndoCustom = TriYes
+const UndoCustom = util.TriYes
 
 // A CommandResult is the return of a command. Use the Cmd* constructors to make them.
 // If you want to specify where the reply will go, call WithReplyType().
@@ -74,8 +67,8 @@ type CommandResult struct {
 	ReplyType ReplyType
 	Sent      bool
 
-	CanEdit TriValue
-	CanUndo TriValue
+	CanEdit util.TriValue
+	CanUndo util.TriValue
 }
 
 // CmdError includes the Err field for the CmdResultError code.
@@ -105,12 +98,12 @@ func CmdUsage(args *CommandArguments, usage string) CommandResult {
 }
 
 func (r CommandResult) WithEdit() CommandResult {
-	r.CanEdit = TriYes
+	r.CanEdit = util.TriYes
 	return r
 }
 
 func (r CommandResult) WithNoEdit() CommandResult {
-	r.CanEdit = TriNo
+	r.CanEdit = util.TriNo
 	return r
 }
 
@@ -125,7 +118,7 @@ func (r CommandResult) WithSimpleUndo() CommandResult {
 }
 
 func (r CommandResult) WithNoUndo() CommandResult {
-	r.CanUndo = TriNo
+	r.CanUndo = util.TriNo
 	return r
 }
 
