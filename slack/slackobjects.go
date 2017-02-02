@@ -12,6 +12,8 @@ type FileID string
 type FileCommentID string
 type MessageTS string
 
+const MessageTSCharsAfterDot = 6
+
 func (u UserID) Raw() string      { return string(u) }
 func (u UserID) ToAtForm() string { return fmt.Sprintf("<@%s>", string(u)) }
 
@@ -222,6 +224,26 @@ func (c *Channel) IsMultiIM() bool {
 		return b
 	}
 	return false
+}
+
+type PinnedItem struct {
+	Type      string    `json:"type"`
+	Channel   ChannelID `json:"channel"`
+	Created   int64     `json:"created"`
+	CreatedBy UserID    `json:"created_id"`
+
+	Message struct {
+		TS        MessageTS `json:"ts"`
+		Permalink string    `json:"permalink"`
+	} `json:"message"`
+	File struct {
+		ID        FileID `json:"id"`
+		Permalink string `json:"permalink"`
+	} `json:"file"`
+	Comment struct {
+		ID      FileCommentID `json:"id"`
+		Comment string
+	} `json:"comment"`
 }
 
 type SelfPrefs struct {

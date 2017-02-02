@@ -270,3 +270,11 @@ func luaChannel__Index(L *lua.LState) int {
 		return 0
 	}
 }
+
+//func luaChannel_invite(L *lua.LState) int {
+//	ud := L.CheckUserData(1)
+//	lc, ok := ud.Value.(*LChannel)
+//	if !ok {
+//		L.RaiseError("user__tostring() with wrong type for self")
+//	}
+//}

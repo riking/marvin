@@ -250,6 +250,11 @@ func (sm sortModules) Swap(i, j int) { var tmp *moduleStatus; tmp = sm[i]; sm[i]
 func (sm sortModules) Less(i, j int) bool {
 	for _, v := range sm[j].Dependencies {
 		if v.Identifier == sm[i].identifier {
+			return false
+		}
+	}
+	for _, v := range sm[i].Dependencies {
+		if v.Identifier == sm[j].identifier {
 			return true
 		}
 	}

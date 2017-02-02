@@ -43,9 +43,9 @@ func (mod *BangFactoidModule) Identifier() marvin.ModuleID {
 }
 
 func (mod *BangFactoidModule) Load(t marvin.Team) {
-	if -2 == t.DependModule(mod, Identifier, &mod.factoidModule) {
-		panic("Failure in dependency")
-	}
+	//if -2 == t.DependModule(mod, Identifier, &mod.factoidModule) {
+	//	panic("Failure in dependency")
+	//}
 	t.ModuleConfig(Identifier).Add("factoid-char", "!")
 }
 
@@ -150,7 +150,7 @@ func (mod *BangFactoidModule) Process(rtm slack.SlackTextMessage) (string, Outpu
 
 	source := &marvin.ActionSourceUserMessage{Team: mod.team, Msg: rtm}
 
-	result, err := mod.factoidModule.(API).RunFactoid(ctx, line, &of, source)
+	result, err := mod.team.GetModule(Identifier).(API).RunFactoid(ctx, line, &of, source)
 	if err == ErrNoSuchFactoid {
 		return "", of
 	} else if err != nil {

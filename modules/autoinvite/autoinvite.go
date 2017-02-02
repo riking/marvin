@@ -433,7 +433,7 @@ func (mod *AutoInviteModule) CmdRevokeInvite(t marvin.Team, args *marvin.Command
 			"timestamp": []string{ts},
 		}
 		err = mod.team.SlackAPIPostJSON("reactions.remove", form, nil)
-		if err, ok := err.(slack.APIResponse); ok {
+		if err, ok := errors.Cause(err).(slack.APIResponse); ok {
 			if err.SlackError == "no_reaction" {
 				continue
 			}
