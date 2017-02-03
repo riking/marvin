@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"time"
+	"strings"
 
 	"github.com/pkg/errors"
 
@@ -94,8 +95,13 @@ func doUnpins(t marvin.Team) error {
 			util.LogError(errors.Wrap(err, "Failed to record unpin in DB"))
 			// it's sorta okay -  we'll get not_pinned next time
 		}
+		thingMention := v.ThingID
+		if strings.Contains(v.ThingID, ".") {
+			thingMention = fmt.Sprintf(
+				"<%s>", t.ArchiveURL(slack.MessageID{ChannelID: slack.ChannelID(v.Channel), MessageTS: slack.MessageTS(v.ThingID)}))
+		}
 		t.SendMessage(slack.ChannelID(v.Channel), fmt.Sprintf(
-			"%v: Unpinned %s after %s.", slack.UserID(v.SourceUser), v.ThingID, v.OrigDuration))
+			"%v: Unpinned %s after %s.", slack.UserID(v.SourceUser), thingMention, v.OrigDuration))
 	}
 	return nil
 }

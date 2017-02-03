@@ -50,6 +50,7 @@ func (mod *DebugModule) Enable(t marvin.Team) {
 	parent.RegisterCommandFunc("do_help", mod.DebugCommandHelp, "`debug do_help` tests the behavior of commands returning help text.")
 	parent.RegisterCommandFunc("success", mod.DebugCommandSuccess, "`debug success` tests the behavior of successful commands.")
 	parent.RegisterCommandFunc("paste", mod.DebugCommandPaste, "`debug paste` tests the paste module.")
+	parent.RegisterCommandFunc("attachtest", mod.CommandTestAttachments, "")
 
 	whoami := parent.RegisterCommandFunc("whoami", mod.CommandWhoAmI, "`debug whoami [@user]` prints out your Slack user ID.")
 	whereami := parent.RegisterCommandFunc("whereami", mod.CommandWhereAmI, "`debug whereami` prints out the current channel ID.")

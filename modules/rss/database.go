@@ -108,4 +108,6 @@ func (d *db) GetUnseen(itemType byte, identifiers []string) (map[string]bool, er
 	for _, v := range identifiers {
 		m[v] = false
 	}
+
+	return nil, nil
 }
