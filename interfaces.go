@@ -76,6 +76,8 @@ type ModuleConfig interface {
 	// the key as protected.
 	// This must be called during the module Load phase.
 	AddProtect(key, defaultValue string, protect bool)
+	// OnModify registers a callback for when a key is modified.
+	OnModify(f func(key string))
 
 	// ListDefaults returns the defaults map.
 	// This cannot be called during the module Load phase.
@@ -140,7 +142,7 @@ type CommandRegistration interface {
 }
 
 type HTTPDoer interface {
-	Do(*http.Request) (http.Response, error)
+	Do(*http.Request) (*http.Response, error)
 }
 
 type SendMessage interface {

@@ -15,6 +15,7 @@ type DBModuleConfig struct {
 	ModuleIdentifier marvin.ModuleID
 	defaults         map[string]string
 	protected        map[string]bool
+	callbacks        []func(string)
 	DefaultsLocked   bool
 }
 
@@ -24,6 +25,7 @@ func newModuleConfig(t *Team, modID marvin.ModuleID) *DBModuleConfig {
 		ModuleIdentifier: modID,
 		defaults:         make(map[string]string),
 		protected:        make(map[string]bool),
+		callbacks:        nil,
 		DefaultsLocked:   false,
 	}
 }
@@ -62,34 +64,41 @@ const (
 	`
 )
 
-func (pc *DBModuleConfig) Add(key string, defaultValue string) {
-	if pc.DefaultsLocked {
+func (c *DBModuleConfig) Add(key string, defaultValue string) {
+	if c.DefaultsLocked {
 		panic("Module configuration must be set up during Load()")
 	}
-	pc.defaults[key] = defaultValue
+	c.defaults[key] = defaultValue
 }
 
-func (pc *DBModuleConfig) AddProtect(key string, defaultValue string, protect bool) {
-	if pc.DefaultsLocked {
+func (c *DBModuleConfig) AddProtect(key string, defaultValue string, protect bool) {
+	if c.DefaultsLocked {
 		panic("Module configuration must be set up during Load()")
 	}
-	pc.defaults[key] = defaultValue
-	pc.protected[key] = protect
+	c.defaults[key] = defaultValue
+	c.protected[key] = protect
 }
 
-func (pc *DBModuleConfig) Get(key string) (string, error) {
-	def, haveDefault := pc.defaults[key]
+func (c *DBModuleConfig) OnModify(f func(key string)) {
+	if c.DefaultsLocked {
+		panic("Module configuration must be set up during Load()")
+	}
+	c.callbacks = append(c.callbacks, f)
+}
+
+func (c *DBModuleConfig) Get(key string) (string, error) {
+	def, haveDefault := c.defaults[key]
 	if !haveDefault {
 		panic("Get() must have a default set")
 	}
 
-	stmt, err := pc.team.DB().Prepare(sqlConfigGet)
+	stmt, err := c.team.DB().Prepare(sqlConfigGet)
 	if err != nil {
-		return def, errors.Wrapf(err, "config.get(%s, %s)", pc.ModuleIdentifier, key)
+		return def, errors.Wrapf(err, "config.get(%s, %s)", c.ModuleIdentifier, key)
 	}
 	defer stmt.Close()
 
-	row := stmt.QueryRow(pc.ModuleIdentifier, key)
+	row := stmt.QueryRow(c.ModuleIdentifier, key)
 
 	var result sql.NullString
 	err = row.Scan(&result)
@@ -97,7 +106,7 @@ func (pc *DBModuleConfig) Get(key string) (string, error) {
 	if !result.Valid {
 		return def, nil
 	} else if err != nil {
-		return def, errors.Wrapf(err, "config.get(%s, %s)", pc.ModuleIdentifier, key)
+		return def, errors.Wrapf(err, "config.get(%s, %s)", c.ModuleIdentifier, key)
 	}
 	return result.String, nil
 }
@@ -109,96 +118,100 @@ func (pc *DBModuleConfig) Get(key string) (string, error) {
 // 3) If the key has an override, value is the override, isDefault is false, and err is nil.
 //
 // implements marvin.ModuleConfig.GetIsDefault
-func (pc *DBModuleConfig) GetIsDefault(key string) (string, bool, error) {
-	def, haveDefault := pc.defaults[key]
+func (c *DBModuleConfig) GetIsDefault(key string) (string, bool, error) {
+	def, haveDefault := c.defaults[key]
 
-	stmt, err := pc.team.DB().Prepare(sqlConfigGet)
+	stmt, err := c.team.DB().Prepare(sqlConfigGet)
 	if err != nil {
-		return def, true, errors.Wrapf(err, "config.get(%s, %s)", pc.ModuleIdentifier, key)
+		return def, true, errors.Wrapf(err, "config.get(%s, %s)", c.ModuleIdentifier, key)
 	}
 	defer stmt.Close()
 
-	row := stmt.QueryRow(pc.ModuleIdentifier, key)
+	row := stmt.QueryRow(c.ModuleIdentifier, key)
 	var result sql.NullString
 	err = row.Scan(&result)
 	if !result.Valid {
 		if haveDefault {
 			return def, true, nil
 		} else {
-			return "", true, marvin.ErrConfNoDefault{Key: fmt.Sprintf("%s.%s", pc.ModuleIdentifier, key)}
+			return "", true, marvin.ErrConfNoDefault{Key: fmt.Sprintf("%s.%s", c.ModuleIdentifier, key)}
 		}
 	} else if err != nil {
-		return def, true, errors.Wrapf(err, "config.get(%s, %s)", pc.ModuleIdentifier, key)
+		return def, true, errors.Wrapf(err, "config.get(%s, %s)", c.ModuleIdentifier, key)
 	}
 	return result.String, false, nil
 }
 
-func (pc *DBModuleConfig) GetIsDefaultNotProtected(key string) (string, bool, error) {
-	def, haveDefault := pc.defaults[key]
+func (c *DBModuleConfig) GetIsDefaultNotProtected(key string) (string, bool, error) {
+	def, haveDefault := c.defaults[key]
 
-	if pc.protected[key] {
-		return "__ERROR", true, marvin.ErrConfProtected{Key: fmt.Sprintf("%s.%s", pc.ModuleIdentifier, key)}
+	if c.protected[key] {
+		return "__ERROR", true, marvin.ErrConfProtected{Key: fmt.Sprintf("%s.%s", c.ModuleIdentifier, key)}
 	}
 
-	stmt, err := pc.team.DB().Prepare(sqlConfigGet)
+	stmt, err := c.team.DB().Prepare(sqlConfigGet)
 	if err != nil {
-		return def, true, errors.Wrapf(err, "config.get(%s, %s)", pc.ModuleIdentifier, key)
+		return def, true, errors.Wrapf(err, "config.get(%s, %s)", c.ModuleIdentifier, key)
 	}
 	defer stmt.Close()
 
-	row := stmt.QueryRow(pc.ModuleIdentifier, key)
+	row := stmt.QueryRow(c.ModuleIdentifier, key)
 	var result sql.NullString
 	err = row.Scan(&result)
 	if !result.Valid {
 		if haveDefault {
 			return def, true, nil
 		} else {
-			return "", true, marvin.ErrConfNoDefault{Key: fmt.Sprintf("%s.%s", pc.ModuleIdentifier, key)}
+			return "", true, marvin.ErrConfNoDefault{Key: fmt.Sprintf("%s.%s", c.ModuleIdentifier, key)}
 		}
 	} else if err != nil {
-		return def, true, errors.Wrapf(err, "config.get(%s, %s)", pc.ModuleIdentifier, key)
+		return def, true, errors.Wrapf(err, "config.get(%s, %s)", c.ModuleIdentifier, key)
 	}
 	return result.String, false, nil
 }
 
-func (pc *DBModuleConfig) Set(key, value string) error {
-	stmt, err := pc.team.DB().Prepare(sqlConfigSet)
+func (c *DBModuleConfig) Set(key, value string) error {
+	stmt, err := c.team.DB().Prepare(sqlConfigSet)
 	if err != nil {
-		return errors.Wrapf(err, "moduleconfig.set(%s, %s)", pc.ModuleIdentifier, key)
+		return errors.Wrapf(err, "moduleconfig.set(%s, %s)", c.ModuleIdentifier, key)
 	}
 	defer stmt.Close()
 
-	_, err = stmt.Exec(pc.ModuleIdentifier, key, value)
+	_, err = stmt.Exec(c.ModuleIdentifier, key, value)
 	if err != nil {
-		return errors.Wrapf(err, "moduleconfig.set(%s, %s)", pc.ModuleIdentifier, key)
+		return errors.Wrapf(err, "moduleconfig.set(%s, %s)", c.ModuleIdentifier, key)
+	}
+
+	for _, v := range c.callbacks {
+		go v(key)
 	}
 	return nil
 }
 
-func (pc *DBModuleConfig) SetDefault(key string) error {
-	stmt, err := pc.team.DB().Prepare(sqlConfigReset)
+func (c *DBModuleConfig) SetDefault(key string) error {
+	stmt, err := c.team.DB().Prepare(sqlConfigReset)
 	if err != nil {
-		return errors.Wrapf(err, "moduleconfig.set(%s, %s)", pc.ModuleIdentifier, key)
+		return errors.Wrapf(err, "moduleconfig.set(%s, %s)", c.ModuleIdentifier, key)
 	}
 	defer stmt.Close()
 
-	_, err = stmt.Exec(pc.ModuleIdentifier, key)
+	_, err = stmt.Exec(c.ModuleIdentifier, key)
 	if err != nil {
-		return errors.Wrapf(err, "moduleconfig.set(%s, %s)", pc.ModuleIdentifier, key)
+		return errors.Wrapf(err, "moduleconfig.set(%s, %s)", c.ModuleIdentifier, key)
 	}
 	return nil
 }
 
-func (pc *DBModuleConfig) ListDefaults() map[string]string {
-	if !pc.DefaultsLocked {
+func (c *DBModuleConfig) ListDefaults() map[string]string {
+	if !c.DefaultsLocked {
 		//panic("ListDefaults() called before defaults locked")
 	}
-	return pc.defaults
+	return c.defaults
 }
 
-func (pc *DBModuleConfig) ListProtected() map[string]bool {
-	if !pc.DefaultsLocked {
+func (c *DBModuleConfig) ListProtected() map[string]bool {
+	if !c.DefaultsLocked {
 		//panic("ListProtected() called before defaults locked")
 	}
-	return pc.protected
+	return c.protected
 }
