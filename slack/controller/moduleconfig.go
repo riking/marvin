@@ -13,20 +13,24 @@ import (
 type DBModuleConfig struct {
 	team             *Team
 	ModuleIdentifier marvin.ModuleID
-	defaults         map[string]string
-	protected        map[string]bool
-	callbacks        []func(string)
-	DefaultsLocked   bool
+
+	// All writes to the maps must happen during the Load() phase.
+	// DefaultsLocked is set afterwards, in single-thread code.
+	DefaultsLocked bool
+	defaults       map[string]string
+	protected      map[string]bool
+	callbacks      []func(string)
 }
 
 func newModuleConfig(t *Team, modID marvin.ModuleID) *DBModuleConfig {
 	return &DBModuleConfig{
 		team:             t,
 		ModuleIdentifier: modID,
-		defaults:         make(map[string]string),
-		protected:        make(map[string]bool),
-		callbacks:        nil,
-		DefaultsLocked:   false,
+
+		DefaultsLocked: false,
+		defaults:       make(map[string]string),
+		protected:      make(map[string]bool),
+		callbacks:      nil,
 	}
 }
 

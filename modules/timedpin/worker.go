@@ -3,8 +3,8 @@ package timedpin
 import (
 	"database/sql"
 	"fmt"
-	"time"
 	"strings"
+	"time"
 
 	"github.com/pkg/errors"
 

@@ -219,7 +219,7 @@ func (t *Team) SendComplexMessage(channelID slack.ChannelID, message slack.Outgo
 	}
 
 	var resp struct {
-		TS slack.MessageTS `json:"ts"`
+		TS      slack.MessageTS `json:"ts"`
 		Channel slack.ChannelID `json:"channel"`
 	}
 	err := t.SlackAPIPostJSON("chat.postMessage", form, &resp)
