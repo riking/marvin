@@ -180,22 +180,53 @@ func (t *Team) SendMessage(channel slack.ChannelID, message string) (slack.Messa
 }
 
 func (t *Team) SendComplexMessage(channelID slack.ChannelID, message slack.OutgoingSlackMessage) (slack.MessageTS, slack.RTMRawMessage, error) {
-	form := make(slack.RTMRawMessage)
-	form["channel"] = string(channelID)
-	form["as_user"] = "true"
-	b, err := json.Marshal(message)
-	if err != nil {
-		return "", nil, errors.Wrap(err, "building messsage")
+	form := url.Values{
+		"channel": []string{string(channelID)},
+		"as_user": []string{"true"},
 	}
-	err = json.Unmarshal(b, &form)
-	if err != nil {
-		return "", nil, errors.Wrap(err, "building messsage")
+
+	if message.Text != "" {
+		form.Set("text", message.Text)
 	}
-	msg, err := t.client.SendMessageRaw(form)
+	if message.Attachments != nil {
+		b, err := json.Marshal(message.Attachments)
+		if err != nil {
+			return "", nil, errors.Wrap(err, "building messsage")
+		}
+		form.Set("attachments", string(b))
+	}
+	if message.LinkNames != util.TriDefault {
+		b, err := message.LinkNames.MarshalJSON()
+		if err != nil {
+			return "", nil, errors.Wrap(err, "building messsage")
+		}
+		form.Set("link_names", string(b))
+	}
+	if message.UnfurlLinks != util.TriDefault {
+		b, err := message.UnfurlLinks.MarshalJSON()
+		if err != nil {
+			return "", nil, errors.Wrap(err, "building messsage")
+		}
+		form.Set("unfurl_links", string(b))
+	}
+	if message.Parse != "" {
+		form.Set("parse", string(message.Parse))
+	} else {
+		form.Set("parse", "client")
+	}
+	if message.ThreadTS != "" {
+		form.Set("thread_ts", string(message.ThreadTS))
+	}
+
+	var resp struct {
+		TS slack.MessageTS `json:"ts"`
+		Channel slack.ChannelID `json:"channel"`
+	}
+	err := t.SlackAPIPostJSON("chat.postMessage", form, &resp)
 	if err != nil {
 		return "", nil, err
 	}
-	return msg.MessageTS(), msg, err
+	return resp.TS, nil, err
 }
 
 func (t *Team) ReactMessage(msgID slack.MessageID, emojiName string) error {

@@ -11,21 +11,6 @@ import (
 	"github.com/riking/marvin/util"
 )
 
-const (
-	sqlMigrate2 = `
-	CREATE TABLE module_rss_subs_facebook (
-		id SERIAL PRIMARY KEY,
-		channel varchar(10),
-		fb_page_id text
-	)`
-	sqlMigrate3 = `
-	CREATE TABLE module_rss_subs_twitter (
-		id SERIAL PRIMARY KEY,
-		channel varchar(10),
-		username varchar(20),
-	)`
-)
-
 const phpFormat = "2006-01-02T15:04:05-0700"
 
 // Twitter

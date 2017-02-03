@@ -121,6 +121,7 @@ const (
 
 type OutgoingSlackMessage struct {
 	Text        string        `json:"text,omitempty"`
+	ThreadTS    MessageTS     `json:"thread_ts,omitempty"`
 	Attachments []Attachment  `json:"attachments,omitempty"`
 	UnfurlLinks util.TriValue `json:"unfurl_links,omitempty"`
 	Parse       ParseStyle    `json:"parse,omitempty"`

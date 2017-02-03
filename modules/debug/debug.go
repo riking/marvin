@@ -151,7 +151,7 @@ func (mod *DebugModule) CommandTestAttachments(t marvin.Team, args *marvin.Comma
 		Story:        "42 US shared CodinGame's post.",
 		Description:  "cc 42, Grenoble INP-Ensimag, INSA Toulouse, RWTH Aachen University, Wrocław University of Science and Technology, École normale supérieure Paris-Saclay, NC State University, Kauno „Saulės“ gimnazija, Polytechnique Montréal, Tokyo Institute of Technology, San Jose State University",
 		PermalinkURL: "https://www.facebook.com/42Born2CodeUS/posts/435217433490351",
-		CreatedTime:  rss.PHPTime(mustTime(time.Parse("2017-01-10T18:58:17Z", time.RFC3339))),
+		CreatedTime:  rss.PHPTime{Time: mustTime(time.Parse(time.RFC3339, "2017-01-10T18:58:17Z"))},
 		FullPicture:  "https://external.xx.fbcdn.net/safe_image.php?d=AQCdohS207iiy5jK\u0026url=https%3A%2F%2Fwww.codingame.com%2Fblog%2Fwp-content%2Fuploads%2F2016%2F12%2Fblog-students-2-e1482336462364.jpg\u0026_nc_hash=AQASgt3qYR_wnbxG",
 	}}
 	msg := item.Feed.Data[0].Render(&item)
