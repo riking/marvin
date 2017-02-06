@@ -50,6 +50,8 @@ func (mod *LoggerModule) Load(t marvin.Team) {
 
 func (mod *LoggerModule) Enable(t marvin.Team) {
 	t.OnEvent(Identifier, "message", mod.OnMessage)
+	t.OnEvent(Identifier, "channel_joined", mod.OnJoinChannel)
+	t.OnEvent(Identifier, "group_joined", mod.OnJoinGroup)
 	go mod.BackfillAll()
 	t.HandleHTTP("/logs", http.HandlerFunc(mod.LogsIndex))
 }
@@ -111,7 +113,7 @@ const (
 func (mod *LoggerModule) OnMessage(_rtm slack.RTMRawMessage) {
 	switch _rtm.Subtype() {
 	case "message_changed", "message_deleted":
-		return
+		//return
 	}
 
 	stmt, err := mod.team.DB().Prepare(sqlInsertMessage)
@@ -127,6 +129,56 @@ func (mod *LoggerModule) OnMessage(_rtm slack.RTMRawMessage) {
 	if err != nil {
 		util.LogError(errors.Wrap(err, "insert"))
 		return
+	}
+}
+
+func (mod *LoggerModule) OnJoinChannel(_rtm slack.RTMRawMessage) {
+	var msg struct {
+		Channel struct {
+			ID slack.ChannelID `json:"id"`
+		} `json:"channel"`
+	}
+	_rtm.ReMarshal(&msg)
+	v := msg.Channel.ID
+	stmt, err := mod.team.DB().Prepare(sqlGetLastMessage)
+	if err != nil {
+		util.LogError(errors.Wrap(err, "backfill database error"))
+		return
+	}
+	defer stmt.Close()
+	messages, err := mod.getHistory("channels.history", v, stmt)
+	if err != nil {
+		util.LogError(errors.Wrapf(err, "could not backfill logs for %s", v))
+		return
+	}
+	c := mod.saveBackfillData(v, messages)
+	if c != 0 {
+		util.LogGood(fmt.Sprintf("Backfilled %d messages from %s", c, v))
+	}
+}
+
+func (mod *LoggerModule) OnJoinGroup(_rtm slack.RTMRawMessage) {
+	var msg struct {
+		Channel struct {
+			ID slack.ChannelID `json:"id"`
+		} `json:"channel"`
+	}
+	_rtm.ReMarshal(&msg)
+	v := msg.Channel.ID
+	stmt, err := mod.team.DB().Prepare(sqlGetLastMessage)
+	if err != nil {
+		util.LogError(errors.Wrap(err, "backfill database error"))
+		return
+	}
+	defer stmt.Close()
+	messages, err := mod.getHistory("groups.history", v, stmt)
+	if err != nil {
+		util.LogError(errors.Wrapf(err, "could not backfill logs for %s", v))
+		return
+	}
+	c := mod.saveBackfillData(v, messages)
+	if c != 0 {
+		util.LogGood(fmt.Sprintf("Backfilled %d messages from %s", c, v))
 	}
 }
 
