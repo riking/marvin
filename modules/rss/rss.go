@@ -50,6 +50,7 @@ func (mod *RSSModule) Load(t marvin.Team) {
 		sqlGetChannelSubscriptions,
 		sqlGetFeedChannels,
 		sqlCheckSeen,
+		sqlMarkSeen,
 	)
 
 	for _, v := range mod.feedTypes {

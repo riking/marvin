@@ -16,7 +16,7 @@ type db struct {
 const (
 	sqlMigrate2 = `
 	CREATE TABLE module_rss_subs (
-		id         SERIAL PRIMARY KEY
+		id         SERIAL PRIMARY KEY,
 		feed_type  int,
 		sl_channel varchar(10),
 		feed_id    text,

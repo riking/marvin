@@ -122,7 +122,7 @@ func (mod *WebLoginModule) OAuthIntraCallback(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	cl := intra.Client(ctx, mod.IntraOAuthConfig, token)
+	cl := intra.Client(ctx, oauth2.ReuseTokenSource(token, nil))
 	var response struct {
 		Login  string `json:"login"`
 		Campus []struct {

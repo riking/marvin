@@ -22,12 +22,13 @@ type Doer interface {
 }
 
 func ClientCredentialsTokenSource(ctx context.Context, team marvin.Team) oauth2.TokenSource {
-	return clientcredentials.Config{
+	c := clientcredentials.Config{
 		ClientID:     team.TeamConfig().IntraUID,
 		ClientSecret: team.TeamConfig().IntraSecret,
 		TokenURL:     "https://api.intra.42.fr/oauth/token",
 		Scopes:       []string{},
-	}.TokenSource(ctx)
+	}
+	return c.TokenSource(ctx)
 }
 
 type Helper struct {
