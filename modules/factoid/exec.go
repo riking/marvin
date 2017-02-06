@@ -107,7 +107,7 @@ directives_loop:
 		switch v.Directive {
 		case "raw":
 			// Immediately stop processing
-			return tokensToSource(directives[i:], tokens)
+			return tokensToSource(directives[i+1:], tokens)
 		case "say":
 			of.Say = true
 		case "pre":
