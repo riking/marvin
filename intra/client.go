@@ -9,42 +9,34 @@ import (
 	"reflect"
 	"regexp"
 	"strconv"
-	"time"
 
 	"github.com/pkg/errors"
 	"github.com/riking/marvin"
 	"github.com/riking/marvin/util"
 	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/clientcredentials"
 )
 
 type Doer interface {
 	Do(*http.Request) (*http.Response, error)
 }
 
-func OAuthConfig(team marvin.Team) oauth2.Config {
-	return oauth2.Config{
+func ClientCredentialsTokenSource(ctx context.Context, team marvin.Team) oauth2.TokenSource {
+	return clientcredentials.Config{
 		ClientID:     team.TeamConfig().IntraUID,
 		ClientSecret: team.TeamConfig().IntraSecret,
-		Endpoint: oauth2.Endpoint{
-			AuthURL:  "https://api.intra.42.fr/oauth/authorize",
-			TokenURL: "https://api.intra.42.fr/oauth/token",
-		},
-		RedirectURL: team.AbsoluteURL("/oauth/intra/callback"),
-		Scopes:      []string{},
-	}
+		TokenURL:     "https://api.intra.42.fr/oauth/token",
+		Scopes:       []string{},
+	}.TokenSource(ctx)
 }
 
 type Helper struct {
 	*http.Client
-	Config oauth2.Config
-	Token  *oauth2.Token
 }
 
-func Client(ctx context.Context, config oauth2.Config, token *oauth2.Token) *Helper {
+func Client(ctx context.Context, toksource oauth2.TokenSource) *Helper {
 	return &Helper{
-		Client: config.Client(ctx, token),
-		Config: config,
-		Token:  token,
+		Client: oauth2.NewClient(ctx, toksource),
 	}
 }
 
@@ -64,8 +56,6 @@ func (h *Helper) getJSON(ctx context.Context, uri *url.URL, v interface{}) (*htt
 		return nil, errors.Wrapf(err, "intra: failed GET %s", uri.RequestURI())
 	}
 	if resp.StatusCode == 401 {
-		h.Token.Expiry = time.Now().Add(-1 * time.Minute)
-		// TODO use client credentials instead
 		resp, err = h.Do(req)
 		if err != nil {
 			return nil, errors.Wrapf(err, "intra: failed GET %s", uri.RequestURI())

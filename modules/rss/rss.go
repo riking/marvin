@@ -30,7 +30,7 @@ func NewRSSModule(t marvin.Team) marvin.Module {
 			"facebook": &FacebookType{},
 		},
 		db:     &db{t.DB()},
-		poller: &poller{nextPoll: make(map[byte]map[string]time.Time)},
+		poller: &poller{nextPoll: make(map[TypeID]map[string]time.Time)},
 	}
 	mod.poller.mod = mod
 	return mod

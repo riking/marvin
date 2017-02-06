@@ -3,12 +3,10 @@ package lualib
 import (
 	"fmt"
 	"net/url"
-	"time"
 
 	"github.com/yuin/gopher-lua"
 
 	"github.com/riking/marvin/intra"
-	"github.com/riking/marvin/modules/weblogin"
 )
 
 const fremontCampusString = "7"
@@ -25,21 +23,7 @@ func OpenIntra(g *G, L *lua.LState) int {
 	tab := L.NewTable()
 
 	getClient := func(L *lua.LState) *intra.Helper {
-		webModule := g.Team().GetModule(weblogin.Identifier).(weblogin.API)
-		user, err := webModule.GetUserBySlack(g.ActionSource().UserID())
-		if err != nil {
-			return nil
-		}
-		if user == nil {
-			return nil
-		}
-		if user.IntraToken == nil {
-			return nil
-		}
-		token := user.IntraToken
-		// TODO client credentials
-		token.Expiry = time.Now().Add(2 * time.Hour)
-		return intra.Client(L.Ctx, intra.OAuthConfig(g.Team()), token)
+		return intra.Client(L.Ctx, intra.ClientCredentialsTokenSource(L.Ctx, g.Team()))
 	}
 
 	tab.RawSetString("valid_token", L.NewFunction(func(L *lua.LState) int {
