@@ -66,13 +66,13 @@ func (mod *DebugModule) CommandConfigList(t marvin.Team, args *marvin.CommandArg
 				modList = append(modList, fmt.Sprintf("~`%s`~", v.Instance().Identifier()))
 			}
 		}
-		return marvin.CmdUsage(args, fmt.Sprintf("Usage: `@marvin config list [module]`\nModules: %s", strings.Join(modList, " ")))
+		return marvin.CmdUsage(args, fmt.Sprintf("Usage: `@marvin config list [module]`\nModules: %s", strings.Join(modList, " "))).WithSimpleUndo()
 	}
 
 	module := marvin.ModuleID(args.Arguments[0])
 	conf := mod.team.ModuleConfig(module)
 	if conf == nil {
-		return marvin.CmdFailuref(args, "No such module `%s`", module)
+		return marvin.CmdFailuref(args, "No such module `%s`", module).WithSimpleUndo()
 	}
 
 	var keyList []string
@@ -87,7 +87,7 @@ func (mod *DebugModule) CommandConfigList(t marvin.Team, args *marvin.CommandArg
 			"`%s`%s", key, isProt))
 	}
 
-	return marvin.CmdSuccess(args, fmt.Sprintf("Configuration values for %s:\n%s", module, strings.Join(keyList, ", ")))
+	return marvin.CmdSuccess(args, fmt.Sprintf("Configuration values for %s:\n%s", module, strings.Join(keyList, ", "))).WithSimpleUndo()
 }
 
 func (mod *DebugModule) CommandConfigGet(t marvin.Team, args *marvin.CommandArguments) marvin.CommandResult {
@@ -114,15 +114,15 @@ func (mod *DebugModule) CommandConfigGet(t marvin.Team, args *marvin.CommandArgu
 		val, isDefault, err = mod.team.ModuleConfig(module).GetIsDefaultNotProtected(key)
 	}
 	if _, ok := err.(marvin.ErrConfProtected); ok {
-		return marvin.CmdFailuref(args, "`%s.%s` is a protected configuration value. Viewing is restricted to admin DMs.", module, key)
+		return marvin.CmdFailuref(args, "`%s.%s` is a protected configuration value. Viewing is restricted to admin DMs.", module, key).WithSimpleUndo()
 	} else if _, ok := err.(marvin.ErrConfNoDefault); ok {
-		return marvin.CmdFailuref(args, "`%s.%s` is not a configuration value.", module, key)
+		return marvin.CmdFailuref(args, "`%s.%s` is not a configuration value.", module, key).WithSimpleUndo()
 	} else if err != nil {
-		return marvin.CmdError(args, err, "Database error")
+		return marvin.CmdError(args, err, "Database error").WithNoUndo()
 	} else if isDefault {
-		return marvin.CmdSuccess(args, fmt.Sprintf("%s _(default)_", val))
+		return marvin.CmdSuccess(args, fmt.Sprintf("%s _(default)_", val)).WithSimpleUndo()
 	}
-	return marvin.CmdSuccess(args, val)
+	return marvin.CmdSuccess(args, val).WithSimpleUndo()
 }
 
 func (mod *DebugModule) CommandConfigSet(t marvin.Team, args *marvin.CommandArguments) marvin.CommandResult {
@@ -130,12 +130,12 @@ func (mod *DebugModule) CommandConfigSet(t marvin.Team, args *marvin.CommandArgu
 	default:
 		fallthrough
 	case 0, 1, 2:
-		return marvin.CmdUsage(args, "Usage: `@marvin config set [module] [key] [value]`")
+		return marvin.CmdUsage(args, "Usage: `@marvin config set [module] [key] [value]`").WithSimpleUndo()
 	case 3:
 		break
 	}
 	if args.Source.AccessLevel() < marvin.AccessLevelAdmin {
-		return marvin.CmdFailuref(args, "No can do. `config set` is restricted to admins.")
+		return marvin.CmdFailuref(args, "Sorry, %v, I can't let you do that. `config set` is restricted to admins.", args.Source.UserID()).WithSimpleUndo()
 	}
 
 	module := marvin.ModuleID(args.Arguments[0])
@@ -145,8 +145,8 @@ func (mod *DebugModule) CommandConfigSet(t marvin.Team, args *marvin.CommandArgu
 	conf := mod.team.ModuleConfig(module)
 	err := conf.Set(key, value)
 	if err != nil {
-		return marvin.CmdError(args, err, "Database error")
+		return marvin.CmdError(args, err, "Database error").WithNoUndo()
 	}
 
-	return marvin.CmdSuccess(args, "Configuration value set")
+	return marvin.CmdSuccess(args, "Configuration value set.").WithNoUndo()
 }
