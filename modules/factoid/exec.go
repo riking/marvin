@@ -11,6 +11,7 @@ import (
 
 	"github.com/riking/marvin"
 	"github.com/riking/marvin/util"
+	"github.com/riking/marvin/util/shellquote"
 )
 
 type OutputFlags struct {
@@ -105,6 +106,28 @@ func (mod *FactoidModule) exec_parse(ctx context.Context, f *Factoid, raw string
 directives_loop:
 	for i, v := range directives {
 		switch v.Directive {
+		case "cmd":
+			cmdLine, err := mod.exec_processTokens(tokens, args, actionSource)
+			if err != nil {
+				return "", err
+			}
+			lineSplit, err := shellquote.FullTokenize([]byte(cmdLine))
+			if err != nil {
+				return "", errors.Wrap(err, "cmd arg parse")
+			}
+			args := &marvin.CommandArguments{
+				Source:            actionSource,
+				Arguments:         lineSplit,
+				OriginalArguments: lineSplit,
+				Command:           "",
+				IsEdit:            false,
+				ModuleData:        nil,
+			}
+			result := mod.team.DispatchCommand(args)
+			if result.Err != nil {
+				result.Message = fmt.Sprintf("[Error: %s] %s", result.Err, result.Message)
+			}
+			return result.Message, nil
 		case "raw":
 			// Immediately stop processing
 			return tokensToSource(directives[i+1:], tokens)

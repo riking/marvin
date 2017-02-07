@@ -831,6 +831,10 @@ func ParseArgs(raw string, startIdx int) ([]string, error) {
 	cmdLine := raw[startIdx : startIdx+endOfLine]
 
 	var argSplit []string
+	//argSplit, err := shellquote.FullTokenize([]byte(cmdLine))
+	//if err != nil {
+	//	return nil, errors.Errorf("Unclosed quote")
+	//}
 	argSplit = strings.Split(cmdLine, " ")
 	var codeBlocks [][]string
 	var retErr error
