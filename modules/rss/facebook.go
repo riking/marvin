@@ -22,16 +22,13 @@ import (
 
 const phpFormat = "2006-01-02T15:04:05-0700"
 
-// Twitter
-// https://apps.twitter.com/app/13374175
 // Facebook
 // https://developers.facebook.com/apps/680115492170112
-// ?fields=name,link,feed{description,message,full_picture,created_time,story},username
 
 const facebookFavicon = "https://static.xx.fbcdn.net/rsrc.php/yV/r/hzMapiNYYpW.ico"
 const facebookColor = "#3b5998"
 const facebookAPIRoot = "https://graph.facebook.com"
-const facebookTokenURL = facebookAPIRoot + "/oauth/access_token"
+const facebookTokenURL = twitterAPIRoot + "/oauth/access_token"
 
 type PHPTime struct{ time.Time }
 
@@ -179,11 +176,13 @@ type FacebookFeedDataItem struct {
 	ID string `json:"id"`
 }
 
-func (t *FacebookType) LoadFeed(ctx context.Context, feedID string) (FeedMeta, []Item, error) {
+func (t *FacebookType) LoadFeed(ctx context.Context, feedID string, lastSeen string) (FeedMeta, []Item, error) {
 	client, err := t.Client()
 	if err != nil {
 		return nil, nil, err
 	}
+
+	_ = lastSeen
 
 	req, err := http.NewRequest("GET", fmt.Sprintf(
 		"%s/v2.8/%s?fields=name,link,feed{message,story,description,permalink_url,full_picture,created_time,from{name}}", facebookAPIRoot,
@@ -218,8 +217,7 @@ func (t *FacebookType) LoadFeed(ctx context.Context, feedID string) (FeedMeta, [
 	return &response.FacebookFeed, itemSlice, nil
 }
 
-func (f *FacebookFeed) FeedID() string          { return f.ID }
-func (f *FacebookFeed) CacheAge() time.Duration { return 3 * time.Hour }
+func (f *FacebookFeed) FeedID() string { return f.ID }
 
 func (i FacebookFeedDataItem) Render(p FeedMeta) slack.OutgoingSlackMessage {
 	var buf bytes.Buffer

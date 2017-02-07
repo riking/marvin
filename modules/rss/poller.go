@@ -24,7 +24,7 @@ func (p *poller) Run() {
 	for {
 		p.pollAll()
 		util.LogGood("[RSS] poll complete")
-		time.Sleep(1 * time.Hour)
+		time.Sleep(1 * time.Minute)
 	}
 }
 
@@ -50,9 +50,14 @@ func (p *poller) pollAll() {
 }
 
 func (p *poller) pollFeed(t FeedType, feedID string) (time.Duration, error) {
+	lastSeenID, err := p.mod.DB().LastSeen(t.TypeID(), feedID)
+	if err != nil {
+		return 0, err
+	}
+
 	// Load remote content
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-	meta, items, err := t.LoadFeed(ctx, feedID)
+	meta, items, err := t.LoadFeed(ctx, feedID, lastSeenID)
 	cancel()
 	if err != nil {
 		return 0, err
@@ -94,5 +99,5 @@ func (p *poller) pollFeed(t FeedType, feedID string) (time.Duration, error) {
 		}
 		p.mod.DB().MarkSeen(t.TypeID(), feedID, items[i].ItemID())
 	}
-	return meta.CacheAge(), nil
+	return 0, nil
 }

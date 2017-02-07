@@ -15,7 +15,7 @@ type db struct {
 }
 
 const (
-	sqlMigrate2 = `
+	sqlMigrate1 = `
 	CREATE TABLE module_rss_subs (
 		id         SERIAL PRIMARY KEY,
 		feed_type  int,
@@ -24,13 +24,16 @@ const (
 
 		UNIQUE(feed_type, sl_channel, feed_id)
 	)`
-	sqlMigrate4 = `
+	sqlMigrate2 = `
 	CREATE TABLE module_rss_seenitems (
 		id        SERIAL PRIMARY KEY,
 		feed_type int,
 		feed_id   text,
 		item_id   text
 	)`
+	sqlMigrate3 = `
+	ALTER TABLE module_rss_seenitems
+	ADD COLUMN seen_at timestamptz DEFAULT ( now() )`
 
 	sqlGetAllSubscriptions = `
 	SELECT feed_type, feed_id, '' sl_channel
@@ -64,6 +67,13 @@ const (
 	INSERT INTO module_rss_seenitems
 	(feed_type, feed_id, item_id)
 	VALUES ($1, $2, $3)`
+
+	sqlLastSeen = `
+	SELECT item_id FROM module_rss_seenitems
+	 WHERE feed_type = $1
+	   AND feed_id = $2
+	ORDER BY seen_at DESC
+	 LIMIT 1`
 
 	sqlSubscribe = `
 	INSERT INTO module_rss_subs
@@ -200,6 +210,27 @@ func (d *db) MarkSeen(feedType TypeID, feedID string, itemID string) error {
 
 	_, err = stmt.Exec(feedType, feedID, itemID)
 	return err
+}
+
+func (d *db) LastSeen(feedType TypeID, feedID string) (itemID string, e error) {
+	stmt, err := d.Conn.Prepare(sqlLastSeen)
+	if err != nil {
+		return "", errors.Wrap(err, "db prepare")
+	}
+	defer stmt.Close()
+
+	row := stmt.QueryRow(feedType, feedID)
+	var itemid sql.NullString
+	err = row.Scan(&itemid)
+	if err == sql.ErrNoRows {
+		return "", nil
+	} else if err != nil {
+		return "", err
+	} else if !itemid.Valid {
+		return "", nil
+	}
+	return itemid.String, nil
+
 }
 
 func (d *db) Subscribe(feedType TypeID, feedID string, channel slack.ChannelID, items []Item) (retErr error) {

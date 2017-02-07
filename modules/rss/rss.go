@@ -30,6 +30,7 @@ func NewRSSModule(t marvin.Team) marvin.Module {
 		team: t,
 		feedTypes: map[string]FeedType{
 			"facebook": &FacebookType{},
+			"twitter":  &TwitterType{},
 		},
 		db:     &db{t.DB()},
 		poller: &poller{},
@@ -44,15 +45,19 @@ func (mod *RSSModule) Identifier() marvin.ModuleID {
 
 func (mod *RSSModule) Load(t marvin.Team) {
 	t.DB().MustMigrate(Identifier, 1486151238,
-		sqlMigrate2,
-		sqlMigrate4,
-	)
+		sqlMigrate1,
+		sqlMigrate2)
+	t.DB().MustMigrate(Identifier, 1486452120,
+		sqlMigrate3)
+
 	t.DB().SyntaxCheck(
 		sqlGetAllSubscriptions,
 		sqlGetChannelSubscriptions,
 		sqlGetFeedChannels,
 		sqlCheckSeen,
 		sqlMarkSeen,
+		sqlLastSeen,
+		sqlSubscribe,
 	)
 
 	for _, v := range mod.feedTypes {
@@ -103,13 +108,12 @@ type FeedType interface {
 	// If config keys are missing, it returns ErrNotConfigured.
 	VerifyFeedIdentifier(ctx context.Context, input string) (string, error)
 	// LoadFeed pulls the current content of the given feed.
-	LoadFeed(ctx context.Context, feedID string) (FeedMeta, []Item, error)
+	LoadFeed(ctx context.Context, feedID string, lastSeen string) (FeedMeta, []Item, error)
 }
 
 // FeedMeta is a flag interface for information shared between multiple feed items.
 type FeedMeta interface {
 	FeedID() string
-	CacheAge() time.Duration
 }
 
 // An Item is something that has a per-feed item ID and can be rendered into a Slack message.
@@ -150,6 +154,7 @@ func (mod *RSSModule) CommandSubscribe(t marvin.Team, args *marvin.CommandArgume
 			return marvin.CmdFailuref(args, "Eh? Too many arguments! (`@marvin help rss subscribe` for help)").WithSimpleUndo()
 		}
 		arg = args.Pop()
+		arg = slack.UnescapeText(arg)
 	} else {
 		arg = slack.UnescapeText(arg)
 		uri, err := url.Parse(arg)
@@ -184,7 +189,7 @@ func (mod *RSSModule) CommandSubscribe(t marvin.Team, args *marvin.CommandArgume
 		return marvin.CmdFailuref(args, "Could not verify that feed exists: %s", err).WithSimpleUndo()
 	}
 	loadCtx, cancel := context.WithTimeout(args.Ctx, 10*time.Second)
-	m, items, err := feedType.LoadFeed(loadCtx, feedID)
+	m, items, err := feedType.LoadFeed(loadCtx, feedID, "")
 	cancel()
 	if err != nil {
 		return marvin.CmdFailuref(args, "Could not perform initial feed query: %s", err).
