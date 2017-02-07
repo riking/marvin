@@ -28,7 +28,7 @@ const phpFormat = "2006-01-02T15:04:05-0700"
 const facebookFavicon = "https://static.xx.fbcdn.net/rsrc.php/yV/r/hzMapiNYYpW.ico"
 const facebookColor = "#3b5998"
 const facebookAPIRoot = "https://graph.facebook.com"
-const facebookTokenURL = twitterAPIRoot + "/oauth/access_token"
+const facebookTokenURL = facebookAPIRoot + "/oauth/access_token"
 
 type PHPTime struct{ time.Time }
 
