@@ -2,7 +2,6 @@ package factoid
 
 import (
 	"bytes"
-	"context"
 	"flag"
 	"fmt"
 	"sort"
@@ -122,7 +121,7 @@ func (mod *FactoidModule) CmdGet(t marvin.Team, args *marvin.CommandArguments) m
 	}
 
 	var of OutputFlags
-	result, err := mod.RunFactoid(context.Background(), args.Arguments, &of, args.Source)
+	result, err := mod.RunFactoid(args.Ctx, args.Arguments, &of, args.Source)
 	if err == ErrNoSuchFactoid {
 		return marvin.CmdFailuref(args, "No such factoid %s", result).WithEdit().WithReplyType(marvin.ReplyTypeInChannel)
 	} else if err != nil {

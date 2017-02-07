@@ -49,36 +49,23 @@ type FacebookError struct {
 }
 
 type FacebookFeed struct {
-	Name     string
-	Username string
-	Link     string
-	Feed     struct {
+	Name string
+	Link string
+	Feed struct {
 		Data []FacebookFeedDataItem
 	}
 	ID string
 }
 
-type FacebookFeedDataItem struct {
-	Message     string
-	Story       string `json:"story"`
-	Description string
-
-	PermalinkURL string  `json:"permalink_url"`
-	CreatedTime  PHPTime `json:"created_time"`
-	FullPicture  string  `json:"full_picture"`
-	ID           string  `json:"id"`
-}
-
 type FacebookType struct {
 	mod *RSSModule
 
-	clLock sync.RWMutex
+	clLock sync.Mutex
 	client marvin.HTTPDoer
 }
 
-func (t *FacebookType) TypeID() TypeID {
-	return feedTypeFacebook
-}
+func (t *FacebookType) TypeID() TypeID { return feedTypeFacebook }
+func (t *FacebookType) Name() string   { return "facebook" }
 
 func (t *FacebookType) OnLoad(mod *RSSModule) {
 	mod.Config().AddProtect("facebook-clientid", "", false)
@@ -111,11 +98,9 @@ func (t *FacebookType) OAuthConfig() (clientcredentials.Config, error) {
 }
 
 func (t *FacebookType) Client() (marvin.HTTPDoer, error) {
-	t.clLock.RLock()
+	t.clLock.Lock()
+	defer t.clLock.Unlock()
 	if t.client == nil {
-		t.clLock.RUnlock()
-		t.clLock.Lock()
-		defer t.clLock.Unlock()
 		if t.client != nil {
 			return t.client, nil
 		}
@@ -127,7 +112,6 @@ func (t *FacebookType) Client() (marvin.HTTPDoer, error) {
 		return t.client, nil
 	}
 	cl := t.client
-	t.clLock.RUnlock()
 	return cl, nil
 }
 
@@ -135,7 +119,7 @@ func (t *FacebookType) Domains() []string {
 	return []string{"facebook.com", "www.facebook.com"}
 }
 
-var rgxFacebookPage = regexp.MustCompile(`https://www\.facebook\.com/(?:\w*#!/)?(?:pages/)?([\w\d\-_]*)`)
+var rgxFacebookPage = regexp.MustCompile(`https://www\.facebook\.com/(?:\w*#!/)?(?:pages/)?([\w\-_]*)(-\d+)?$`)
 
 func (t *FacebookType) VerifyFeedIdentifier(ctx context.Context, input string) (string, error) {
 	client, err := t.Client()
@@ -145,7 +129,9 @@ func (t *FacebookType) VerifyFeedIdentifier(ctx context.Context, input string) (
 
 	var idCandidate string
 	m := rgxFacebookPage.FindStringSubmatch(input)
-	if m != nil {
+	if m != nil && m[2] != "" {
+		idCandidate = m[2]
+	} else if m != nil {
 		idCandidate = m[1]
 	} else {
 		idCandidate = input
@@ -163,7 +149,7 @@ func (t *FacebookType) VerifyFeedIdentifier(ctx context.Context, input string) (
 		return "", errors.Wrap(err, "Could not contact Facebook API")
 	}
 	if resp.StatusCode != 200 {
-		return "", errors.Errorf("Provided name '%s' does not appear to be a Facebook page (response code %d)", idCandidate, resp.StatusCode)
+		return "", errors.Errorf("Provided name '%s' does not appear to be a Facebook user/page (response code %d)", idCandidate, resp.StatusCode)
 	}
 	var response struct {
 		FacebookError
@@ -179,6 +165,20 @@ func (t *FacebookType) VerifyFeedIdentifier(ctx context.Context, input string) (
 	return response.ID, nil
 }
 
+type FacebookFeedDataItem struct {
+	Message     string `json:"message"`
+	Story       string `json:"story"`
+	Description string `json:"description"`
+
+	PermalinkURL string  `json:"permalink_url"`
+	CreatedTime  PHPTime `json:"created_time"`
+	FullPicture  string  `json:"full_picture"`
+	From         struct {
+		Name string `json:"name"`
+	} `json:"from"`
+	ID string `json:"id"`
+}
+
 func (t *FacebookType) LoadFeed(ctx context.Context, feedID string) (FeedMeta, []Item, error) {
 	client, err := t.Client()
 	if err != nil {
@@ -186,7 +186,7 @@ func (t *FacebookType) LoadFeed(ctx context.Context, feedID string) (FeedMeta, [
 	}
 
 	req, err := http.NewRequest("GET", fmt.Sprintf(
-		"%s/v2.8/%s?fields=name,link,feed{description,message,full_picture,created_time,story}", facebookAPIRoot,
+		"%s/v2.8/%s?fields=name,link,feed{message,story,description,permalink_url,full_picture,created_time,from{name}}", facebookAPIRoot,
 		feedID), nil)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "Failed to construct URL")
@@ -231,14 +231,14 @@ func (i FacebookFeedDataItem) Render(p FeedMeta) slack.OutgoingSlackMessage {
 	atch.Color = facebookColor
 	atch.Fallback = i.PermalinkURL
 	atch.AuthorIcon = facebookFavicon
-	atch.AuthorName = parent.Name
+	atch.AuthorName = i.From.Name
 	atch.AuthorLink = parent.Link
 	if i.Story != "" {
 		buf.WriteString(i.Story)
 	} else {
 		fmt.Fprintf(&buf, "%s made a new post on Facebook.", parent.Name)
 	}
-	atch.Title = fmt.Sprintf("New post on %s", parent.Username)
+	atch.Title = fmt.Sprintf("New post on %s", parent.Name)
 	atch.TitleLink = i.PermalinkURL
 	if i.Message != "" {
 		atch.Text = i.Message

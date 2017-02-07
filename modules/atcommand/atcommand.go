@@ -1,6 +1,7 @@
 package atcommand
 
 import (
+	"context"
 	"fmt"
 	"net/url"
 	"reflect"
@@ -431,11 +432,14 @@ func (mod *AtCommandModule) EditCommand(fciMeta *FinishedCommandInfo, source mar
 		return
 	}
 
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
+	defer cancel()
 	args := &marvin.CommandArguments{
 		Arguments:         fciMeta.parseResult.argSplit,
 		OriginalArguments: fciMeta.parseResult.argSplit,
 		Source:            source,
 		Command:           "",
+		Ctx:               ctx,
 
 		IsEdit:         true,
 		IsUndo:         false,
@@ -550,11 +554,14 @@ func (mod *AtCommandModule) UndoCommand(fciMeta *FinishedCommandInfo, source mar
 	fciMeta.AddEmojiReaction(fciMeta.OriginalMsg.MessageID(), "x")
 	return // TODO
 
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
 	args := &marvin.CommandArguments{
 		OriginalArguments: fciMeta.CommandArgs.OriginalArguments,
 		Arguments:         fciMeta.CommandArgs.OriginalArguments,
 		Command:           "",
 		Source:            source,
+		Ctx:               ctx,
 
 		PreviousResult: &fciMeta.CommandResult,
 		IsUndo:         true,
@@ -615,10 +622,13 @@ func (mod *AtCommandModule) UndoCommand(fciMeta *FinishedCommandInfo, source mar
 func (mod *AtCommandModule) ProcessInitialCommandMessage(fciResult *FinishedCommandInfo, rtm slack.SlackTextMessage) {
 	parseResult := fciResult.parseResult
 	source := marvin.ActionSourceUserMessage{Msg: fciResult.OriginalMsg, Team: mod.team}
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
+	defer cancel()
 	args := &marvin.CommandArguments{
 		OriginalArguments: parseResult.argSplit,
 		Arguments:         parseResult.argSplit,
 		Command:           "",
+		Ctx:               ctx,
 		Source:            source,
 		IsEdit:            false,
 		ModuleData:        nil,
@@ -787,28 +797,13 @@ func (mod *AtCommandModule) SendReplyMessages(
 				strings.Join(result.Args.OriginalArguments, "] ["),
 				source.ArchiveLink()))
 		}
-	case marvin.CmdResultPrintHelp:
+	case marvin.CmdResultPrintHelp, marvin.CmdResultPrintUsage:
 		if replyChannel {
 			msg := result.Message
-			if len(result.Message) > marvin.LongReplyThreshold {
-				replyIM = true
-				msg = util.PreviewString(result.Message, marvin.LongReplyCut)
-			}
-			sendMessageChannel(msg)
-		}
-		if replyIM || replyIMPrimary {
-			sendMessageIM(result.Message)
-		}
-		if replyLog {
-			// err, no?
-		}
-	case marvin.CmdResultPrintUsage:
-		if replyChannel {
-			msg := result.Message
-			if len(result.Message) > marvin.LongReplyThreshold {
-				replyIM = true
-				msg = util.PreviewString(result.Message, marvin.LongReplyCut)
-			}
+			//if len(result.Message) > marvin.LongReplyThreshold {
+			//	replyIM = true
+			//	msg = util.PreviewString(result.Message, marvin.LongReplyCut)
+			//}
 			sendMessageChannel(msg)
 		}
 		if replyIM || replyIMPrimary {

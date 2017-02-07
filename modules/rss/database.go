@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"database/sql/driver"
 
+	"github.com/lib/pq"
 	"github.com/pkg/errors"
 	"github.com/riking/marvin/database"
 	"github.com/riking/marvin/slack"
@@ -62,6 +63,11 @@ const (
 	sqlMarkSeen = `
 	INSERT INTO module_rss_seenitems
 	(feed_type, feed_id, item_id)
+	VALUES ($1, $2, $3)`
+
+	sqlSubscribe = `
+	INSERT INTO module_rss_subs
+	(feed_type, feed_id, sl_channel)
 	VALUES ($1, $2, $3)`
 )
 
@@ -165,7 +171,7 @@ func (d *db) GetUnseen(feedType TypeID, feedID string, itemIDs []string) ([]stri
 	}
 	defer stmt.Close()
 
-	rows, err := stmt.Query(feedType, feedID, itemIDs)
+	rows, err := stmt.Query(feedType, feedID, pq.StringArray(itemIDs))
 	if err != nil {
 		return nil, errors.Wrap(err, "query")
 	}
@@ -194,4 +200,52 @@ func (d *db) MarkSeen(feedType TypeID, feedID string, itemID string) error {
 
 	_, err = stmt.Exec(feedType, feedID, itemID)
 	return err
+}
+
+func (d *db) Subscribe(feedType TypeID, feedID string, channel slack.ChannelID, items []Item) (retErr error) {
+	tx, err := d.Conn.Begin()
+	if err != nil {
+		return errors.Wrap(err, "db prepare")
+	}
+	txOk := false
+	defer func() {
+		if !txOk {
+			tx.Rollback()
+			if retErr == nil {
+				retErr = errors.Errorf("db: Transaction rolled back")
+			}
+		}
+	}()
+
+	stmt, err := tx.Prepare(sqlMarkSeen)
+	if err != nil {
+		return errors.Wrap(err, "db prepare")
+	}
+
+	for _, v := range items {
+		_, err = stmt.Exec(feedType, feedID, v.ItemID())
+		if err != nil {
+			stmt.Close()
+			return errors.Wrap(err, "db mark seen")
+		}
+	}
+	stmt.Close()
+
+	stmt, err = tx.Prepare(sqlSubscribe)
+	if err != nil {
+		return errors.Wrap(err, "db prepare")
+	}
+	_, err = stmt.Exec(feedType, feedID, string(channel))
+	if err != nil {
+		stmt.Close()
+		return errors.Wrap(err, "db subscribe")
+	}
+	stmt.Close()
+
+	err = tx.Commit()
+	if err != nil {
+		return errors.Wrap(err, "tx commit")
+	}
+	txOk = true
+	return nil
 }

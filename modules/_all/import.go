@@ -12,6 +12,7 @@ import (
 	_ "github.com/riking/marvin/modules/logger"
 	_ "github.com/riking/marvin/modules/on_reaction"
 	_ "github.com/riking/marvin/modules/paste"
+	_ "github.com/riking/marvin/modules/rss"
 	_ "github.com/riking/marvin/modules/timedpin"
 	_ "github.com/riking/marvin/modules/weblogin"
 )

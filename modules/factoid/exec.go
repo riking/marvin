@@ -30,7 +30,7 @@ type OutputFlags struct {
 //   factoidName, ErrNoSuchFactoid - Factoid not found
 //   ErrUser - Something was wrong with the input. Not enough args, recursion limit reached.
 func (mod *FactoidModule) RunFactoid(ctx context.Context, line []string, of *OutputFlags, source marvin.ActionSource) (result string, err error) {
-	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 50*time.Second)
 	defer cancel()
 	err = util.PCall(func() error {
 		result, err = mod.exec_alias(ctx, line, of, source)
@@ -45,7 +45,7 @@ func (mod *FactoidModule) exec_alias(ctx context.Context, origLine []string, of 
 	var recursionCheck []string
 	line := origLine
 	for {
-		factoid := line[0]
+		name := line[0]
 		args := line[1:]
 
 		select {
@@ -54,12 +54,12 @@ func (mod *FactoidModule) exec_alias(ctx context.Context, origLine []string, of 
 		default:
 		}
 
-		info, err := mod.GetFactoidBare(factoid, actionSource.ChannelID())
+		info, err := mod.GetFactoidBare(name, actionSource.ChannelID())
 		if err == ErrNoSuchFactoid {
 			if len(recursionCheck) == 0 {
-				return factoid, err
+				return name, err
 			} else {
-				return factoid, ErrUser{err}
+				return name, ErrUser{err}
 			}
 		}
 
@@ -120,6 +120,7 @@ directives_loop:
 				Arguments:         lineSplit,
 				OriginalArguments: lineSplit,
 				Command:           "",
+				Ctx:               ctx,
 				IsEdit:            false,
 				ModuleData:        nil,
 			}

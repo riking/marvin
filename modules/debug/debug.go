@@ -8,7 +8,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/riking/marvin"
 	"github.com/riking/marvin/modules/paste"
-	"github.com/riking/marvin/modules/rss"
 	"github.com/riking/marvin/slack"
 )
 
@@ -50,7 +49,6 @@ func (mod *DebugModule) Enable(t marvin.Team) {
 	parent.RegisterCommandFunc("do_help", mod.DebugCommandHelp, "`debug do_help` tests the behavior of commands returning help text.")
 	parent.RegisterCommandFunc("success", mod.DebugCommandSuccess, "`debug success` tests the behavior of successful commands.")
 	parent.RegisterCommandFunc("paste", mod.DebugCommandPaste, "`debug paste` tests the paste module.")
-	parent.RegisterCommandFunc("attachtest", mod.CommandTestAttachments, "")
 
 	whoami := parent.RegisterCommandFunc("whoami", mod.CommandWhoAmI, "`debug whoami [@user]` prints out your Slack user ID.")
 	whereami := parent.RegisterCommandFunc("whereami", mod.CommandWhereAmI, "`debug whereami` prints out the current channel ID.")
@@ -139,28 +137,6 @@ func (mod *DebugModule) CommandWhereAmI(t marvin.Team, args *marvin.CommandArgum
 	return marvin.CmdSuccess(args,
 		fmt.Sprintf("You sent that command in channel ID %s.", string(cid)),
 	)
-}
-
-func (mod *DebugModule) CommandTestAttachments(t marvin.Team, args *marvin.CommandArguments) marvin.CommandResult {
-	item := rss.FacebookFeed{
-		Name:     "42 US",
-		Username: "42Born2CodeUS",
-		Link:     "https://www.facebook.com/42Born2CodeUS/",
-	}
-	item.Feed.Data = []rss.FacebookFeedDataItem{{
-		Message:      "",
-		Story:        "42 US shared CodinGame's post.",
-		Description:  "cc 42, Grenoble INP-Ensimag, INSA Toulouse, RWTH Aachen University, Wrocław University of Science and Technology, École normale supérieure Paris-Saclay, NC State University, Kauno „Saulės“ gimnazija, Polytechnique Montréal, Tokyo Institute of Technology, San Jose State University",
-		PermalinkURL: "https://www.facebook.com/42Born2CodeUS/posts/435217433490351",
-		CreatedTime:  rss.PHPTime{Time: mustTime(time.Parse(time.RFC3339, "2017-01-10T18:58:17Z"))},
-		FullPicture:  "https://external.xx.fbcdn.net/safe_image.php?d=AQCdohS207iiy5jK\u0026url=https%3A%2F%2Fwww.codingame.com%2Fblog%2Fwp-content%2Fuploads%2F2016%2F12%2Fblog-students-2-e1482336462364.jpg\u0026_nc_hash=AQASgt3qYR_wnbxG",
-	}}
-	msg := item.Feed.Data[0].Render(&item)
-	_, _, err := t.SendComplexMessage(args.Source.ChannelID(), msg)
-	if err != nil {
-		return marvin.CmdError(args, err, "error")
-	}
-	return marvin.CmdSuccess(args, "").WithNoUndo()
 }
 
 func mustTime(t time.Time, e error) time.Time {

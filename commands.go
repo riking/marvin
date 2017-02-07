@@ -1,6 +1,7 @@
 package marvin
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/pkg/errors"
@@ -14,6 +15,7 @@ type CommandArguments struct {
 	Command           string
 	Arguments         []string
 	OriginalArguments []string
+	Ctx               context.Context
 
 	IsEdit         bool
 	IsUndo         bool
