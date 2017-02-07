@@ -209,6 +209,13 @@ func (t *Team) SendComplexMessage(channelID slack.ChannelID, message slack.Outgo
 		}
 		form.Set("unfurl_links", string(b))
 	}
+	if message.UnfurlMedia != util.TriDefault {
+		b, err := message.UnfurlLinks.MarshalJSON()
+		if err != nil {
+			return "", nil, errors.Wrap(err, "building messsage")
+		}
+		form.Set("unfurl_media", string(b))
+	}
 	if message.Parse != "" {
 		form.Set("parse", string(message.Parse))
 	} else {

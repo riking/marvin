@@ -5,17 +5,21 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"net/url"
+	"sort"
 	"strings"
 	"sync"
+	"time"
 
+	"github.com/dghubble/oauth1"
 	"github.com/pkg/errors"
-	"golang.org/x/oauth2/clientcredentials"
 
 	"github.com/riking/marvin"
 	"github.com/riking/marvin/modules/rss/twitter"
 	"github.com/riking/marvin/slack"
+	"github.com/riking/marvin/util"
 )
 
 // Twitter
@@ -71,6 +75,8 @@ func (t *TwitterType) Name() string   { return "twitter" }
 func (t *TwitterType) OnLoad(mod *RSSModule) {
 	mod.Config().AddProtect("twitter-clientid", "", true)
 	mod.Config().AddProtect("twitter-clientsecret", "", true)
+	mod.Config().AddProtect("twitter-token", "", true)
+	mod.Config().AddProtect("twitter-tokensecret", "", true)
 	mod.Config().OnModify(func(key string) {
 		if strings.HasPrefix(key, "twitter-") {
 			// key changed, invalidate cache
@@ -82,35 +88,30 @@ func (t *TwitterType) OnLoad(mod *RSSModule) {
 	t.mod = mod
 }
 
-func (t *TwitterType) OAuthConfig() (clientcredentials.Config, error) {
-	clientID, err := t.mod.Config().Get("twitter-clientid")
-	if clientID == "" || err != nil {
-		return clientcredentials.Config{}, ErrNotConfigured
-	}
-	clientSecret, err := t.mod.Config().Get("twitter-clientsecret")
-	if clientSecret == "" || err != nil {
-		return clientcredentials.Config{}, ErrNotConfigured
-	}
-	return clientcredentials.Config{
-		ClientID:     clientID,
-		ClientSecret: clientSecret,
-		TokenURL:     twitterTokenURL,
-	}, nil
-}
-
 func (t *TwitterType) Client() (marvin.HTTPDoer, error) {
 	t.clLock.Lock()
 	defer t.clLock.Unlock()
 	if t.client == nil {
-		if t.client != nil {
-			return t.client, nil
+		conf := t.mod.Config()
+		clientID, err := conf.Get("twitter-clientid")
+		if clientID == "" || err != nil {
+			return nil, ErrNotConfigured
 		}
-		config, err := t.OAuthConfig()
-		if err != nil {
-			return nil, err
+		clientSecret, err := conf.Get("twitter-clientsecret")
+		if clientSecret == "" || err != nil {
+			return nil, ErrNotConfigured
 		}
-		t.client = config.Client(context.Background())
-		return t.client, nil
+		tokStr, err := conf.Get("twitter-token")
+		if tokStr == "" || err != nil {
+			return nil, ErrNotConfigured
+		}
+		tokSec, err := conf.Get("twitter-tokensecret")
+		if tokStr == "" || err != nil {
+			return nil, ErrNotConfigured
+		}
+		config := oauth1.NewConfig(clientID, clientSecret)
+		token := oauth1.NewToken(tokStr, tokSec)
+		t.client = config.Client(context.Background(), token)
 	}
 	cl := t.client
 	return cl, nil
@@ -243,25 +244,28 @@ func (t *TwitterType) LoadFeed(ctx context.Context, feedID string, lastSeen stri
 	if err != nil {
 		return nil, nil, err
 	}
-	type normalResponse []*twitter.Tweet
-	var response struct {
-		TwitterError
-		normalResponse
-	}
-	response.TwitterError.ResponseCode = resp.StatusCode
-	err = json.NewDecoder(resp.Body).Decode(&response)
+	var normalResponse []*twitter.Tweet
+	var errResponse TwitterError
+	errResponse.ResponseCode = resp.StatusCode
+	b, err := ioutil.ReadAll(resp.Body)
+	resp.Body.Close()
 	if err != nil {
 		return nil, nil, err
 	}
-	if response.TwitterError.Errors != nil {
-		return nil, nil, response.TwitterError
+	_ = json.Unmarshal(b, &errResponse)
+	if errResponse.Errors != nil {
+		return nil, nil, errResponse
+	}
+	err = json.Unmarshal(b, &normalResponse)
+	if err != nil {
+		return nil, nil, err
 	}
 	meta := &TwitterFeed{
 		feedID:    feedID,
 		FeedLogin: screenName,
 	}
-	itemSlice := make([]Item, len(response.normalResponse))
-	for i, v := range response.normalResponse {
+	itemSlice := make([]Item, len(normalResponse))
+	for i, v := range normalResponse {
 		itemSlice[i] = TwitterFeedDataItem{Tweet: v}
 	}
 	return meta, itemSlice, nil
@@ -274,12 +278,109 @@ func (i TwitterFeedDataItem) Render(p FeedMeta) slack.OutgoingSlackMessage {
 	var msg slack.OutgoingSlackMessage
 	tf := p.(*TwitterFeed)
 
-	fmt.Fprintf(&buf, "New tweet by <https://twitter.com/%s|@%s>\n", tf.FeedLogin, tf.FeedLogin)
-	fmt.Fprintf(&buf, "https://twitter.com/%s/%s", i.Tweet.Source, i.Tweet.IDStr)
+	fmt.Fprintf(&buf, "New tweet by <https://twitter.com/%s|@%s>: <https://twitter.com/%s/%s>",
+		tf.FeedLogin, tf.FeedLogin, i.Tweet.User.ScreenName, i.Tweet.IDStr)
 	msg.Text = buf.String()
+	msg.Parse = "none"
+	msg.UnfurlLinks = util.TriNo
+	msg.UnfurlMedia = util.TriNo
+
+	tweet := i.Tweet
+	if tweet.RetweetedStatus != nil {
+		tweet = tweet.RetweetedStatus
+	}
+	var atch slack.Attachment
+	atch.Color = twitterColor
+	atch.Fallback = tweet.Text
+	ts, _ := time.Parse(time.RubyDate, tweet.CreatedAt)
+	atch.TS = ts.Unix()
+	atch.AuthorIcon = twitterFavicon
+	atch.AuthorName = tweet.User.Name
+	atch.AuthorLink = fmt.Sprintf("https://twitter.com/%s", tweet.User.ScreenName)
+	atch.AuthorIcon = tweet.User.ProfileImageURLHttps
+	atch.AuthorSubname = "@" + tweet.User.ScreenName
+	atch.Footer = "Twitter"
+	atch.FooterIcon = "https://a.slack-edge.com/6e067/img/services/twitter_pixel_snapped_32.png"
+	atch.Text = tweetToSlackText(tweet)
+	atch.FromURL = fmt.Sprintf("https://twitter.com/%s/%s", tweet.User.ScreenName, tweet.IDStr)
+	atch.ServiceName = "twitter"
+	atch.ServiceURL = "https://twitter.com/"
+
+	if len(tweet.ExtendedEntities.Media) == 1 {
+		atch.ImageURL = tweet.Entities.Media[0].MediaURLHttps
+	} else if len(tweet.ExtendedEntities.Media) > 1 {
+		atch.ImageURL = tweet.Entities.Media[0].MediaURLHttps
+		msg.Attachments = append(msg.Attachments, atch)
+		atch = slack.Attachment{}
+		atch.Color = twitterColor
+		atch.Text = fmt.Sprintf("<https://twitter.com/%s/%s|%d more photos not shown>",
+			tweet.User.ScreenName, tweet.IDStr, len(tweet.ExtendedEntities.Media)-1)
+	}
+
+	msg.Attachments = append(msg.Attachments, atch)
 	return msg
 }
 
 func (i TwitterFeedDataItem) ItemID() string {
 	return i.Tweet.IDStr
+}
+
+type twitterEntityReplacement struct {
+	twitter.Indices
+	Replacement string
+}
+
+func tweetToSlackText(t *twitter.Tweet) string {
+	var replaces []twitterEntityReplacement
+	for _, v := range t.Entities.Hashtags {
+		replaces = append(replaces, twitterEntityReplacement{
+			Indices: v.Indices,
+			Replacement: fmt.Sprintf(
+				"<https://twitter.com/hashtag/%s?src=hash|#%s>", url.PathEscape(v.Text), v.Text),
+		})
+	}
+	for _, v := range t.Entities.Symbols {
+		replaces = append(replaces, twitterEntityReplacement{
+			Indices: v.Indices,
+			Replacement: fmt.Sprintf(
+				"<https://twitter.com/hashtag/%s?src=hash|$%s>", url.PathEscape(v.Text), v.Text),
+		})
+	}
+	for _, v := range t.Entities.UserMentions {
+		replaces = append(replaces, twitterEntityReplacement{
+			Indices: v.Indices,
+			Replacement: fmt.Sprintf(
+				"<https://twitter.com/%s|@%s>", v.ScreenName, v.ScreenName),
+		})
+	}
+	for _, v := range t.Entities.Urls {
+		replaces = append(replaces, twitterEntityReplacement{
+			Indices:     v.Indices,
+			Replacement: fmt.Sprintf("<%s|%s>", v.ExpandedURL, v.DisplayURL),
+		})
+	}
+	for _, v := range t.Entities.Media {
+		replaces = append(replaces, twitterEntityReplacement{
+			Indices:     v.Indices,
+			Replacement: "",
+		})
+	}
+
+	sort.Slice(replaces, func(i, j int) bool {
+		return replaces[i].Indices[0] < replaces[j].Indices[0]
+	})
+	var buf bytes.Buffer
+	entIdx := 0
+	for i := 0; i < len(t.Text); {
+		if entIdx < len(replaces) {
+			buf.WriteString(t.Text[i:replaces[entIdx].Indices[0]])
+			buf.WriteString(replaces[entIdx].Replacement)
+			i = replaces[entIdx].Indices[1]
+			entIdx++
+		} else {
+			buf.WriteString(t.Text[i:len(t.Text)])
+			i = len(t.Text)
+		}
+	}
+	return buf.String()
 }

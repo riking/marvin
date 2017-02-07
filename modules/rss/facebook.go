@@ -98,9 +98,6 @@ func (t *FacebookType) Client() (marvin.HTTPDoer, error) {
 	t.clLock.Lock()
 	defer t.clLock.Unlock()
 	if t.client == nil {
-		if t.client != nil {
-			return t.client, nil
-		}
 		config, err := t.OAuthConfig()
 		if err != nil {
 			return nil, err

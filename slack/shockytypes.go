@@ -124,6 +124,7 @@ type OutgoingSlackMessage struct {
 	ThreadTS    MessageTS     `json:"thread_ts,omitempty"`
 	Attachments []Attachment  `json:"attachments,omitempty"`
 	UnfurlLinks util.TriValue `json:"unfurl_links,omitempty"`
+	UnfurlMedia util.TriValue `json:"unfurl_media,omitempty"`
 	Parse       ParseStyle    `json:"parse,omitempty"`
 	LinkNames   util.TriValue `json:"link_names,omitempty"`
 	Markdown    util.TriValue `json:"mrkdwn,omitempty"`
@@ -157,19 +158,24 @@ type SlashCommandResponse struct {
 }
 
 type Attachment struct {
-	Fallback   string            `json:"fallback"`
-	Pretext    string            `json:"pretext,omitempty"`
-	Text       string            `json:"text,omitempty"`
-	Color      string            `json:"color,omitempty"`
-	Fields     []AttachmentField `json:"fields,omitempty"`
-	AuthorName string            `json:"author_name,omitempty"`
-	AuthorLink string            `json:"author_link,omitempty"`
-	AuthorIcon string            `json:"author_icon,omitempty"`
-	Title      string            `json:"title,omitempty"`
-	TitleLink  string            `json:"title_link,omitempty"`
-	TS         int64             `json:"ts,omitempty"`
-	ImageURL   string            `json:"image_url,omitempty"`
-	Footer     string            `json:"footer,omitempty"`
+	Fallback      string            `json:"fallback"`
+	Pretext       string            `json:"pretext,omitempty"`
+	Text          string            `json:"text,omitempty"`
+	Color         string            `json:"color,omitempty"`
+	Fields        []AttachmentField `json:"fields,omitempty"`
+	AuthorName    string            `json:"author_name,omitempty"`
+	AuthorLink    string            `json:"author_link,omitempty"`
+	AuthorIcon    string            `json:"author_icon,omitempty"`
+	AuthorSubname string            `json:"author_subname,omitempty"`
+	Title         string            `json:"title,omitempty"`
+	TitleLink     string            `json:"title_link,omitempty"`
+	TS            int64             `json:"ts,omitempty"`
+	ImageURL      string            `json:"image_url,omitempty"`
+	Footer        string            `json:"footer,omitempty"`
+	FooterIcon    string            `json:"footer_icon,omitempty"`
+	FromURL       string            `json:"from_url,omitempty"`
+	ServiceName   string            `json:"service_name,omitempty"`
+	ServiceURL    string            `json:"service_url,omitempty"`
 }
 
 type AttachmentField struct {
