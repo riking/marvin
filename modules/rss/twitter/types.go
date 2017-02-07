@@ -31,7 +31,7 @@ type Tweet struct {
 	RetweetedStatus      *Tweet                 `json:"retweeted_status"`
 	Source               string                 `json:"source"`
 	Scopes               map[string]interface{} `json:"scopes"`
-	Text                 string                 `json:"text"`
+	Text                 string                 `json:"full_text"`
 	Place                *Place                 `json:"place"`
 	Truncated            bool                   `json:"truncated"`
 	User                 *User                  `json:"user"`

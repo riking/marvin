@@ -225,6 +225,7 @@ func (t *TwitterType) LoadFeed(ctx context.Context, feedID string, lastSeen stri
 	}
 	form := url.Values{
 		"screen_name": []string{screenName},
+		"tweet_mode": []string{"extended"},
 	}
 	if lastSeen != "" {
 		form.Set("since_id", lastSeen)
@@ -306,15 +307,17 @@ func (i TwitterFeedDataItem) Render(p FeedMeta) slack.OutgoingSlackMessage {
 	atch.ServiceName = "twitter"
 	atch.ServiceURL = "https://twitter.com/"
 
-	if len(tweet.ExtendedEntities.Media) == 1 {
+	if tweet.ExtendedEntities != nil && len(tweet.ExtendedEntities.Media) == 1 {
 		atch.ImageURL = tweet.Entities.Media[0].MediaURLHttps
-	} else if len(tweet.ExtendedEntities.Media) > 1 {
+	} else if tweet.ExtendedEntities != nil && len(tweet.ExtendedEntities.Media) > 1 {
 		atch.ImageURL = tweet.Entities.Media[0].MediaURLHttps
 		msg.Attachments = append(msg.Attachments, atch)
 		atch = slack.Attachment{}
 		atch.Color = twitterColor
 		atch.Text = fmt.Sprintf("<https://twitter.com/%s/%s|%d more photos not shown>",
 			tweet.User.ScreenName, tweet.IDStr, len(tweet.ExtendedEntities.Media)-1)
+	} else if len(tweet.Entities.Media) == 1 {
+		atch.ImageURL = tweet.Entities.Media[0].MediaURLHttps
 	}
 
 	msg.Attachments = append(msg.Attachments, atch)
@@ -371,14 +374,15 @@ func tweetToSlackText(t *twitter.Tweet) string {
 	})
 	var buf bytes.Buffer
 	entIdx := 0
-	for i := 0; i < len(t.Text); {
+	textAsRunes := []rune(t.Text)
+	for i := 0; i < len(textAsRunes); {
 		if entIdx < len(replaces) {
-			buf.WriteString(t.Text[i:replaces[entIdx].Indices[0]])
+			buf.WriteString(string(textAsRunes[i:replaces[entIdx].Indices[0]]))
 			buf.WriteString(replaces[entIdx].Replacement)
 			i = replaces[entIdx].Indices[1]
 			entIdx++
 		} else {
-			buf.WriteString(t.Text[i:len(t.Text)])
+			buf.WriteString(string(textAsRunes[i:len(t.Text)]))
 			i = len(t.Text)
 		}
 	}
