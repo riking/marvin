@@ -1,9 +1,12 @@
 package rss
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"net/url"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -58,6 +61,7 @@ func (mod *RSSModule) Load(t marvin.Team) {
 		sqlMarkSeen,
 		sqlLastSeen,
 		sqlSubscribe,
+		sqlUnsubscribe,
 	)
 
 	for _, v := range mod.feedTypes {
@@ -71,6 +75,9 @@ func (mod *RSSModule) Enable(t marvin.Team) {
 	parent := marvin.NewParentCommand()
 	subscribe := parent.RegisterCommandFunc("subscribe", mod.CommandSubscribe, usageSubscribe)
 	parent.RegisterCommand("add", subscribe)
+	parent.RegisterCommandFunc("list", mod.CommandList, usageList)
+	unsub := parent.RegisterCommandFunc("unsubscribe", mod.CommandRemove, usageRemove)
+	parent.RegisterCommand("remove", unsub)
 
 	t.RegisterCommand("rss", parent)
 }
@@ -89,6 +96,15 @@ func (mod *RSSModule) GetFeedType(i TypeID) FeedType {
 		}
 	}
 	return nil
+}
+
+func (mod *RSSModule) GetFeedTypeName(i TypeID) string {
+	for _, v := range mod.feedTypes {
+		if v.TypeID() == i {
+			return v.Name()
+		}
+	}
+	return fmt.Sprintf("%%!(Unrecognized type '%c')", i)
 }
 
 // ---
@@ -217,5 +233,109 @@ func (mod *RSSModule) CommandSubscribe(t marvin.Team, args *marvin.CommandArgume
 
 	go mod.team.SendComplexMessage(args.Source.ChannelID(), slackMessage)
 	return marvin.CmdSuccess(args, fmt.Sprintf("%v is now subscribed to %s:%s",
-		mod.team.FormatChannel(args.Source.ChannelID()), feedType.Name(), feedID))
+		mod.team.FormatChannel(args.Source.ChannelID()), feedType.Name(), feedID)).WithNoUndo()
+}
+
+const usageList = `Use *@marvin rss list* [_channel_] to view the current RSS subscriptions and their IDs.
+The ID is needed to remove or force-reload a subscription.`
+
+func (mod *RSSModule) CommandList(t marvin.Team, args *marvin.CommandArguments) marvin.CommandResult {
+	if len(args.Arguments) != 0 && args.Arguments[0] == "help" {
+		return marvin.CmdUsage(args, usageList).WithSimpleUndo()
+	}
+
+	targetChannel := args.Source.ChannelID()
+	if len(args.Arguments) != 0 {
+		specCh := t.ResolveChannelName(args.Arguments[0])
+		if specCh != "" {
+			targetChannel = specCh
+		}
+	}
+
+	subs, err := mod.DB().GetChannelSubscriptions(targetChannel)
+	if err != nil {
+		return marvin.CmdError(args, err, "Database error")
+	}
+
+	var buf bytes.Buffer
+	for i, v := range subs {
+		fmt.Fprintf(&buf, "  %d: `%s:%s`\n", i+1, mod.GetFeedTypeName(v.FeedType), v.FeedID)
+	}
+
+	return marvin.CmdSuccess(args, fmt.Sprintf(
+		"%d RSS subscriptions:\n"+
+			"%s"+
+			"Use the index (1, 2) or the identifier (e.g. `twitter:POTUS?with_replies`) as an argument to *`@marvin rss remove`* or *`@marvin rss refresh`*.",
+		len(subs), buf.String())).WithSimpleUndo()
+}
+
+const usageRemove = `*COMMAND: ` + "`rss unsubscribe`" + `*
+_SYNOPSIS_
+  *@marvin rss* { *remove* | *unsubscribe* } [ _channel_ ] { _feed_number_ | _feed_id_ }
+_DESCRIPTION_
+  Remove a feed subscription from the channel.`
+
+func (mod *RSSModule) CommandRemove(t marvin.Team, args *marvin.CommandArguments) marvin.CommandResult {
+	if len(args.Arguments) == 0 {
+		return marvin.CmdUsage(args, usageRemove)
+	}
+
+	targetChannel := args.Source.ChannelID()
+
+	arg := args.Pop()
+	q := t.ResolveChannelName(arg)
+	if q != "" {
+		targetChannel = q
+		if len(args.Arguments) == 0 {
+			return marvin.CmdUsage(args, usageRemove)
+		}
+		arg = args.Pop()
+	}
+
+	var feedTypeID TypeID
+	var feedID string
+	if idx, err := strconv.ParseInt(arg, 10, 32); err == nil {
+		idx := int(idx)
+		subs, err := mod.DB().GetChannelSubscriptions(targetChannel)
+		if err != nil {
+			return marvin.CmdError(args, err, "Database error")
+		}
+		if idx < 0 {
+			idx = len(subs) + idx + 1
+		} else if idx == 0 {
+			idx = 1
+		}
+		if idx < 0 || idx > len(subs) {
+			return marvin.CmdFailuref(args, "Index '%s' out of range: Only %d rss subscriptions in %v",
+				arg, len(subs), t.FormatChannel(targetChannel)).WithSimpleUndo()
+		}
+		feedID = subs[idx-1].FeedID
+		feedTypeID = subs[idx-1].FeedType
+	} else {
+		colon := strings.IndexByte(arg, ':')
+		if colon == -1 {
+			return marvin.CmdFailuref(args, "Argument should be a number or a feed identifer from *@marvin rss list*").WithSimpleUndo()
+		}
+		feedTypeName := arg[:colon]
+		for _, v := range mod.feedTypes {
+			if v.Name() == feedTypeName {
+				feedTypeID = v.TypeID()
+			}
+		}
+		if feedTypeID == 0 {
+			return marvin.CmdFailuref(args, "Unknown feed type '%s'", arg[:colon]).WithSimpleUndo()
+		}
+		feedID = arg[colon+1:]
+	}
+
+	found, err := mod.DB().Unsubscribe(feedTypeID, feedID, targetChannel)
+	if err != nil {
+		return marvin.CmdError(args, err, "Database error")
+	}
+	if !found {
+		return marvin.CmdFailuref(args, "Feed subscription `%s:%s` not found",
+			mod.GetFeedTypeName(feedTypeID), feedID).WithSimpleUndo()
+	}
+	return marvin.CmdSuccess(args, fmt.Sprintf("Subscription to `%s:%s` removed.",
+		mod.GetFeedTypeName(feedTypeID), feedID)).WithNoUndo()
 }

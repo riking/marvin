@@ -6,6 +6,7 @@ import (
 
 	"github.com/lib/pq"
 	"github.com/pkg/errors"
+
 	"github.com/riking/marvin/database"
 	"github.com/riking/marvin/slack"
 )
@@ -43,7 +44,8 @@ const (
 	sqlGetChannelSubscriptions = `
 	SELECT feed_type, feed_id, sl_channel
 	  FROM module_rss_subs
-	 WHERE sl_channel = $1`
+	 WHERE sl_channel = $1
+	ORDER BY id ASC`
 
 	sqlGetFeedChannels = `
 	SELECT feed_type, feed_id, sl_channel
@@ -79,6 +81,12 @@ const (
 	INSERT INTO module_rss_subs
 	(feed_type, feed_id, sl_channel)
 	VALUES ($1, $2, $3)`
+
+	sqlUnsubscribe = `
+	DELETE FROM module_rss_subs
+	WHERE feed_type = $1
+	  AND feed_id = $2
+	  AND sl_channel = $3`
 )
 
 type TypeID byte
@@ -279,4 +287,25 @@ func (d *db) Subscribe(feedType TypeID, feedID string, channel slack.ChannelID, 
 	}
 	txOk = true
 	return nil
+}
+
+func (d *db) Unsubscribe(feedType TypeID, feedID string, channel slack.ChannelID) (bool, error) {
+	stmt, err := d.Conn.Prepare(sqlUnsubscribe)
+	if err != nil {
+		return false, errors.Wrap(err, "db prepare")
+	}
+
+	result, err := stmt.Exec(feedType, feedID, string(channel))
+	if err != nil {
+		return false, errors.Wrap(err, "db exec")
+	}
+	n, err := result.RowsAffected()
+	if err != nil {
+		return false, errors.Wrap(err, "db exec")
+	}
+
+	if n == 0 {
+		return false, nil
+	}
+	return true, nil
 }

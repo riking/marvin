@@ -224,6 +224,7 @@ type Team interface {
 
 	ReportError(err error, source ActionSource)
 
+	ResolveChannelName(input string) slack.ChannelID
 	ChannelName(channel slack.ChannelID) string
 	FormatChannel(channel slack.ChannelID) string
 	UserName(user slack.UserID) string

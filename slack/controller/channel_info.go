@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"net/url"
+	"regexp"
 	"time"
 
 	"github.com/riking/marvin"
@@ -120,6 +121,23 @@ func (t *Team) UserLevel(user slack.UserID) marvin.AccessLevel {
 		return marvin.AccessLevelBlacklisted
 	}
 	return marvin.AccessLevelNormal
+}
+
+var rgxPlainTextChannelName = regexp.MustCompile(`^#([a-z0-9_\-]+)$`)
+
+func (t *Team) ResolveChannelName(input string) slack.ChannelID {
+	chID := slack.ParseChannelID(input)
+	if chID != "" {
+		return chID
+	}
+	m := rgxPlainTextChannelName.FindStringSubmatch(input)
+	if m != nil {
+		chID = t.ChannelIDByName(m[1])
+	}
+	if chID != "" {
+		return chID
+	}
+	return ""
 }
 
 func (t *Team) cachedUserInfo(user slack.UserID) *slack.User {

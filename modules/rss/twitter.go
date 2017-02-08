@@ -225,7 +225,7 @@ func (t *TwitterType) LoadFeed(ctx context.Context, feedID string, lastSeen stri
 	}
 	form := url.Values{
 		"screen_name": []string{screenName},
-		"tweet_mode": []string{"extended"},
+		"tweet_mode":  []string{"extended"},
 	}
 	if lastSeen != "" {
 		form.Set("since_id", lastSeen)

@@ -274,7 +274,7 @@ func (mod *AutoInviteModule) PostInvite(t marvin.Team, args *marvin.CommandArgum
 		emoji = strings.Trim(arg, ":")
 		arg = args.Pop()
 	}
-	messageChannel := slack.ParseChannelID(arg)
+	messageChannel := t.ResolveChannelName(arg)
 	if messageChannel == "" {
 		return usage()
 	}

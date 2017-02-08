@@ -1,6 +1,7 @@
 package marvin
 
 import (
+	"sort"
 	"strings"
 	"sync"
 )
@@ -82,6 +83,8 @@ func (pc *ParentCommand) helpListCommands(t Team, args *CommandArguments) Comman
 	for k := range pc.nameMap {
 		subNames = append(subNames, k)
 	}
+	sort.Strings(subNames)
+
 	preArgs := args.PreArgs()
 	if len(preArgs) > 1 {
 		if pc.extraHelp != "" {

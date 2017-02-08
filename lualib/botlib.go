@@ -50,6 +50,11 @@ func OpenBot(team marvin.Team) func(L *lua.LState) int {
 			L.Push(lua.LString(slack.UnescapeTextAll(str)))
 			return 1
 		}))
+		tab.RawSetString("unichr", L.NewFunction(func(L *lua.LState) int {
+			n := L.CheckNumber(1)
+			L.Push(lua.LString(string(rune(n))))
+			return 1
+		}))
 		tab.RawSetString("paste", L.NewFunction(func(L *lua.LState) int {
 			if pasteModule == nil {
 				L.RaiseError("paste module not available")
