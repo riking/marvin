@@ -47,16 +47,13 @@ func LNewFactoid(g *lualib.G, mod *FactoidModule, name string) lua.LValue {
 // ---
 
 func luaFactoid__Call(L *lua.LState) int {
-	if L.GetTop() == 0 {
-		L.RaiseError("__call() requires >1 argument")
-	}
 	lfv, ok := L.CheckUserData(1).Value.(*LFactoid)
 	if !ok {
 		L.RaiseError("factoid__call() with wrong type for self")
 	}
 
 	var args = []string{lfv.Name}
-	for i := 1; i <= L.GetTop(); i++ {
+	for i := 1 + 1; i <= L.GetTop(); i++ {
 		args = append(args, lua.LVAsString(L.ToStringMeta(L.Get(i))))
 	}
 
