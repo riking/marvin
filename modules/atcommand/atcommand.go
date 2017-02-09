@@ -274,6 +274,11 @@ func (mod *AtCommandModule) HandleMessage(_rtm slack.RTMRawMessage) {
 		return
 	}
 
+	if mod.team.UserLevel(rtm.UserID()) < marvin.AccessLevelNormal {
+		mod.team.ReactMessage(rtm.MessageID(), "x")
+		return
+	}
+
 	mod.ProcessInitialCommandMessage(fciResult, rtm)
 }
 
@@ -288,6 +293,11 @@ func (mod *AtCommandModule) HandleEdit(_rtm slack.RTMRawMessage) {
 	if rtm.EditingUserID() == "" {
 		return // unfurl edit
 	}
+	if _, isThread := _rtm["thread_ts"]; isThread {
+		// TODO thread operation
+		return
+	}
+
 	msgID := rtm.MessageID()
 	time.Sleep(50 * time.Millisecond) // slack is out-of-order sometimes
 
@@ -329,6 +339,11 @@ func (mod *AtCommandModule) HandleEdit(_rtm slack.RTMRawMessage) {
 	fciMeta.parseResult = parseResult
 	if fciMeta.FoundCommand == false {
 		if myFoundCommand == true {
+			if mod.team.UserLevel(rtm.UserID()) < marvin.AccessLevelNormal {
+				mod.team.ReactMessage(rtm.MessageID(), "x")
+				return
+			}
+
 			fciMeta.ChangeEmoji(mod, nil)
 			fciMeta.parseResult = parseResult
 			fciMeta.FoundCommand = true

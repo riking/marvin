@@ -141,6 +141,10 @@ func (mod *BangFactoidModule) Process(rtm slack.SlackTextMessage) (string, Outpu
 	if !strings.ContainsAny(rtm.Text()[:1], fchars) {
 		return "", of
 	}
+	if mod.team.UserLevel(rtm.UserID()) < marvin.AccessLevelNormal {
+		mod.team.ReactMessage(rtm.MessageID(), "x")
+		return "", of
+	}
 	text := slack.UnescapeTextAll(rtm.Text()[1:])
 	line := strings.Split(text, " ")
 
