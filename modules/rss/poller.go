@@ -24,7 +24,7 @@ func (p *poller) Run() {
 	for {
 		p.pollAll()
 		util.LogGood("[RSS] poll complete")
-		time.Sleep(0.2 * time.Hour)
+		time.Sleep(15*time.Minute)
 	}
 }
 
