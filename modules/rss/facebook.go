@@ -252,7 +252,7 @@ func (i FacebookFeedDataItem) Render(p FeedMeta) slack.OutgoingSlackMessage {
 		atch.Color = facebookColor
 		atch.Text = i.Description
 	}
-	atch.Footer = "Use @marvin rss to manage"
+	atch.Footer = "Facebook"
 	atch.TS = i.CreatedTime.Unix()
 
 	msg.Attachments = append(msg.Attachments, atch)
