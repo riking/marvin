@@ -279,7 +279,7 @@ func (i TwitterFeedDataItem) Render(p FeedMeta) slack.OutgoingSlackMessage {
 	var msg slack.OutgoingSlackMessage
 	tf := p.(*TwitterFeed)
 
-	fmt.Fprintf(&buf, "New tweet by <https://twitter.com/%s|@%s>: <https://twitter.com/status/%s/%s>",
+	fmt.Fprintf(&buf, "New tweet by <https://twitter.com/%s|@%s>: <https://twitter.com/%s/status/%s>",
 		tf.FeedLogin, tf.FeedLogin, i.Tweet.User.ScreenName, i.Tweet.IDStr)
 	msg.Text = buf.String()
 	msg.Parse = "none"
@@ -303,7 +303,7 @@ func (i TwitterFeedDataItem) Render(p FeedMeta) slack.OutgoingSlackMessage {
 	atch.Footer = "Twitter"
 	atch.FooterIcon = "https://a.slack-edge.com/6e067/img/services/twitter_pixel_snapped_32.png"
 	atch.Text = tweetToSlackText(tweet)
-	atch.FromURL = fmt.Sprintf("https://twitter.com/status/%s/%s", tweet.User.ScreenName, tweet.IDStr)
+	atch.FromURL = fmt.Sprintf("https://twitter.com/%s/status/%s", tweet.User.ScreenName, tweet.IDStr)
 	atch.ServiceName = "twitter"
 	atch.ServiceURL = "https://twitter.com/"
 
@@ -314,7 +314,7 @@ func (i TwitterFeedDataItem) Render(p FeedMeta) slack.OutgoingSlackMessage {
 		msg.Attachments = append(msg.Attachments, atch)
 		atch = slack.Attachment{}
 		atch.Color = twitterColor
-		atch.Text = fmt.Sprintf("<https://twitter.com/status/%s/%s|%d more photos not shown>",
+		atch.Text = fmt.Sprintf("<https://twitter.com/%s/status/%s|%d more photos not shown>",
 			tweet.User.ScreenName, tweet.IDStr, len(tweet.ExtendedEntities.Media)-1)
 	} else if len(tweet.Entities.Media) == 1 {
 		atch.ImageURL = tweet.Entities.Media[0].MediaURLHttps
