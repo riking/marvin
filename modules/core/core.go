@@ -129,9 +129,9 @@ func (mod *DebugModule) CommandConfigSet(t marvin.Team, args *marvin.CommandArgu
 	switch len(args.Arguments) {
 	default:
 		fallthrough
-	case 0, 1, 2:
-		return marvin.CmdUsage(args, "Usage: `@marvin config set [module] [key] [value]`").WithSimpleUndo()
-	case 3:
+	case 0, 1:
+		return marvin.CmdUsage(args, "Usage: `@marvin config set {module} {key} [value]`\nIf a value is not specified, the key will be reset to default.").WithSimpleUndo()
+	case 2, 3:
 		break
 	}
 	if args.Source.AccessLevel() < marvin.AccessLevelAdmin {
@@ -140,13 +140,20 @@ func (mod *DebugModule) CommandConfigSet(t marvin.Team, args *marvin.CommandArgu
 
 	module := marvin.ModuleID(args.Arguments[0])
 	key := args.Arguments[1]
-	value := args.Arguments[2]
 
 	conf := mod.team.ModuleConfig(module)
-	err := conf.Set(key, value)
-	if err != nil {
-		return marvin.CmdError(args, err, "Database error").WithNoUndo()
+	if len(args.Arguments) == 3 {
+		value := args.Arguments[2]
+		err := conf.Set(key, value)
+		if err != nil {
+			return marvin.CmdError(args, err, "Database error")
+		}
+		return marvin.CmdSuccess(args, "Configuration value set").WithNoUndo()
+	} else {
+		err := conf.SetDefault(key)
+		if err != nil {
+			return marvin.CmdError(args, err, "Database error")
+		}
+		return marvin.CmdSuccess(args, "Configuration value reset to default").WithNoUndo()
 	}
-
-	return marvin.CmdSuccess(args, "Configuration value set.").WithNoUndo()
 }
