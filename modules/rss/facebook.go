@@ -65,7 +65,7 @@ func (t *FacebookType) TypeID() TypeID { return feedTypeFacebook }
 func (t *FacebookType) Name() string   { return "facebook" }
 
 func (t *FacebookType) OnLoad(mod *RSSModule) {
-	mod.Config().AddProtect("facebook-clientid", "", false)
+	mod.Config().AddProtect("facebook-clientid", "", true)
 	mod.Config().AddProtect("facebook-clientsecret", "", true)
 	mod.Config().OnModify(func(key string) {
 		if strings.HasPrefix(key, "facebook-") {
