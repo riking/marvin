@@ -149,7 +149,7 @@ func (mod *BangFactoidModule) Process(rtm slack.SlackTextMessage) (string, Outpu
 	line := strings.Split(text, " ")
 
 	ctx := context.Background()
-	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 8*time.Second)
 	defer cancel()
 
 	source := &marvin.ActionSourceUserMessage{Team: mod.team, Msg: rtm}

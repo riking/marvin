@@ -276,11 +276,15 @@ func (t *Team) loadModules() bool {
 		v.state = marvin.ModuleStateLoaded
 
 		// Lock configuration
-		_ = t.ModuleConfig(v.identifier)
 		t.confLock.Lock()
 		mc := t.confMap[v.identifier]
+		if mc != nil {
+			mc.(interface {
+				marvin.ModuleConfig
+				LockDefaults()
+			}).LockDefaults()
+		}
 		t.confLock.Unlock()
-		mc.DefaultsLocked = true
 	}
 
 	sort.Sort(sortModules(t.modules))

@@ -31,7 +31,7 @@ type Team struct {
 	modules []*moduleStatus
 
 	confLock sync.Mutex
-	confMap  map[marvin.ModuleID]*DBModuleConfig
+	confMap  map[marvin.ModuleID]marvin.ModuleConfig
 
 	httpMux   *mux.Router
 	httpStrip string
@@ -54,7 +54,7 @@ func NewTeam(cfg *marvin.TeamConfig) (*Team, error) {
 		db:         db,
 		commands:   marvin.NewParentCommand(),
 		modules:    nil,
-		confMap:    make(map[marvin.ModuleID]*DBModuleConfig),
+		confMap:    make(map[marvin.ModuleID]marvin.ModuleConfig),
 		httpMux:    mux.NewRouter(),
 	}
 
@@ -74,8 +74,18 @@ func (t *Team) ConnectRTM(c *rtm.Client) {
 }
 
 func (t *Team) EnableModules() bool {
-	t.ModuleConfig("modules").(*DBModuleConfig).DefaultsLocked = true
-	t.ModuleConfig("blacklist").(*DBModuleConfig).DefaultsLocked = true
+	t.ModuleConfig("modules").(interface {
+		marvin.ModuleConfig
+		LockDefaults()
+	}).LockDefaults()
+	t.ModuleConfig("blacklist").(interface {
+		marvin.ModuleConfig
+		LockDefaults()
+	}).LockDefaults()
+	t.ModuleConfig("apikeys").(interface {
+		marvin.ModuleConfig
+		LockDefaults()
+	}).LockDefaults()
 
 	if !t.constructModules() {
 		return false
@@ -111,7 +121,7 @@ func (t *Team) DB() *database.Conn {
 func (t *Team) ModuleConfig(ident marvin.ModuleID) marvin.ModuleConfig {
 	st := t.GetModuleStatus(ident)
 	if st == nil {
-		if ident != "modules" && ident != "blacklist" {
+		if ident != "modules" && ident != "blacklist" && ident != "apikeys" {
 			return nil
 		}
 	}

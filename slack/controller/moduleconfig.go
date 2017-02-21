@@ -22,8 +22,8 @@ type DBModuleConfig struct {
 	callbacks      []func(string)
 }
 
-func newModuleConfig(t *Team, modID marvin.ModuleID) *DBModuleConfig {
-	return &DBModuleConfig{
+func newModuleConfig(t *Team, modID marvin.ModuleID) marvin.ModuleConfig {
+	c := &DBModuleConfig{
 		team:             t,
 		ModuleIdentifier: modID,
 
@@ -32,6 +32,10 @@ func newModuleConfig(t *Team, modID marvin.ModuleID) *DBModuleConfig {
 		protected:      make(map[string]bool),
 		callbacks:      nil,
 	}
+	if modID == "blacklist" || modID == "apikeys" {
+		return AllProtectedModuleConfig{c}
+	}
+	return c
 }
 
 func MigrateModuleConfig(c *database.Conn) error {
@@ -218,4 +222,16 @@ func (c *DBModuleConfig) ListProtected() map[string]bool {
 		//panic("ListProtected() called before defaults locked")
 	}
 	return c.protected
+}
+
+func (c *DBModuleConfig) LockDefaults() {
+	c.DefaultsLocked = true
+}
+
+type AllProtectedModuleConfig struct {
+	*DBModuleConfig
+}
+
+func (c AllProtectedModuleConfig) GetIsDefaultNotProtected(key string) (string, bool, error) {
+	return "__ERROR", true, marvin.ErrConfProtected{Key: fmt.Sprintf("%s.%s", c.ModuleIdentifier, key)}
 }
