@@ -382,8 +382,8 @@ func tweetToSlackText(t *twitter.Tweet) string {
 			i = replaces[entIdx].Indices[1]
 			entIdx++
 		} else {
-			buf.WriteString(string(textAsRunes[i:len(t.Text)]))
-			i = len(t.Text)
+			buf.WriteString(string(textAsRunes[i:]))
+			i = len(textAsRunes)
 		}
 	}
 	return buf.String()

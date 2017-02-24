@@ -12,3 +12,7 @@ func OpenGoogle(g *G, L *lua.LState) int {
 	_ = apikey
 	return 0
 }
+
+func lua_Google(L *lua.LState) int {
+	return 0
+}
