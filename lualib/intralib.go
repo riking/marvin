@@ -23,7 +23,7 @@ func OpenIntra(g *G, L *lua.LState) int {
 	tab := L.NewTable()
 
 	getClient := func(L *lua.LState) *intra.Helper {
-		return intra.Client(L.Ctx, intra.ClientCredentialsTokenSource(L.Ctx, g.Team()))
+		return intra.Client(L.Ctx, intra.ClientCredentialsTokenSource(L.Ctx, g.Team().TeamConfig().IntraUID, g.Team().TeamConfig().IntraSecret))
 	}
 
 	tab.RawSetString("valid_token", L.NewFunction(func(L *lua.LState) int {
