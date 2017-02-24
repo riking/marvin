@@ -59,11 +59,12 @@ func (mod *DebugModule) CommandConfigList(t marvin.Team, args *marvin.CommandArg
 	switch len(args.Arguments) {
 	case 0:
 		var modList []string
-		for _, v := range mod.team.GetAllModules() {
-			if v.IsEnabled() {
-				modList = append(modList, fmt.Sprintf("`%s`", v.Instance().Identifier()))
+		for _, v := range mod.team.ModuleConfigList() {
+			ms := mod.team.GetModuleStatus(v)
+			if ms == nil || (ms != nil && ms.IsEnabled()) {
+				modList = append(modList, fmt.Sprintf("`%s`", v))
 			} else {
-				modList = append(modList, fmt.Sprintf("~`%s`~", v.Instance().Identifier()))
+				modList = append(modList, fmt.Sprintf("~`%s`~", v))
 			}
 		}
 		return marvin.CmdUsage(args, fmt.Sprintf("Usage: `@marvin config list [module]`\nModules: %s", strings.Join(modList, " "))).WithSimpleUndo()

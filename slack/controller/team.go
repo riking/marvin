@@ -137,6 +137,17 @@ func (t *Team) ModuleConfig(ident marvin.ModuleID) marvin.ModuleConfig {
 	return conf
 }
 
+func (t *Team) ModuleConfigList() []marvin.ModuleID {
+	t.confLock.Lock()
+	defer t.confLock.Unlock()
+
+	var result []marvin.ModuleID
+	for k := range t.confMap {
+		result = append(result, k)
+	}
+	return result
+}
+
 func (t *Team) BotUser() slack.UserID {
 	return t.client.Self.ID
 }

@@ -140,6 +140,29 @@ func (t *Team) ResolveChannelName(input string) slack.ChannelID {
 	return ""
 }
 
+func (t *Team) ResolveUserName(input string) slack.UserID {
+	uID := slack.ParseUserMention(input)
+	if uID != "" {
+		return uID
+	}
+	t.client.MetadataLock.RLock()
+	defer t.client.MetadataLock.RUnlock()
+	for _, v := range t.client.Users {
+		if v.Name == input {
+			return v.ID
+		}
+	}
+	for _, v := range t.client.Users {
+		if v.RealName == input {
+			return v.ID
+		}
+		//if len(v.Profile.FirstName) > 0 && strings.EqualFold(string(v.Profile.FirstName[0]) + v.Profile.LastName, input) {
+		//	return v.ID
+		//}
+	}
+	return ""
+}
+
 func (t *Team) cachedUserInfo(user slack.UserID) *slack.User {
 	t.client.MetadataLock.RLock()
 	defer t.client.MetadataLock.RUnlock()

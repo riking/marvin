@@ -53,8 +53,9 @@ func (mod *AutoInviteModule) Load(t marvin.Team) {
 func (mod *AutoInviteModule) Enable(t marvin.Team) {
 	mod.onReactAPI().RegisterHandler(mod, Identifier)
 	mod.team.OnEvent(Identifier, "reaction_added", mod.OnRawReaction)
-	t.RegisterCommandFunc("make-invite", marvin.SubCommandFunc(mod.PostInvite), inviteHelp)
-	t.RegisterCommandFunc("revoke-invite", marvin.SubCommandFunc(mod.CmdRevokeInvite), revokeHelp)
+	t.RegisterCommandFunc("make-invite", mod.PostInvite, inviteHelp)
+	t.RegisterCommandFunc("revoke-invite", mod.CmdRevokeInvite, revokeHelp)
+	t.RegisterCommandFunc("mass-invite", CmdMassInvite, usageMass)
 	mod.registerHTTP()
 }
 
