@@ -114,15 +114,15 @@ func (t tableKeySort) Less(i, j int) bool {
 		}
 		return false // equal or greater
 	case lua.LTNumber:
-		l := lua.LNumber(left)
-		r := lua.LNumber(right)
+		l := left.(lua.LNumber)
+		r := right.(lua.LNumber)
 		if l < r {
 			return true
 		}
 		return false
 	case lua.LTString:
-		l := lua.LString(left)
-		r := lua.LString(right)
+		l := left.(lua.LString)
+		r := right.(lua.LString)
 		if strings.Compare(string(l), string(r)) < 0 {
 			return true
 		}
