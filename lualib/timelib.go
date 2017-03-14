@@ -12,6 +12,7 @@ import (
 // time.rfc3339 -> string: formatting constant
 // time.now() -> Time: returns the current time
 // time.fromunix(sec, nsec=0) -> Time: creates a new Time from a unix timestamp
+// time.parse(value, format=time.rfc3339) -> Time, err: Parses a time with the given format
 //
 // Type: Time
 //  t.year -> number: year number
@@ -95,6 +96,19 @@ func lua_time_fromunix(L *lua.LState) int {
 	sec := L.CheckNumber(1)
 	ns := L.OptNumber(2, 0)
 	t := time.Unix(int64(sec), int64(ns))
+	L.Push(timeToLua(t, L))
+	return 1
+}
+
+func lua_time_parse(L *lua.LState) int {
+	value := L.CheckString(1)
+	format := L.OptString(2, time.RFC3339)
+	t, err := time.Parse(format, value)
+	if err != nil {
+		L.Push(lua.LNil)
+		L.Push(lua.LString(err.Error()))
+		return 2
+	}
 	L.Push(timeToLua(t, L))
 	return 1
 }
