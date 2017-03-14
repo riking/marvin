@@ -246,91 +246,66 @@ A The tram continues through 2 doors.
 A FORM DISSOLVE TO:
 Q SEQ. 175 - “WALKING THE HIVE”
 L INTERIOR - HONEX LOBBY
-ANGLE ON: The log-flume photo, as Barry looks at it.
-ADAM
-Wow. That blew my mind.
-BARRY
-(annoyed)
-“What’s the difference?” Adam, how
-could you say that? One job
-forever? That’s an insane choice
-to have to make.
-ADAM
-Well, I’m relieved. Now we only
-have to make one decision in life.
-BARRY
-But Adam, how could they never have
-told us that?
-ADAM
-Barry, why would you question
-anything? We’re bees. We’re the
-most perfectly functioning society
-on Earth.
-They walk by a newspaper stand with A SANDWICH BOARD READING:
-“Bee Goes Berserk: Stings Seven Then Self.”
-ANGLE ON: A BEE filling his car’s gas tank from a honey
-pump. He fills his car some, then takes a swig for himself.
-NEWSPAPER BEE
-(to the bee guzzling gas)
-Hey!
-Barry and Adam begin to cross the street.
-"Bee Movie" - JS REVISIONS 8/13/07 10.
-BARRY
-Yeah but Adam, did you ever think
-that maybe things work a little too
-well around here?
-They stop in the middle of the street. The traffic moves
-perfectly around them.
-ADAM
-Like what? Give me one example.
-BARRY
-(thinks)
-...I don’t know. But you know what
-I’m talking about.
-They walk off.
-SEQ. 400 - “MEET THE JOCKS”
-SFX: The SOUND of Pollen Jocks.
-PAN DOWN from the Honex statue.
-J-GATE ANNOUNCER
-Please clear the gate. Royal
-Nectar Force on approach. Royal
-Nectar Force on approach.
-BARRY
-Wait a second. Check it out. Hey,
-hey, those are Pollen jocks.
-ADAM
-Wow.
-FOUR PATROL BEES FLY in through the hive’s giant Gothic
-entrance. The Patrol Bees are wearing fighter pilot helmets
-with black visors.
-ADAM (CONT’D)
-I’ve never seen them this close.
-BARRY
-They know what it’s like to go
-outside the hive.
-ADAM
-Yeah, but some of them don’t come
-back.
-"Bee Movie" - JS REVISIONS 8/13/07 11.
-The nectar from the pollen jocks is removed from their
-backpacks, and loaded into trucks on their way to Honex.
-A SMALL CROWD forms around the Patrol Bees. Each one has a
-PIT CREW that takes their nectar.
-Lou Loduca hurries a pit crew along:
-LOU LODUCA
-You guys did great! You’re
-monsters. You’re sky freaks! I
-love it! I love it!
-SCHOOL GIRLS are jumping up and down and squealing nearby.
-BARRY
-I wonder where those guys have just
-been?
-ADAM
-I don’t know.
-BARRY
-Their day’s not planned. Outside
-the hive, flying who-knows-where,
-doing who-knows-what.
+S 
+A ANGLE ON: The log-flume photo, as Barry looks at it.
+S ADAM
+W Wow. That blew my mind.
+S BARRY (annoyed)
+W “What’s the difference?” Adam, how could you say that? One job forever? That’s an insane choice to have to make.
+S ADAM
+W Well, I’m relieved. Now we only have to make one decision in life.
+S BARRY
+W But Adam, how could they never have told us that?
+S ADAM
+W Barry, why would you question anything? We’re bees. We’re the most perfectly functioning society on Earth.
+S ADAM and BARRY
+A They walk by a newspaper stand with A SANDWICH BOARD READING: “Bee Goes Berserk: Stings Seven Then Self.”
+S
+A ANGLE ON: A BEE filling his car’s gas tank from a honey pump. He fills his car some, then takes a swig for himself.
+S NEWSPAPER BEE (to the bee guzzling gas)
+W Hey!
+S
+A Barry and Adam begin to cross the street.
+S BARRY
+W Yeah but Adam, did you ever think that maybe things work a little too well around here?
+A They stop in the middle of the street. The traffic moves perfectly around them.
+S ADAM
+W Like what? Give me one example.
+S BARRY
+W (thinks) ...I don’t know. But you know what I’m talking about.
+A They walk off.
+Q MEET THE JOCKS
+S
+A SFX: The SOUND of Pollen Jocks.
+A PAN DOWN from the Honex statue.
+S J-GATE ANNOUNCER
+W Please clear the gate. Royal Nectar Force on approach. Royal Nectar Force on approach.
+S BARRY
+W Wait a second. Check it out. Hey, hey, those are Pollen jocks.
+S ADAM
+W Wow.
+S
+A FOUR PATROL BEES FLY in through the hive’s giant Gothic entrance. The Patrol Bees are wearing fighter pilot helmets with black visors.
+S ADAM
+W I’ve never seen them this close.
+S BARRY
+W They know what it’s like to go outside the hive.
+S ADAM
+W Yeah, but some of them don’t come back.
+S
+A The nectar from the pollen jocks is removed from their backpacks, and loaded into trucks on their way to Honex.
+A A SMALL CROWD forms around the Patrol Bees. Each one has a PIT CREW that takes their nectar.
+A Lou Loduca hurries a pit crew along:
+S LOU LODUCA
+W You guys did great! You’re monsters. You’re sky freaks! I love it! I love it!
+S
+A SCHOOL GIRLS are jumping up and down and squealing nearby.
+S BARRY
+W I wonder where those guys have just been?
+S ADAM
+W I don’t know.
+S BARRY
+W Their day’s not planned. Outside the hive, flying who-knows-where, doing who-knows-what.
 ADAM
 You can’t just decide one day to be
 a Pollen Jock. You have to be bred
