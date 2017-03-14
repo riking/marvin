@@ -164,6 +164,8 @@ type Team interface {
 	DB() *database.Conn
 	TeamConfig() *TeamConfig
 	ModuleConfig(mod ModuleID) ModuleConfig
+	// ModuleConfigList returns a list of all ModuleIDs with configs
+	ModuleConfigList() []ModuleID
 
 	// BotUser returns the user ID that Marvin is signed in as.
 	BotUser() slack.UserID
@@ -188,8 +190,8 @@ type Team interface {
 	// requested module is not known, the function returns -1.
 	DependModule(self Module, dependencyID ModuleID, ptr *Module) int
 	// GetModule returns the Module instance for a module directly.
-	// TODO - return its state?
 	GetModule(modID ModuleID) Module
+	GetModuleStatus(modID ModuleID) ModuleStatus
 	// GetAllModules() returns the status of all modules.
 	GetAllModules() []ModuleStatus
 	// GetAllModules() returns the status of all enabled modules.
@@ -227,6 +229,7 @@ type Team interface {
 	ResolveChannelName(input string) slack.ChannelID
 	ChannelName(channel slack.ChannelID) string
 	FormatChannel(channel slack.ChannelID) string
+	ResolveUserName(input string) slack.UserID
 	UserName(user slack.UserID) string
 	UserLevel(user slack.UserID) AccessLevel
 	GetIM(user slack.UserID) (slack.ChannelID, error)

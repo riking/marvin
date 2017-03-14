@@ -6,13 +6,12 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"os"
 	"reflect"
 	"regexp"
 	"strconv"
 
 	"github.com/pkg/errors"
-	"github.com/riking/marvin"
-	"github.com/riking/marvin/util"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/clientcredentials"
 )
@@ -21,10 +20,10 @@ type Doer interface {
 	Do(*http.Request) (*http.Response, error)
 }
 
-func ClientCredentialsTokenSource(ctx context.Context, team marvin.Team) oauth2.TokenSource {
+func ClientCredentialsTokenSource(ctx context.Context, uid, secret string) oauth2.TokenSource {
 	c := clientcredentials.Config{
-		ClientID:     team.TeamConfig().IntraUID,
-		ClientSecret: team.TeamConfig().IntraSecret,
+		ClientID:     uid,
+		ClientSecret: secret,
 		TokenURL:     "https://api.intra.42.fr/oauth/token",
 		Scopes:       []string{},
 	}
@@ -50,7 +49,7 @@ func (h *Helper) getJSON(ctx context.Context, uri *url.URL, v interface{}) (*htt
 	if err != nil {
 		return nil, errors.Wrapf(err, "intra: bad request URI [%s]", uri.RequestURI())
 	}
-	fmt.Println("intra: doing GET", req.URL.String())
+	fmt.Fprintln(os.Stderr, "intra: doing GET", req.URL.String())
 	req = req.WithContext(ctx)
 	resp, err := h.Do(req)
 	if err != nil {
@@ -114,7 +113,7 @@ func (h *Helper) PaginatedGet(ctx context.Context, method string, _form url.Valu
 				} else {
 					qErr = errors.Errorf("Panic: %v", rErr)
 				}
-				util.LogError(qErr)
+				fmt.Fprintln(os.Stderr, qErr)
 				resultCh <- PaginatedSingleResult{OK: false, Error: qErr}
 			}
 		}()
