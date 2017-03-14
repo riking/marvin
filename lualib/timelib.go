@@ -2,6 +2,7 @@ package lualib
 
 import (
 	"time"
+
 	"github.com/yuin/gopher-lua"
 )
 

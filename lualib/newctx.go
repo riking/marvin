@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"sort"
+	"strings"
 
 	"github.com/riking/marvin"
 	"github.com/yuin/gopher-lua"
@@ -88,16 +90,70 @@ func (g *G) lua_print(L *lua.LState) int {
 	return 0
 }
 
+type tableKeySort []lua.LValue
+
+func (t tableKeySort) Len() int      { return len(t) }
+func (t tableKeySort) Swap(i, j int) { t[i], t[j] = t[j], t[i] }
+func (t tableKeySort) Less(i, j int) bool {
+	left := t[i]
+	right := t[j]
+	if left == right {
+		return false // equal
+	}
+	if left.Type() < right.Type() {
+		return true
+	} else if left.Type() > right.Type() {
+		return false
+	}
+	switch left.Type() {
+	case lua.LTNil:
+		return false // all nils are equal
+	case lua.LTBool:
+		if left == lua.LFalse && right == lua.LTrue {
+			return true
+		}
+		return false // equal or greater
+	case lua.LTNumber:
+		l := lua.LNumber(left)
+		r := lua.LNumber(right)
+		if l < r {
+			return true
+		}
+		return false
+	case lua.LTString:
+		l := lua.LString(left)
+		r := lua.LString(right)
+		if strings.Compare(string(l), string(r)) < 0 {
+			return true
+		}
+		return false
+	default:
+		// use default string representation
+		l := left.String()
+		r := right.String()
+		if strings.Compare(l, r) < 0 {
+			return true
+		}
+		return false
+	}
+}
+
 func (g *G) lua_printTable(L *lua.LState) int {
 	t := L.CheckTable(1)
-	first := true
+	var keys []lua.LValue
 	t.ForEach(func(k, v lua.LValue) {
+		keys = append(keys, k)
+	})
+	sort.Sort(tableKeySort(keys))
+	first := true
+	for _, k := range keys {
+		v := t.RawGet(k)
 		if !first {
 			fmt.Fprint(&g.PrintBuf, " | ")
 		}
 		valStr := lua.LVAsString(L.ToStringMeta(v))
 		fmt.Fprintf(&g.PrintBuf, "%s: %s", lua.LVAsString(L.ToStringMeta(k)), valStr)
 		first = false
-	})
+	}
 	return 0
 }
