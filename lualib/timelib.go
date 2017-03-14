@@ -30,7 +30,7 @@ func OpenTime(L *lua.LState) int {
 	mod := L.NewTable()
 	mod.RawSetString("now", L.NewFunction(lua_time_now))
 	mod.RawSetString("fromunix", L.NewFunction(lua_time_fromunix))
-	mod.RawGetString("parse", L.NewFunction(lua_time_parse))
+	mod.RawSetString("parse", L.NewFunction(lua_time_parse))
 	mod.RawSetString("rfc3339", lua.LString(time.RFC3339))
 
 	mt := L.NewTypeMetatable("time")
