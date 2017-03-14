@@ -70,6 +70,7 @@ func (g *G) OpenLibraries() {
 	OpenJson(L)
 	OpenIntra(g, L)
 	OpenRequests(L)
+	OpenTime(L)
 
 	(*LUser)(nil).SetupMetatable(L)
 	(*LChannel)(nil).SetupMetatable(L)
