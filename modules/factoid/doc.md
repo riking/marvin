@@ -77,7 +77,9 @@ collectgarbage() dofile() loadfile() _printregs()
 ## `table`, `string`, `math` modules
 
 String functions: https://www.lua.org/manual/5.1/manual.html#5.4
+
 Table functions: https://www.lua.org/manual/5.1/manual.html#5.5
+
 Math functions: https://www.lua.org/manual/5.1/manual.html#5.6
 
 ## `debug` module
