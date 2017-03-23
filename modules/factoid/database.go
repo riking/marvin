@@ -39,7 +39,7 @@ const (
 	sqlGetFactoid = `
 	SELECT rawtext, last_set_user
 	FROM module_factoid_factoids
-	WHERE name = $1 AND ((channel_only IS NULL AND $2 IS NULL) OR channel_only = $2)
+	WHERE name = $1 AND (channel_only = $2 OR (channel_only IS NULL AND $2 IS NULL))
 	AND forgotten = FALSE
 	ORDER BY channel_only DESC, last_set DESC
 	LIMIT 1`
@@ -48,7 +48,7 @@ const (
 	sqlFactoidInfo = `
 	SELECT id, rawtext, channel_only, last_set_user, last_set_channel, last_set_ts, last_set, locked, forgotten
 	FROM module_factoid_factoids
-	WHERE name = $1 AND ((channel_only IS NULL AND $2 IS NULL) OR channel_only = $2)
+	WHERE name = $1 AND (channel_only = $2 OR (channel_only IS NULL AND $2 IS NULL))
 	AND ($3 OR forgotten = FALSE)
 	ORDER BY channel_only DESC, last_set DESC
 	LIMIT 1`
@@ -57,7 +57,7 @@ const (
 	sqlFactoidHistory = `
 	SELECT id, name, rawtext, channel_only, last_set_user, last_set_channel, last_set_ts, last_set, locked, forgotten
 	FROM module_factoid_factoids
-	WHERE name = $1 AND ((channel_only IS NULL AND $2 IS NULL) OR channel_only = $2)
+	WHERE name = $1 AND (channel_only = $2 OR (channel_only IS NULL AND $2 IS NULL))
 	ORDER BY channel_only DESC, last_set DESC
 	-- no LIMIT`
 
@@ -73,7 +73,7 @@ const (
 	SELECT DISTINCT name, channel_only IS NOT NULL
 	FROM module_factoid_factoids
 	WHERE name LIKE '%' || $1 || '%'
-	AND ((channel_only IS NULL AND $2 IS NULL) OR channel_only = $2)
+	AND (channel_only = $2 OR (channel_only IS NULL AND $2 IS NULL))
 	AND (forgotten = FALSE)
 	GROUP BY name, channel_only`
 
@@ -83,7 +83,7 @@ const (
 		SELECT MAX(id) id, name, channel_only
 		FROM module_factoid_factoids
 		WHERE name LIKE '%' || $1 || '%'
-		AND ((channel_only IS NULL AND $2 IS NULL) OR channel_only = $2 OR '_ANY' = $2)
+		AND (channel_only = $2 OR '_ANY' = $2 OR (channel_only IS NULL AND $2 IS NULL))
 		AND ($3 OR forgotten = FALSE)
 		GROUP BY name, channel_only
 	)
