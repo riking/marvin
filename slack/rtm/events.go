@@ -1,7 +1,6 @@
 package rtm
 
 import (
-	"math"
 	"time"
 
 	"github.com/riking/marvin/slack"
@@ -51,10 +50,6 @@ func (c *Client) onPurposeChange(msg slack.RTMRawMessage) {
 }
 
 func (c *Client) onUserChange(msg slack.RTMRawMessage) {
-	cacheTS := msg["cache_ts"].(float64)
-	cacheInt, cacheFrac := math.Modf(cacheTS)
-	cacheTime := time.Unix(int64(cacheInt), int64(cacheFrac*1000000000))
-
 	var resp struct {
 		User *slack.User `json:"user"`
 	}
