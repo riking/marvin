@@ -82,6 +82,7 @@ type TeamInfo struct {
 
 type User struct {
 	NotExist bool      `json:"-"`
+	CacheTS  time.Time `json:"-"`
 
 	ID       UserID      `json:"id"`
 	TeamID   TeamID      `json:"team_id"`

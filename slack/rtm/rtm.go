@@ -142,6 +142,9 @@ func Dial(team marvin.Team) (*Client, error) {
 	c.sendChan = make(chan []byte)
 
 	now := time.Now()
+	for _, v := range c.Users {
+		v.CacheTS = now
+	}
 	for _, v := range c.Channels {
 		v.CacheTS = now
 	}

@@ -169,7 +169,7 @@ func (t *Team) cachedUserInfo(user slack.UserID) *slack.User {
 
 	for i, v := range t.client.Users {
 		if v.ID == user {
-			if time.Unix(v.Updated, 0).Before(time.Now().Add(-24 * time.Hour)) {
+			if v.CacheTS.Before(time.Now().Add(-24 * time.Hour)) {
 				go t.updateUserInfo(user)
 			}
 			return t.client.Users[i]
@@ -195,7 +195,7 @@ func (t *Team) updateUserInfo(user slack.UserID) (*slack.User, error) {
 	if err != nil {
 		return nil, err
 	}
-	t.client.ReplaceUserObject(time.Now(), response.User)
+	t.client.ReplaceUserObject(response.User)
 	return response.User, nil
 }
 
