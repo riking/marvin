@@ -271,8 +271,9 @@ ch.name -> String -- "general", "[IM with UYOURUSERID]"
 -- List of every user in the channel. Warning: may time out on large channels
 ch.users -> Table<LUser>
 -- Format the channel for display in a response
-tostring(ch)
-ch.mention
+-- <#C1G4AJ96D|#general>
+tostring(ch) -> String
+ch.mention -> String
 
 -- Only for non-IM channels
 ch.creator -> LUser -- @gaetan
@@ -292,21 +293,21 @@ local u = user -- user running the factoid
 tostring(user) -> "<@USLACKBOT>"
 user.id -> "USLACKBOT"
 
-user.is_blacklisted
-user.is_admin
-user.is_controller
-user.deleted
+user.is_blacklisted -> Bool
+user.is_admin -> Bool
+user.is_controller -> Bool
+user.deleted -> Bool
 
 user.username -> "slackbot"
-user.fname
-user.lname
-user.name
+user.fname -> String
+user.lname -> String
+user.name -> String
 user.tz -> "America/Los_Angeles"
-user.tz_offset -> -28800 (seconds)
-user.profile.real
-user.profile.first
-user.profile.last
-user.profile.phone
+user.tz_offset -> -28800 -- offset in seconds
+user.profile.real -> String
+user.profile.first -> String
+user.profile.last -> String
+user.profile.phone -> String
 ```
 
 ## LFactoid
