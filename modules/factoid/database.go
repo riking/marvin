@@ -73,7 +73,7 @@ const (
 	SELECT DISTINCT name, channel_only IS NOT NULL
 	FROM module_factoid_factoids
 	WHERE name LIKE '%' || $1 || '%'
-	AND (channel_only = $2 OR (channel_only IS NULL AND $2 IS NULL))
+	AND (channel_only = $2 OR (channel_only IS NULL))
 	AND (forgotten = FALSE)
 	GROUP BY name, channel_only`
 
@@ -83,14 +83,14 @@ const (
 		SELECT MAX(id) id, name, channel_only
 		FROM module_factoid_factoids
 		WHERE name LIKE '%' || $1 || '%'
-		AND (channel_only = $2 OR '_ANY' = $2 OR (channel_only IS NULL AND $2 IS NULL))
+		AND (channel_only = $2 OR channel_only IS NULL)
 		AND ($3 OR forgotten = FALSE)
 		GROUP BY name, channel_only
 	)
 	SELECT f.id, f.name, f.rawtext, f.channel_only, f.last_set_user, f.last_set_channel, f.last_set_ts, f.last_set, f.locked, f.forgotten
 	FROM names
 	INNER JOIN module_factoid_factoids f ON names.id = f.id
-	ORDER BY channel_only DESC, last_set DESC
+	ORDER BY name DESC, channel_only DESC, last_set DESC
 	`
 
 	// $1 = isLocked $2 = dbID

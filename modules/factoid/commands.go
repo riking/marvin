@@ -244,7 +244,7 @@ func (mod *FactoidModule) CmdList(t marvin.Team, args *marvin.CommandArguments) 
 	}
 
 	for _, v := range channelScoped {
-		fmt.Fprintf(&buf, "`%s`\\* ", v)
+		fmt.Fprintf(&buf, "`%s`* ", v)
 	}
 	if len(channelScoped) != 0 {
 		fmt.Fprint(&buf, "\n")
