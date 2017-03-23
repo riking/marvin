@@ -6,7 +6,7 @@
 
 ## `base` module
 
-```
+```lua
 -- Appends the arguments to the output.
 print(Stringish [, ...])
 -- Prints a table in the output.
@@ -130,7 +130,7 @@ bot.shortlink(String) -> String
 
 Example:
 
-```
+```lua
 local test_content = "123456789"
 local paste_url = bot.paste(test_content)
 local resp, err = requests.get(paste_url)
@@ -145,7 +145,7 @@ See https://github.com/dariusk/corpora
 
 Example:
 
-```
+```lua
 -- https://github.com/dariusk/corpora/blob/master/data/technology/computer_sciences.json
 local example_dataname = "technology/computer_sciences"
 
@@ -167,7 +167,7 @@ Slightly broken, won't bother documenting for now
 
 Overview
 
-```
+```lua
 json.load(String) -> Any
   -- aliases: json.decode json.parse
 json.dump(Any) -> String
@@ -207,7 +207,7 @@ Recursive tables will blow the call stack and crash the interpreter.
 
 The time module provides access to time formatting functions from Lua.
 
-```
+```lua
 time.rfc3339 -> String -- formatting constant
 time.now() -> Time -- returns the current time
 -- creates a new Time from a unix timestamp
@@ -219,7 +219,7 @@ time.parse(String value, format=time.rfc3339) -> (Time, error)
 
 Type: Time
 
-```
+```lua
 local t = time.now()
 
 t.year -> Number: year number
