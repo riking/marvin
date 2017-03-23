@@ -98,7 +98,6 @@ func (c *Client) ReplaceUserObject(cacheTS time.Time, obj *slack.User) {
 	c.MetadataLock.Lock()
 	defer c.MetadataLock.Unlock()
 
-	obj.CacheTS = cacheTS
 	for i, v := range c.Users {
 		if v.ID == obj.ID {
 			c.Users[i] = obj

@@ -81,7 +81,6 @@ type TeamInfo struct {
 }
 
 type User struct {
-	CacheTS  time.Time `json:"-"`
 	NotExist bool      `json:"-"`
 
 	ID       UserID      `json:"id"`
@@ -94,6 +93,7 @@ type User struct {
 	Tz       string      `json:"tz"`
 	TzLabel  string      `json:"tz_label"`
 	TzOffset int         `json:"tz_offset"`
+	Updated  int64       `json:"updated"`
 	Profile  struct {
 		RealName           string `json:"real_name"`
 		RealNameNormalized string `json:"real_name_normalized"`

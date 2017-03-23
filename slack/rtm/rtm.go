@@ -101,7 +101,7 @@ func Dial(team marvin.Team) (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	if startResponse.CacheTsVersion != "v1-cat" {
+	if startResponse.CacheTsVersion != "v2-bunny" {
 		panic(errors.Errorf("Unexpected CacheTSVersion %s", startResponse.CacheTsVersion))
 	}
 	if startResponse.CacheVersion != "v15-koala" {
@@ -142,9 +142,6 @@ func Dial(team marvin.Team) (*Client, error) {
 	c.sendChan = make(chan []byte)
 
 	now := time.Now()
-	for _, v := range c.Users {
-		v.CacheTS = now
-	}
 	for _, v := range c.Channels {
 		v.CacheTS = now
 	}
