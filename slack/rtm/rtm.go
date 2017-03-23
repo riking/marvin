@@ -104,7 +104,7 @@ func Dial(team marvin.Team) (*Client, error) {
 	if startResponse.CacheTsVersion != "v2-bunny" {
 		panic(errors.Errorf("Unexpected CacheTSVersion %s", startResponse.CacheTsVersion))
 	}
-	if startResponse.CacheVersion != "v15-koala" {
+	if startResponse.CacheVersion != "v16-giraffe" {
 		panic(errors.Errorf("Unexpected CacheVersion %s", startResponse.CacheVersion))
 	}
 	wsURL, err := url.Parse(startResponse.URL)
