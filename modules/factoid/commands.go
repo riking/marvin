@@ -55,9 +55,9 @@ func (mod *FactoidModule) CmdRemember(t marvin.Team, args *marvin.CommandArgumen
 	}
 
 	factoidName := flags.flagSet.Arg(0)
-	scopeChannel := args.Source.ChannelID()
-	if !flags.makeLocal {
-		scopeChannel = ""
+	var scopeChannel slack.ChannelID = ""
+	if flags.makeLocal {
+		args.Source.ChannelID()
 	}
 	factoidSource := slack.UnescapeTextAll(strings.Join(flags.flagSet.Args()[1:], " "))
 

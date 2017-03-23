@@ -39,7 +39,7 @@ const (
 	sqlGetFactoid = `
 	SELECT rawtext, last_set_user
 	FROM module_factoid_factoids
-	WHERE name = $1 AND (channel_only IS NULL OR channel_only = $2)
+	WHERE name = $1 AND ((channel_only IS NULL AND $2 IS NULL) OR channel_only = $2)
 	AND forgotten = FALSE
 	ORDER BY channel_only DESC, last_set DESC
 	LIMIT 1`
@@ -48,7 +48,7 @@ const (
 	sqlFactoidInfo = `
 	SELECT id, rawtext, channel_only, last_set_user, last_set_channel, last_set_ts, last_set, locked, forgotten
 	FROM module_factoid_factoids
-	WHERE name = $1 AND (channel_only IS NULL OR channel_only = $2)
+	WHERE name = $1 AND ((channel_only IS NULL AND $2 IS NULL) OR channel_only = $2)
 	AND ($3 OR forgotten = FALSE)
 	ORDER BY channel_only DESC, last_set DESC
 	LIMIT 1`
@@ -57,7 +57,7 @@ const (
 	sqlFactoidHistory = `
 	SELECT id, name, rawtext, channel_only, last_set_user, last_set_channel, last_set_ts, last_set, locked, forgotten
 	FROM module_factoid_factoids
-	WHERE name = $1 AND (channel_only IS NULL OR channel_only = $2)
+	WHERE name = $1 AND ((channel_only IS NULL AND $2 IS NULL) OR channel_only = $2)
 	ORDER BY channel_only DESC, last_set DESC
 	-- no LIMIT`
 
@@ -73,7 +73,7 @@ const (
 	SELECT DISTINCT name, channel_only IS NOT NULL
 	FROM module_factoid_factoids
 	WHERE name LIKE '%' || $1 || '%'
-	AND (channel_only IS NULL OR channel_only = $2)
+	AND ((channel_only IS NULL AND $2 IS NULL) OR channel_only = $2)
 	AND (forgotten = FALSE)
 	GROUP BY name, channel_only`
 
@@ -83,7 +83,7 @@ const (
 		SELECT MAX(id) id, name, channel_only
 		FROM module_factoid_factoids
 		WHERE name LIKE '%' || $1 || '%'
-		AND (channel_only IS NULL OR channel_only = $2 OR '_ANY' = $2)
+		AND ((channel_only IS NULL AND $2 IS NULL) OR channel_only = $2 OR '_ANY' = $2)
 		AND ($3 OR forgotten = FALSE)
 		GROUP BY name, channel_only
 	)
@@ -164,12 +164,10 @@ func (mod *FactoidModule) GetFactoidInfo(name string, channel slack.ChannelID, w
 	}
 	defer stmt.Close()
 
-	var scopeChannel sql.NullString
-	if channel == "" || channel == "_" {
-		scopeChannel.Valid = false
-	} else {
-		scopeChannel.String = string(channel)
+	if channel == "_" {
+		channel = ""
 	}
+	var scopeChannel = sql.NullString{Valid: channel != "", String: string(channel)}
 
 	row := stmt.QueryRow(name, scopeChannel, withForgotten)
 	err = row.Scan(
@@ -179,6 +177,10 @@ func (mod *FactoidModule) GetFactoidInfo(name string, channel slack.ChannelID, w
 		&result.IsLocked, &result.IsForgotten,
 	)
 	if err == sql.ErrNoRows {
+		// retry without channel scope
+		if scopeChannel.Valid {
+			return mod.GetFactoidInfo(name, "", withForgotten)
+		}
 		return nil, ErrNoSuchFactoid
 	} else if err != nil {
 		return nil, errors.Wrap(err, "Database error")
@@ -205,16 +207,18 @@ func (mod *FactoidModule) GetFactoidBare(name string, channel slack.ChannelID) (
 	}
 	defer stmt.Close()
 
-	var scopeChannel sql.NullString
-	if channel == "" || channel == "_" {
-		scopeChannel.Valid = false
-	} else {
-		scopeChannel.String = string(channel)
+	if channel == "_" {
+		channel = ""
 	}
+	var scopeChannel = sql.NullString{Valid: channel != "", String: string(channel)}
 
 	row := stmt.QueryRow(name, scopeChannel)
 	err = row.Scan(&result.RawSource, (*string)(&result.LastUser))
 	if err == sql.ErrNoRows {
+		// retry without channel scope
+		if scopeChannel.Valid {
+			return mod.GetFactoidBare(name, "")
+		}
 		return nil, ErrNoSuchFactoid
 	} else if err != nil {
 		return nil, errors.Wrap(err, "Database error")
@@ -229,12 +233,10 @@ func (mod *FactoidModule) GetFactoidHistory(name string, channel slack.ChannelID
 	}
 	defer stmt.Close()
 
-	var scopeChannel sql.NullString
-	if channel == "" || channel == "_" {
-		scopeChannel.Valid = false
-	} else {
-		scopeChannel.String = string(channel)
+	if channel == "_" {
+		channel = ""
 	}
+	var scopeChannel = sql.NullString{Valid: channel != "", String: string(channel)}
 
 	rows, err := stmt.Query(name, scopeChannel)
 	if err != nil {
@@ -261,6 +263,10 @@ func (mod *FactoidModule) GetFactoidHistory(name string, channel slack.ChannelID
 	if rows.Err() != nil {
 		return nil, errors.Wrap(err, "Database error")
 	}
+	if scopeChannel.Valid && len(resAry) == 0 {
+		// retry without channel scope
+		return mod.GetFactoidHistory(name, "")
+	}
 	return resAry, nil
 }
 
@@ -269,7 +275,7 @@ func (fi *Factoid) FillInfo(channel slack.ChannelID) error {
 	if !fi.IsBareInfo {
 		return nil
 	}
-	newInfo, err := fi.Mod.GetFactoidInfo(fi.FactoidName, channel /* withForgotten */, false)
+	newInfo, err := fi.Mod.GetFactoidInfo(fi.FactoidName, channel, false)
 	if err != nil {
 		return err
 	}
