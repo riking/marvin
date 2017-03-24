@@ -391,7 +391,7 @@ https://marvin.riking.org/factoids/_/roulette2
 local d = fdata
 function reload()
   -- ...
-  d.last = "
+  d.last = ""
   d.chamber = ch
   d.sb = bul -- setup_bullets
   d.sz = mx -- setup_size
