@@ -6,8 +6,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/pkg/errors"
 	flag "github.com/ogier/pflag"
+	"github.com/pkg/errors"
 
 	"github.com/riking/marvin"
 	"github.com/riking/marvin/slack"
@@ -25,7 +25,7 @@ type rememberArgs struct {
 func makeRememberArgs() *rememberArgs {
 	var obj = new(rememberArgs)
 	obj.flagSet = flag.NewFlagSet("remember", flag.ContinueOnError)
-	obj.flagSet.BoolVarP(&obj.makeLocal, "local",  ".", false, "make a local (one channel only) factoid")
+	obj.flagSet.BoolVarP(&obj.makeLocal, "local", ".", false, "make a local (one channel only) factoid")
 	return obj
 }
 
