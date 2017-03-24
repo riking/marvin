@@ -180,7 +180,7 @@ json.mt_isarray -> Table
 json.mt_isobject -> Table
 ```
 
-### Conversion between JSON and Lua
+#### Conversion between JSON and Lua
 
 Bools, numbers, and strings are round-tripped through Lua and JSON without issue.
 
@@ -204,6 +204,43 @@ Threads, functions, and channels cannot be encoded and will raise an error if at
 Only userdata objects that opt-in to JSON marshalling can be encoded. Other userdata objects will raise an error containing their Go-side type.
 
 Recursive tables will blow the call stack and crash the interpreter.
+
+## `requests` module
+
+The requests module provides access to HTTP requests.
+
+```lua
+-- get, head, delete, trace
+resp, err = requests.get(url, headers, options)
+-- post, put, options, patch
+resp, err = requests.post(url, headers, data, options)
+resp, err = requests.request(url, headers, data, method, options)
+
+-- url: String
+-- headers: Nil or Table
+-- data: Nil or String or Table (x-www-urlencoded)
+-- method: GET, HEAD, DELETE, TRACE, POST, PUT, OPTIONS, PATCH
+-- options: Nil or Table
+```
+
+No options are currently defined.
+
+The function returns as soon as the **headers are received**.
+
+#### LResponse
+
+A LResponse is userdata with __index fields.
+```
+resp.headers -> Table -- map of header name to header value
+resp.statuscode -> Number -- e.g. 200
+resp.status -> String -- e.g. "200 OK"
+resp.proto -> String -- e.g. "HTTP/1.1"
+
+-- The following two functions consume the response body, so may take time to execute.
+-- They cache their result, so can be called multiple times.
+resp:text() -> String
+resp:json() -> Any -- see json module documentation
+```
 
 ## `time` module
 
@@ -327,3 +364,24 @@ f.created -> String -- Slack archive link
 f.data -> FDataMap
 ```
 
+## Context globals
+
+```lua
+-- Arguments to the factoid
+argv -> Table<String>
+args -> String
+-- User, Channel where factoid was run
+user -> LUser
+channel -> LChannel
+
+slack -> LTeam
+
+-- Name of factoid
+factoidname -> String
+-- Factoid database object
+factoid.example -> LFactoid
+factoid[factoidname] -- currently running factoid object
+
+fmap.store_name -> LFDataMap -- Shared factoid datastore
+fdata -> LFDataMap -- Private factoid datastore
+```
