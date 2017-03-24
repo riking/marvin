@@ -31,7 +31,7 @@ func luaFuncs__index(L *lua.LState) int {
 	}
 	f, err := L.Load(strings.NewReader(string(value.(lua.LString))), name)
 	if err != nil {
-		L.Push(nil)
+		L.Push(lua.LNil)
 		L.Push(lua.LString(err.Error()))
 		return 2
 	}
