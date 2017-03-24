@@ -22,8 +22,8 @@ assert(Any, String, ...) -> ...
 error(Any)
 
 -- See https://www.lua.org/pil/14.3.html
-getfenv()
-setfenv()
+getfenv(Function)
+setfenv(Function, Table)
 -- See http://lua-users.org/wiki/MetamethodsTutorial
 getmetatable(Table) -> Table or Nil
 setmetatable(Table, Table mt)
@@ -68,7 +68,7 @@ type(Any) -> String
 --   return list[i], list[i+1], list[i+2], ..., list[j]
 -- except that code can only be written for a fixed number of elements.
 -- The default values for i and j select the entire list.
-unpack(list [, i [, j]]) -> ...
+unpack(list [, i, j]]) -> ...
 
 -- These functions throw a forbidden function error when called.
 collectgarbage() dofile() loadfile() _printregs()
@@ -76,10 +76,8 @@ collectgarbage() dofile() loadfile() _printregs()
 
 ## `table`, `string`, `math` modules
 
-String functions: https://www.lua.org/manual/5.1/manual.html#5.4
-
-Table functions: https://www.lua.org/manual/5.1/manual.html#5.5
-
+String functions: https://www.lua.org/manual/5.1/manual.html#5.4  
+Table functions: https://www.lua.org/manual/5.1/manual.html#5.5  
 Math functions: https://www.lua.org/manual/5.1/manual.html#5.6
 
 ## `debug` module
@@ -136,8 +134,7 @@ Example:
 local test_content = "123456789"
 local paste_url = bot.paste(test_content)
 local resp, err = requests.get(paste_url)
-local resp_text = resp:text()
-print(test_content == resp_text)
+print(test_content == resp:text())
 -- true
 ```
 
@@ -362,6 +359,54 @@ f.islocal -> Bool
 f.time -> Number -- Unix timestamp
 f.created -> String -- Slack archive link
 f.data -> FDataMap
+```
+
+## LFDataMap
+
+Factoid data is a way to persist state across factoid invocations.
+
+A fdata object acts like a table, but accessing it actually performs function calls - be careful to write back your
+modified values when finished.
+
+Concurrent modification is not protected - if two executing factoids mutate the same key, results will be inconsistent.
+
+Written values are persisted to the database every 30 seconds, as well as on shutdown.
+
+The maximum length of a key is 500 bytes. The maximum length of a value is 40 KByte after JSON encoding.
+
+Requesting the length or iterating a fdata object loads **all** content into memory. Avoid this if you're storing a large amount of data across different keys.
+
+The `fdata` object is keyed to the currently executing factoid's name.  
+The `fmap` provides access to various global tables shared across factoids.
+
+### Example Usage
+
+Note the following:
+
+ - The 'chamber' table is read, modified, then written. Returned objects are not rechecked for modification at the end of execution, all changes must be explicitly writen back.
+
+https://marvin.riking.org/factoids/_/roulette2
+
+```lua
+local d = fdata
+function reload()
+  -- ...
+  d.last = "
+  d.chamber = ch
+  d.sb = bul -- setup_bullets
+  d.sz = mx -- setup_size
+  -- ...
+end
+function pull()
+  local ch = d.chamber
+  -- ...
+  table.remove(ch, math.random(#ch))
+  d.chamber = ch
+  d.last = user.id
+  -- ...
+end
+if d.chamber == nil then reload() end
+-- ...
 ```
 
 ## Context globals
