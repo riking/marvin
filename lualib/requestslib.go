@@ -1,6 +1,7 @@
 package lualib
 
 import (
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -140,7 +141,9 @@ func luaRequest(L *lua.LState) int {
 
 	req, err := http.NewRequest(method, urlStr, strings.NewReader(data))
 	if err != nil {
-		L.RaiseError(err.Error())
+		L.Push(lua.LNil)
+		L.Push(lua.LString(err.Error()))
+		return 2
 	}
 	req = req.WithContext(L.Ctx)
 	req.Header.Set("User-Agent", "Marvin, bot for 42schoolusa.slack.com")
@@ -153,7 +156,9 @@ func luaRequest(L *lua.LState) int {
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		L.RaiseError("%s: %s", urlStr, err.Error())
+		L.Push(lua.LNil)
+		L.Push(lua.LString(fmt.Sprintf("%s: %s", urlStr, err.Error())))
+		return 2
 	}
 	L.Push(LNewResponse(L, resp))
 	return 1

@@ -1,7 +1,6 @@
 package rtm
 
 import (
-	"math"
 	"time"
 
 	"github.com/riking/marvin/slack"
@@ -51,10 +50,6 @@ func (c *Client) onPurposeChange(msg slack.RTMRawMessage) {
 }
 
 func (c *Client) onUserChange(msg slack.RTMRawMessage) {
-	cacheTS := msg["cache_ts"].(float64)
-	cacheInt, cacheFrac := math.Modf(cacheTS)
-	cacheTime := time.Unix(int64(cacheInt), int64(cacheFrac*1000000000))
-
 	var resp struct {
 		User *slack.User `json:"user"`
 	}
@@ -64,7 +59,7 @@ func (c *Client) onUserChange(msg slack.RTMRawMessage) {
 		return
 	}
 
-	c.ReplaceUserObject(cacheTime, resp.User)
+	c.ReplaceUserObject(resp.User)
 }
 
 func (c *Client) onIMCreate(msg slack.RTMRawMessage) {
@@ -94,11 +89,11 @@ func (c *Client) onChannelJoin(msg slack.RTMRawMessage) {
 	c.ReplaceChannelObject(time.Now(), resp.Channel)
 }
 
-func (c *Client) ReplaceUserObject(cacheTS time.Time, obj *slack.User) {
+func (c *Client) ReplaceUserObject(obj *slack.User) {
 	c.MetadataLock.Lock()
 	defer c.MetadataLock.Unlock()
 
-	obj.CacheTS = cacheTS
+	obj.CacheTS = time.Now()
 	for i, v := range c.Users {
 		if v.ID == obj.ID {
 			c.Users[i] = obj

@@ -69,6 +69,7 @@ func (g *G) OpenLibraries() {
 	OpenBit(L)
 	OpenBot(g.team)(L)
 	OpenCorpus(L)
+	OpenFuncs(L)
 	OpenJson(L)
 	OpenIntra(g, L)
 	OpenRequests(L)

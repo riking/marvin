@@ -2,13 +2,13 @@ package factoid
 
 import (
 	"bytes"
-	"flag"
 	"fmt"
 	"sort"
 	"strings"
-	"sync"
 
+	flag "github.com/ogier/pflag"
 	"github.com/pkg/errors"
+
 	"github.com/riking/marvin"
 	"github.com/riking/marvin/slack"
 	"github.com/riking/marvin/util"
@@ -22,14 +22,12 @@ type rememberArgs struct {
 	wasLockFailure bool
 }
 
-func makeRememberArgs() interface{} {
+func makeRememberArgs() *rememberArgs {
 	var obj = new(rememberArgs)
 	obj.flagSet = flag.NewFlagSet("remember", flag.ContinueOnError)
-	obj.flagSet.BoolVar(&obj.makeLocal, "--local", false, "make a local (one channel only) factoid")
+	obj.flagSet.BoolVarP(&obj.makeLocal, "local", ".", false, "make a local (one channel only) factoid")
 	return obj
 }
-
-var rememberArgsPool = sync.Pool{New: makeRememberArgs}
 
 const (
 	helpRemember = "`@marvin remember [--local] [name] [value]` (alias `r`) saves a factoid."
@@ -42,10 +40,12 @@ const (
 )
 
 func (mod *FactoidModule) CmdRemember(t marvin.Team, args *marvin.CommandArguments) marvin.CommandResult {
-	flags := rememberArgsPool.Get().(*rememberArgs)
+	flags := makeRememberArgs()
 	flagErr := flags.flagSet.Parse(args.Arguments)
 	if flagErr == flag.ErrHelp {
 		flags.wantHelp = true
+	} else if flagErr != nil {
+		return marvin.CmdFailuref(args, "could not parse flags: %v", flagErr)
 	} else if flags.flagSet.NArg() < 2 {
 		flags.wantHelp = true
 	}
@@ -55,9 +55,9 @@ func (mod *FactoidModule) CmdRemember(t marvin.Team, args *marvin.CommandArgumen
 	}
 
 	factoidName := flags.flagSet.Arg(0)
-	scopeChannel := args.Source.ChannelID()
-	if !flags.makeLocal {
-		scopeChannel = ""
+	var scopeChannel slack.ChannelID = ""
+	if flags.makeLocal {
+		scopeChannel = args.Source.ChannelID()
 	}
 	factoidSource := slack.UnescapeTextAll(strings.Join(flags.flagSet.Args()[1:], " "))
 
@@ -244,7 +244,7 @@ func (mod *FactoidModule) CmdList(t marvin.Team, args *marvin.CommandArguments) 
 	}
 
 	for _, v := range channelScoped {
-		fmt.Fprintf(&buf, "`%s`\\* ", v)
+		fmt.Fprintf(&buf, "`%s`* ", v)
 	}
 	if len(channelScoped) != 0 {
 		fmt.Fprint(&buf, "\n")

@@ -203,7 +203,7 @@ func (t *Team) updateUserInfo(user slack.UserID) (*slack.User, error) {
 	if err != nil {
 		return nil, err
 	}
-	t.client.ReplaceUserObject(time.Now(), response.User)
+	t.client.ReplaceUserObject(response.User)
 	return response.User, nil
 }
 

@@ -209,13 +209,13 @@ func luaUser__Index(L *lua.LState) int {
 				L.Push(lua.LString(u.Info.Profile.FirstName))
 			}
 		case "lname":
-			if u.Info.Profile.FirstName == "" {
+			if u.Info.Profile.LastName == "" {
 				L.Push(lua.LString(u.Info.Name))
 			} else {
 				L.Push(lua.LString(u.Info.Profile.LastName))
 			}
 		case "name":
-			if u.Info.Profile.FirstName == "" {
+			if u.Info.Profile.RealName == "" {
 				L.Push(lua.LString(u.Info.Name))
 			} else {
 				L.Push(lua.LString(u.Info.Profile.RealName))
