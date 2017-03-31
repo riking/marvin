@@ -36,12 +36,6 @@ func (mod *AutoInviteModule) HTTPListInvites(w http.ResponseWriter, r *http.Requ
 
 	lc, _ := weblogin.NewLayoutContent(mod.team, w, r, weblogin.NavSectionInvite)
 
-	stmt, err := mod.team.DB().Prepare(sqlListInvites)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
 	type singleChannel struct {
 		Name       string
 		NameAnchor string
@@ -68,6 +62,12 @@ func (mod *AutoInviteModule) HTTPListInvites(w http.ResponseWriter, r *http.Requ
 	data.Layout = lc
 	data.NotLoggedIn = user == nil || user.SlackUser == ""
 
+	stmt, err := mod.team.DB().Prepare(sqlListInvites)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer stmt.Close()
 	rows, err := stmt.Query()
 	if err != nil {
 		wlAPI.HTTPError(w, r, errors.Wrap(err, "Database query error"))

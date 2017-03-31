@@ -30,12 +30,16 @@ type LUser struct {
 }
 
 const metatableLUser = "_metatable_LUser"
+const metatableLUserIndex = "_metatable_LUserIndex"
 
 func (*LUser) SetupMetatable(L *lua.LState) {
 	tab := L.NewTypeMetatable(metatableLUser)
 	tab.RawSetString("__tostring", L.NewFunction(luaUser__ToString))
 	tab.RawSetString("__eq", L.NewFunction(luaUser__Eq))
 	tab.RawSetString("__index", L.NewFunction(luaUser__Index))
+
+	tab = L.NewTypeMetatable(metatableLUserIndex)
+	tab.RawSetString("__index", L.NewFunction(luaUserIndex__index))
 }
 
 func LNewUser(g *G, user slack.UserID, preload bool) (lua.LValue, error) {
@@ -87,6 +91,37 @@ func (u *LUser) getProfile(L *lua.LState) *lua.LTable {
 	prof.RawSetString("title", lua.LString(u.Info.Profile.Title))
 	u.profile = prof
 	return u.profile
+}
+
+type LUserIndex struct {
+	g *G
+}
+
+func luaUserIndex__index(L *lua.LState) int {
+	ud := L.CheckUserData(1)
+	nameV := L.Get(2)
+	if nameV.Type() != lua.LTString {
+		return 0
+	}
+	name := L.CheckString(2)
+	lci := ud.Value.(*LChannelIndex)
+	g := lci.g
+
+	if name == "" {
+		return 0
+	}
+
+	uid := g.Team().ResolveUserName(name)
+	if uid == "" {
+		return 0
+	}
+
+	u, err := LNewUser(g, uid, true)
+	if err != nil {
+		return 0
+	}
+	L.Push(u)
+	return 1
 }
 
 func luaUser__Eq(L *lua.LState) int {

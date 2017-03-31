@@ -120,7 +120,7 @@ section#channels {
 </div>
 <script>
 var startLoginURL = {{js .Layout.StartSlackURL}};
-var needLogin = {{if or (false) (.NotLoggedIn)}}true{{else}}false{{end}};
+var needLogin = {{if (.NotLoggedIn)}}true{{else}}false{{end}};
 function buttonClick(evt) {
     var spanEl = evt.delegateTarget;
     var divEl = spanEl.parentElement.parentElement;

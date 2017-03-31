@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/url"
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/riking/marvin"
@@ -145,15 +146,22 @@ func (t *Team) ResolveUserName(input string) slack.UserID {
 	if uID != "" {
 		return uID
 	}
+	input2 := strings.TrimLeft(input, "@")
 	t.client.MetadataLock.RLock()
 	defer t.client.MetadataLock.RUnlock()
 	for _, v := range t.client.Users {
 		if v.Name == input {
 			return v.ID
 		}
+		if v.Name == input2 {
+			return v.ID
+		}
 	}
 	for _, v := range t.client.Users {
 		if v.RealName == input {
+			return v.ID
+		}
+		if v.RealName == input2 {
 			return v.ID
 		}
 		//if len(v.Profile.FirstName) > 0 && strings.EqualFold(string(v.Profile.FirstName[0]) + v.Profile.LastName, input) {
