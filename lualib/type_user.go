@@ -104,7 +104,7 @@ func luaUserIndex__index(L *lua.LState) int {
 		return 0
 	}
 	name := L.CheckString(2)
-	lci := ud.Value.(*LChannelIndex)
+	lci := ud.Value.(*LUserIndex)
 	g := lci.g
 
 	if name == "" {
