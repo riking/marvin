@@ -233,3 +233,25 @@ func luaUser__Index(L *lua.LState) int {
 		return 0
 	}
 }
+
+func luaUser_sendMessage(L *lua.LState) int {
+	ud := L.CheckUserData(1)
+	lu := ud.Value.(*LUser)
+	g := lu.g
+
+	if g.ActionSource().AccessLevel() < marvin.AccessLevelAdmin {
+		L.RaiseError("Must have admin rights to sendMessage()")
+		return 0
+	}
+
+	msg := L.CheckString(2)
+
+	imCh, err := g.Team().GetIM(lu.ID)
+	if err != nil {
+		return 0
+	}
+	go g.Team().SendMessage(imCh, msg)
+
+	L.Push(lua.LTrue)
+	return 1
+}
