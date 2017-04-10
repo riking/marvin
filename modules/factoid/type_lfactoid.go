@@ -60,8 +60,12 @@ func luaFactoid__Call(L *lua.LState) int {
 	var parentOF *OutputFlags
 	parentOF = L.Ctx.Value(ctxKeyOutputFlags{}).(*OutputFlags)
 	var of OutputFlags
+	as := lfv.g.ActionSource()
+	if eas, ok := as.(*ElevatedActionSource); ok {
+		as = eas.Drop()
+	}
 
-	result, err := lfv.mod.RunFactoid(L.Ctx, args, &of, lfv.g.ActionSource())
+	result, err := lfv.mod.RunFactoid(L.Ctx, args, &of, as)
 	if err != nil {
 		L.RaiseError("factoid error: %s", err)
 	}

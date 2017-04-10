@@ -14,6 +14,23 @@ import (
 	"github.com/riking/marvin/util/shellquote"
 )
 
+// ElevatedActionSource allows for a temporary elevation of user permissions.
+// It modifies the returned AccessLevel, and the Drop method allows the original rights to be restored.
+type ElevatedActionSource struct {
+	marvin.ActionSource
+	Rights marvin.AccessLevel
+}
+
+// AccessLevel returns the elevated level of access rights.
+func (eas *ElevatedActionSource) AccessLevel() marvin.AccessLevel {
+	return eas.Rights
+}
+
+// Drop returns the un-elevated ActionSource.
+func (eas *ElevatedActionSource) Drop() marvin.ActionSource {
+	return eas.ActionSource
+}
+
 type OutputFlags struct {
 	NoReply     bool
 	Say         bool
@@ -78,6 +95,15 @@ func (mod *FactoidModule) exec_alias(ctx context.Context, origLine []string, of 
 			line = strings.Split(str, " ")
 			continue
 		}
+
+		// Locked factoids elevate permissions to the last editor
+		if info.IsLocked {
+			actionSource = &ElevatedActionSource{
+				ActionSource: actionSource,
+				Rights:       mod.team.UserLevel(info.LastUser),
+			}
+		}
+
 		return mod.exec_parse(ctx, info, info.RawSource, args, of, actionSource)
 	}
 }
