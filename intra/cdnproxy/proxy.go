@@ -74,6 +74,9 @@ func (t *transportList) New(resolvedAddr string) *http.Client {
 
 var clientCache transportList
 
+// Take the request, and fan-out to every intra CDN host available.
+// Respond with the first non-error response offered, or a 404 if all hosts agree on a
+// 404, or all errors otherwise.
 func ProxyIntraCDN(w http.ResponseWriter, r *http.Request) {
 	if !(r.Method == http.MethodGet || r.Method == http.MethodHead || r.Method == http.MethodOptions) {
 		w.WriteHeader(http.StatusMethodNotAllowed)
