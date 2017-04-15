@@ -8,7 +8,7 @@ type Tweet struct {
 	CreatedAt string `json:"created_at"`
 	// CurrentUserRetweet   *TweetIdentifier       `json:"current_user_retweet"`
 	Entities struct {
-		Hashtags []HashtagEntity `json:"hashtags"`
+		Hashtags     []HashtagEntity `json:"hashtags"`
 		Symbols      []HashtagEntity `json:"hashtags"`
 		Media        []MediaEntity   `json:"media"`
 		Urls         []URLEntity     `json:"urls"`
