@@ -31,6 +31,7 @@ func (c *customDNSCache) Get() (addrs []string, err error) {
 			return nil, err
 		}
 		c.res = res
+		c.expires = time.Now().Add(30*time.Minute)
 		return c.res, nil
 	}
 	return c.res, nil
