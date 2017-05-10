@@ -16,6 +16,7 @@ import (
 	"golang.org/x/oauth2"
 
 	"github.com/riking/marvin"
+	"github.com/riking/marvin/intra/cdnproxy"
 	"github.com/riking/marvin/slack"
 )
 
@@ -161,6 +162,8 @@ func (mod *WebLoginModule) Enable(team marvin.Team) {
 
 	team.Router().HandleFunc("/", mod.ServeRoot)
 	team.Router().PathPrefix("/assets/").HandlerFunc(mod.ServeAsset)
+	team.Router().PathPrefix("/cdn_proxy/").Handler(http.StripPrefix("/cdn_proxy", http.HandlerFunc(cdnproxy.ProxyIntraCDN)))
+	team.Router().PathPrefix("/cdnproxy/").Handler(http.StripPrefix("/cdnproxy", http.HandlerFunc(cdnproxy.ProxyIntraCDN)))
 	team.Router().HandleFunc("/session/csrf.json", mod.ServeCSRF)
 	team.Router().Methods(http.MethodDelete).Path("/session/destroy").HandlerFunc(mod.DestroySession)
 	team.Router().NotFoundHandler = http.HandlerFunc(mod.Serve404)

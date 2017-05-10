@@ -19,10 +19,10 @@ func LNewTeam(g *G) lua.LValue {
 	tab.RawSetString("channel", u)
 	tab.RawSetString("channels", u)
 
-
 	u = g.L.NewUserData()
 	u.Value = &LUserIndex{g: g}
 	u.Metatable = g.L.GetTypeMetatable(metatableLUserIdx)
+	tab.RawSetString("users", u)
 
 	tab.RawSetString("archive", g.L.NewFunction(func(L *lua.LState) int {
 		channel := L.CheckString(1)

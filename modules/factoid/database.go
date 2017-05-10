@@ -37,7 +37,7 @@ const (
 
 	// $1 = name $2 = scopeChannel
 	sqlGetFactoid = `
-	SELECT rawtext, last_set_user
+	SELECT rawtext, last_set_user, locked
 	FROM module_factoid_factoids
 	WHERE name = $1 AND (channel_only = $2 OR (channel_only IS NULL AND $2 IS NULL))
 	AND forgotten = FALSE
@@ -213,7 +213,7 @@ func (mod *FactoidModule) GetFactoidBare(name string, channel slack.ChannelID) (
 	var scopeChannel = sql.NullString{Valid: channel != "", String: string(channel)}
 
 	row := stmt.QueryRow(name, scopeChannel)
-	err = row.Scan(&result.RawSource, (*string)(&result.LastUser))
+	err = row.Scan(&result.RawSource, (*string)(&result.LastUser), &result.IsLocked)
 	if err == sql.ErrNoRows {
 		// retry without channel scope
 		if scopeChannel.Valid {
