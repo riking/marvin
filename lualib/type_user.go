@@ -29,13 +29,49 @@ type LUser struct {
 	profile *lua.LTable
 }
 
+type LUserIndex struct {
+	g	*G
+}
+
 const metatableLUser = "_metatable_LUser"
+const metatableLUserIdx = "_metatable_LUserIdx"
 
 func (*LUser) SetupMetatable(L *lua.LState) {
 	tab := L.NewTypeMetatable(metatableLUser)
 	tab.RawSetString("__tostring", L.NewFunction(luaUser__ToString))
 	tab.RawSetString("__eq", L.NewFunction(luaUser__Eq))
 	tab.RawSetString("__index", L.NewFunction(luaUser__Index))
+	tab = L.NewTypeMetatable(metatableLUserIdx)
+	tab.RawSetString("__index", L.NewFunction(luaUserIdx__Index))
+}
+
+func luaUserIdx__Index(L *lua.LState) int {
+	ud := L.CheckUserData(1)
+	nameV := L.Get(2)
+	if nameV.Type() == lua.LTUserData {
+		udPtr, ok := nameV.(*lua.LUserData).Value.(*LUser)
+		if ok {
+			L.Push(nameV)
+			return 1
+		}
+		L.RaiseError("Can't search for user with value of type %T", udPtr)
+	} else if nameV.Type() != lua.LTString {
+		L.RaiseError("Can't search for user with value of type %s", nameV.Type().String())
+	}
+	nameStr := L.CheckString(2)
+	lui := ud.Value.(*LUserIndex)
+	g := lui.g
+
+	uid := g.Team().ResolveUserName(nameStr)
+	if uid == "" {
+		return 0
+	}
+	lu, err := LNewUser(g, uid, true)
+	if err != nil {
+		L.RaiseError("Error loading user info: %v", err)
+	}
+	L.Push(lu)
+	return 1
 }
 
 func LNewUser(g *G, user slack.UserID, preload bool) (lua.LValue, error) {
