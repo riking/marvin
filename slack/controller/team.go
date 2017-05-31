@@ -299,7 +299,7 @@ func (t *Team) SlackAPIPostJSON(method string, form url.Values, result interface
 	resp, err := t.SlackAPIPostRaw(method, form)
 	if err != nil {
 		util.LogBadf("Slack API %s error: %s", method, err)
-		return errors.Wrapf(err, "Slack API %s: contact Slack", method)
+		return errors.Wrapf(err, "Slack API %s: connect", method)
 	}
 	err = json.NewDecoder(resp.Body).Decode(&rawResponse)
 	resp.Body.Close()
