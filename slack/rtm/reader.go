@@ -50,10 +50,6 @@ func (c *Client) pump() {
 	var msg slack.RTMRawMessage
 	var err error
 
-	if c.conn == nil {
-
-	}
-
 	for {
 		c.connLock.L.Lock()
 		for {
