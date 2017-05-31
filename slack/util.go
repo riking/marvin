@@ -11,21 +11,22 @@ import (
 var (
 	mentionRegexp     = regexp.MustCompile(`<@(U[A-Z0-9]+)>`)
 	channelMentionRgx = regexp.MustCompile(`<#(C[A-Z0-9]+)\|?([a-z0-9_-]+)?>`)
+	userIDRgx         = regexp.MustCompile(`U[A-Z0-9]+`)
 	channelIDRgx      = regexp.MustCompile(`C[A-Z0-9]+`)
 	groupIDRgx        = regexp.MustCompile(`G[A-Z0-9]+`)
 	dmIDRgx           = regexp.MustCompile(`D[A-Z0-9]+`)
 )
 
-func UserMentionRegexp() *regexp.Regexp {
-	return mentionRegexp
-}
-
 func ParseUserMention(arg string) UserID {
 	match := mentionRegexp.FindStringSubmatch(arg)
-	if match == nil {
-		return ""
+	if match != nil {
+		return UserID(match[1])
 	}
-	return UserID(match[1])
+	strMatch := userIDRgx.FindString(arg)
+	if strMatch != "" {
+		return UserID(strMatch)
+	}
+	return ""
 }
 
 func ParseChannelID(arg string) ChannelID {

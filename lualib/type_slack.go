@@ -21,7 +21,7 @@ func LNewTeam(g *G) lua.LValue {
 
 	u = g.L.NewUserData()
 	u.Value = &LUserIndex{g: g}
-	u.Metatable = g.L.GetTypeMetatable(metatableLUserIndex)
+	u.Metatable = g.L.GetTypeMetatable(metatableLUserIdx)
 	tab.RawSetString("users", u)
 
 	tab.RawSetString("archive", g.L.NewFunction(func(L *lua.LState) int {
