@@ -12,6 +12,9 @@ import (
 
 const MsgTypeAll = "_all"
 
+const pingOnIdleTime = 5*time.Minute
+const reconnectOnIdleTime = pingOnIdleTime + 15*time.Second
+
 type SlackCodec struct{}
 
 func (codec SlackCodec) Unmarshal(data []byte, payloadType byte, v interface{}) error {
@@ -65,7 +68,7 @@ func (c *Client) pump() {
 		c.connLock.L.Unlock()
 
 		msg = make(slack.RTMRawMessage)
-		conn.SetReadDeadline(time.Now().Add(30 * time.Second))
+		conn.SetReadDeadline(time.Now().Add(reconnectOnIdleTime))
 		err = c.codec.Receive(conn, &msg)
 		if err != nil {
 			util.LogWarn("Websocket error calling wait:", err)
@@ -144,7 +147,7 @@ func (c *Client) pinger() {
 }
 
 func (c *Client) resetPingTimer() {
-	c.pingTimer.Reset(20 * time.Second)
+	c.pingTimer.Reset(pingOnIdleTime)
 }
 
 func (c *Client) dispatchMessage(msg slack.RTMRawMessage) {
