@@ -235,14 +235,12 @@ func (c *Client) reconnectWorker() {
 		c.connLock.L.Unlock()
 		util.LogWarn("Disconnected.")
 
-		time.Sleep(1 * time.Second)
-
 		for {
 			util.LogWarn("Reconnecting...")
 			err := c.Connect()
 			if err != nil {
 				util.LogBad("Could not reconnect", err)
-				time.Sleep(29 * time.Second)
+				time.Sleep(30 * time.Second)
 				continue
 			}
 			break
@@ -303,7 +301,9 @@ func (c *Client) SendMessage(channelID slack.ChannelID, message string) (slack.R
 func (c *Client) SendMessageRaw(rtmOut slack.RTMRawMessage) (slack.RTMRawMessage, error) {
 	id := int32(c.rtmMsgId.Get())
 	rtmOut["id"] = id
-	rtmOut["type"] = "message"
+	if rtmOut["type"] == nil {
+		rtmOut["type"] = "message"
+	}
 	bytes, err := json.Marshal(rtmOut)
 	if err != nil {
 		return nil, errors.Wrap(err, "json marshal")
@@ -315,18 +315,20 @@ func (c *Client) SendMessageRaw(rtmOut slack.RTMRawMessage) (slack.RTMRawMessage
 	c.sendChan <- bytes
 	select {
 	case respMsg := <-respChan:
-		fakeEvent := make(slack.RTMRawMessage)
-		for k, v := range respMsg {
-			if k != "reply_to" && k != "ok" && k != "_rawBytes" {
-				fakeEvent[k] = v
+		if rtmOut["type"] == "message" {
+			fakeEvent := make(slack.RTMRawMessage)
+			for k, v := range respMsg {
+				if k != "reply_to" && k != "ok" && k != "_rawBytes" {
+					fakeEvent[k] = v
+				}
 			}
+			fakeEvent["team"] = string(c.AboutTeam.ID)
+			fakeEvent["type"] = "message"
+			fakeEvent["channel"] = rtmOut["channel"]
+			fakeEvent["user"] = string(c.Self.ID)
+			fakeEvent["_rawBytes"], _ = json.Marshal(fakeEvent)
+			go c.dispatchMessage(fakeEvent)
 		}
-		fakeEvent["team"] = string(c.AboutTeam.ID)
-		fakeEvent["type"] = "message"
-		fakeEvent["channel"] = rtmOut["channel"]
-		fakeEvent["user"] = string(c.Self.ID)
-		fakeEvent["_rawBytes"], _ = json.Marshal(fakeEvent)
-		go c.dispatchMessage(fakeEvent)
 
 		var resp struct {
 			Ok    bool             `json:"ok"`

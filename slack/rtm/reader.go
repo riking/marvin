@@ -77,10 +77,7 @@ func (c *Client) pump() {
 		}
 
 		c.resetPingTimer()
-		if msg["type"] == "pong" {
-			util.LogGood("Got websocket pong")
-			continue
-		} else if _, ok := msg["reply_to"]; ok {
+		if _, ok := msg["reply_to"]; ok {
 			replyToId := msg.ReplyTo()
 			c.sendCbsLock.Lock()
 			ch, ok := c.sendCbs[replyToId]
@@ -137,25 +134,11 @@ func (c *Client) pinger() {
 			continue
 		}
 
-		fw, err := conn.NewFrameWriter(websocket.PingFrame)
-		if err != nil {
-			c.connLock.L.Lock()
-			c.reconnect()
-			c.connLock.Wait()
-			c.connLock.L.Unlock()
-			c.resetPingTimer()
-			continue
-		}
-		err = fw.Close()
-		if err != nil {
-			c.connLock.L.Lock()
-			c.reconnect()
-			c.connLock.Wait()
-			c.connLock.L.Unlock()
-			c.resetPingTimer()
-			continue
-		}
-		util.LogGood("Sent websocket ping")
+		msg := make(slack.RTMRawMessage)
+		msg["type"] = "ping"
+		msg["time"] = time.Now().Unix()
+		c.SendMessageRaw(msg)
+		util.LogGood("Pinged")
 		continue
 	}
 }
