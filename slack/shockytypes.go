@@ -10,7 +10,7 @@ type RTMRawMessage map[string]interface{}
 
 const MsgFieldRawBytes = "_rawBytes"
 
-func (m RTMRawMessage) Type() string         { return m["type"].(string) }
+func (m RTMRawMessage) Type() string         { q, _ := m["type"].(string); return q }
 func (m RTMRawMessage) Okay() bool           { q, _ := m["ok"].(bool); return q }
 func (m RTMRawMessage) Original() []byte     { q, _ := m[MsgFieldRawBytes].([]byte); return q }
 func (m RTMRawMessage) Subtype() string      { q, _ := m["subtype"].(string); return q }
