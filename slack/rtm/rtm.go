@@ -9,11 +9,10 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	"golang.org/x/net/websocket"
-
 	"github.com/riking/marvin"
 	"github.com/riking/marvin/slack"
 	"github.com/riking/marvin/util"
+	"golang.org/x/net/websocket"
 )
 
 type uniqueID struct {
@@ -30,9 +29,13 @@ func (c *uniqueID) Get() int32 {
 }
 
 type Client struct {
-	conn  *websocket.Conn
-	codec websocket.Codec
-	team  marvin.Team
+	team marvin.Team
+
+	connLock   *sync.Cond
+	needReconn chan struct{}
+	conn       *websocket.Conn
+	codec      websocket.Codec
+	pingTimer  *time.Timer
 
 	membershipCh   chan membershipRequest
 	channelMembers membershipMap
@@ -86,9 +89,31 @@ const startAPIURL = "https://slack.com/api/rtm.start"
 
 // Dial tries to connect to the Slack RTM API. The caller should register
 // message handlers then call Start() to start the message pump.
-func Dial(team marvin.Team) (*Client, error) {
+func NewClient(team marvin.Team) *Client {
+	c := &Client{}
+	c.team = team
+
+	var lock = new(sync.Mutex)
+	c.connLock = sync.NewCond(lock)
+	c.needReconn = make(chan struct{})
+	c.pingTimer = time.NewTimer(0)
+
+	cdc := SlackCodec{}
+	c.codec = websocket.Codec{Marshal: cdc.Marshal, Unmarshal: cdc.Unmarshal}
+	c.sendCbs = make(map[int]chan slack.RTMRawMessage)
+	c.sendChan = make(chan []byte)
+
+	c.channelMembers = make(membershipMap)
+	c.membershipCh = make(chan membershipRequest, 8)
+
+	go c.membershipWorker()
+	go c.reconnectWorker()
+	return c
+}
+
+func (c *Client) Connect() error {
 	data := url.Values{}
-	data.Set("token", team.TeamConfig().UserToken)
+	data.Set("token", c.team.TeamConfig().UserToken)
 	data.Set("no-unreads", "true")
 	data.Set("mipm-aware", "true")
 	var startResponse struct {
@@ -97,9 +122,9 @@ func Dial(team marvin.Team) (*Client, error) {
 		CacheTsVersion string `json:"cache_ts_version"`
 		*Client
 	}
-	err := team.SlackAPIPostJSON(startAPIURL, data, &startResponse)
+	err := c.team.SlackAPIPostJSON(startAPIURL, data, &startResponse)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	if startResponse.CacheTsVersion != "v2-bunny" {
 		panic(errors.Errorf("Unexpected CacheTSVersion %s", startResponse.CacheTsVersion))
@@ -109,9 +134,9 @@ func Dial(team marvin.Team) (*Client, error) {
 	}
 	wsURL, err := url.Parse(startResponse.URL)
 	if err != nil {
-		return nil, errors.Wrap(err, "start RTM - could not parse URL")
+		return errors.Wrap(err, "start RTM - could not parse URL")
 	}
-	originURL, err := url.Parse(fmt.Sprintf("https://%s.slack.com", team.Domain()))
+	originURL, err := url.Parse(fmt.Sprintf("https://%s.slack.com", c.team.Domain()))
 	if err != nil {
 		panic(errors.Wrap(err, "could not parse URL of team domain"))
 	}
@@ -122,24 +147,18 @@ func Dial(team marvin.Team) (*Client, error) {
 	}
 	conn, err := websocket.DialConfig(&wsCfg)
 	if err != nil {
-		return nil, errors.Wrap(err, "connect slack websocket")
+		return errors.Wrap(err, "connect slack websocket")
 	}
-	c := startResponse.Client
-	c.conn = conn
-	c.team = team
-	cdc := SlackCodec{}
-	c.codec = websocket.Codec{Marshal: cdc.Marshal, Unmarshal: cdc.Unmarshal}
-	c.sendCbs = make(map[int]chan slack.RTMRawMessage)
 
-	var msg slack.RTMRawMessage
-	err = c.codec.Receive(c.conn, &msg)
-	if err != nil {
-		return nil, errors.Wrap(err, "receive first message from Slack")
-	}
-	if msg.Type() != "hello" {
-		return nil, errors.Errorf("Wrong type for first message, expected 'hello' got %s: %v", msg.Type(), msg)
-	}
-	c.sendChan = make(chan []byte)
+	c.MetadataLock.Lock()
+	c.Self = startResponse.Client.Self
+	c.Users = startResponse.Client.Users
+	c.AboutTeam = startResponse.Client.AboutTeam
+	c.Groups = startResponse.Client.Groups
+	c.Mpims = startResponse.Client.Mpims
+	c.Ims = startResponse.Client.Ims
+	c.Bots = startResponse.Client.Bots
+	c.LatestEventTs = startResponse.Client.LatestEventTs
 
 	now := time.Now()
 	for _, v := range c.Users {
@@ -152,33 +171,31 @@ func Dial(team marvin.Team) (*Client, error) {
 		v.CacheTS = now
 	}
 
-	c.channelMembers = make(membershipMap)
-	c.membershipCh = make(chan membershipRequest, 8)
-	for _, v := range c.Channels {
-		m := make(map[slack.UserID]bool)
-		for _, userID := range v.Members {
-			m[userID] = true
-		}
-		c.channelMembers[v.ID] = m
+	c.MetadataLock.Unlock()
+
+	c.membershipCh <- membershipRequest{
+		C: make(chan interface{}),
+		F: c.rebuildMembershipMapFunc(),
 	}
-	for _, v := range c.Groups {
-		m := make(map[slack.UserID]bool)
-		for _, userID := range v.Members {
-			m[userID] = true
-		}
-		c.channelMembers[v.ID] = m
+
+	var msg slack.RTMRawMessage
+	err = c.codec.Receive(conn, &msg)
+	if err != nil {
+		return errors.Wrap(err, "receive first message from Slack")
 	}
-	for _, v := range c.Mpims {
-		m := make(map[slack.UserID]bool)
-		for _, userID := range v.Members {
-			m[userID] = true
-		}
-		c.channelMembers[v.ID] = m
+	if msg.Type() != "hello" {
+		return errors.Errorf("Wrong type for first message, expected 'hello' got %s: %v", msg.Type(), msg)
 	}
-	go c.membershipWorker()
+
+	c.connLock.L.Lock()
+	c.conn = conn
+	c.connLock.Broadcast()
+	c.connLock.L.Unlock()
+
+	c.dispatchMessage(msg)
 
 	util.LogGood("Connected to Slack", startResponse.CacheVersion)
-	return c, nil
+	return nil
 }
 
 func (c *Client) Start() {
@@ -197,6 +214,45 @@ func (c *Client) Start() {
 	c.started = true
 	go c.pump()
 	go c.pumpSend()
+	go c.pinger()
+}
+
+func (c *Client) reconnect() {
+	// called holding c.connLock
+	select {
+	case c.needReconn <- struct{}{}:
+	default:
+	}
+}
+
+func (c *Client) reconnectWorker() {
+	doReconnect := func() {
+		c.connLock.L.Lock()
+		if c.conn != nil {
+			c.conn.Close()
+		}
+		c.conn = nil
+		c.connLock.L.Unlock()
+		util.LogWarn("Disconnected.")
+
+		time.Sleep(1 * time.Second)
+
+		for {
+			util.LogWarn("Reconnecting...")
+			err := c.Connect()
+			if err != nil {
+				util.LogBad("Could not reconnect", err)
+				time.Sleep(29 * time.Second)
+				continue
+			}
+			break
+		}
+		c.connLock.Broadcast()
+	}
+
+	for range c.needReconn {
+		doReconnect()
+	}
 }
 
 func (c *Client) RegisterRawHandler(
@@ -208,10 +264,8 @@ func (c *Client) RegisterRawHandler(
 		panic("cannot specify subtypes without specifying type")
 	}
 
-	if c.started {
-		c.msgCbsLock.Lock()
-		defer c.msgCbsLock.Unlock()
-	}
+	c.msgCbsLock.Lock()
+	defer c.msgCbsLock.Unlock()
 
 	c.msgCbs = append(c.msgCbs, messageHandler{
 		Cb:           cb,

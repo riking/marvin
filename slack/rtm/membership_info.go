@@ -17,6 +17,33 @@ func (c *Client) membershipWorker() {
 	}
 }
 
+func (c *Client) rebuildMembershipMapFunc() func(m membershipMap) interface{} {
+	return func(m membershipMap) interface{} {
+		for _, v := range c.Channels {
+			m := make(map[slack.UserID]bool)
+			for _, userID := range v.Members {
+				m[userID] = true
+			}
+			c.channelMembers[v.ID] = m
+		}
+		for _, v := range c.Groups {
+			m := make(map[slack.UserID]bool)
+			for _, userID := range v.Members {
+				m[userID] = true
+			}
+			c.channelMembers[v.ID] = m
+		}
+		for _, v := range c.Mpims {
+			m := make(map[slack.UserID]bool)
+			for _, userID := range v.Members {
+				m[userID] = true
+			}
+			c.channelMembers[v.ID] = m
+		}
+		return nil
+	}
+}
+
 func userInChannelList(user slack.UserID, channels ...slack.ChannelID) func(m membershipMap) interface{} {
 	r := make(map[slack.ChannelID]bool)
 	return func(m membershipMap) interface{} {

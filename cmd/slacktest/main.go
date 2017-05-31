@@ -50,11 +50,7 @@ func main() {
 		util.LogError(errors.Wrap(err, "listen tcp"))
 		return
 	}
-	client, err := rtm.Dial(team)
-	if err != nil {
-		util.LogError(errors.Wrap(err, "rtm.Dial"))
-		return
-	}
+	client := rtm.NewClient(team)
 	client.RegisterRawHandler("main.go", func(msg slack.RTMRawMessage) {
 	typeswitch:
 		switch msg.Type() {
@@ -130,7 +126,6 @@ func main() {
 
 	client.Start()
 
-	fmt.Println("started")
 	signalCh := make(chan os.Signal)
 	signal.Notify(signalCh, syscall.SIGINT)
 	<-signalCh

@@ -2,12 +2,12 @@ package rtm
 
 import (
 	"encoding/json"
+	"time"
 
 	"github.com/pkg/errors"
-	"golang.org/x/net/websocket"
-
 	"github.com/riking/marvin/slack"
 	"github.com/riking/marvin/util"
+	"golang.org/x/net/websocket"
 )
 
 const MsgTypeAll = "_all"
@@ -17,10 +17,15 @@ type SlackCodec struct{}
 func (codec SlackCodec) Unmarshal(data []byte, payloadType byte, v interface{}) error {
 	var msg *slack.RTMRawMessage
 
+	msg = v.(*slack.RTMRawMessage)
+	if payloadType == websocket.PongFrame {
+		*msg = make(slack.RTMRawMessage)
+		(*msg)["type"] = "pong"
+		return nil
+	}
 	if payloadType != websocket.TextFrame {
 		return errors.Errorf("Bad frame type, got %d", payloadType)
 	}
-	msg = v.(*slack.RTMRawMessage)
 	err := json.Unmarshal(data, msg)
 	if err != nil {
 		return errors.Wrap(err, "unmarshal json")
@@ -42,18 +47,40 @@ func (c *Client) pump() {
 	var msg slack.RTMRawMessage
 	var err error
 
-	msg = make(slack.RTMRawMessage)
-	msg["type"] = "hello"
-	c.dispatchMessage(msg)
+	if c.conn == nil {
+
+	}
 
 	for {
+		c.connLock.L.Lock()
+		for {
+			if c.conn == nil {
+				c.reconnect()
+				c.connLock.Wait()
+				continue
+			}
+			break
+		}
+		conn := c.conn
+		c.connLock.L.Unlock()
+
 		msg = make(slack.RTMRawMessage)
-		err = c.codec.Receive(c.conn, &msg)
+		conn.SetReadDeadline(time.Now().Add(30 * time.Second))
+		err = c.codec.Receive(conn, &msg)
 		if err != nil {
-			panic(err) // TODO
+			util.LogWarn("Websocket error calling wait:", err)
+			c.connLock.L.Lock()
+			c.reconnect()
+			c.connLock.Wait()
+			c.connLock.L.Unlock()
+			continue
 		}
 
-		if _, ok := msg["reply_to"]; ok {
+		c.resetPingTimer()
+		if msg["type"] == "pong" {
+			util.LogGood("Got websocket pong")
+			continue
+		} else if _, ok := msg["reply_to"]; ok {
 			replyToId := msg.ReplyTo()
 			c.sendCbsLock.Lock()
 			ch, ok := c.sendCbs[replyToId]
@@ -70,10 +97,71 @@ func (c *Client) pump() {
 
 func (c *Client) pumpSend() {
 	for bytes := range c.sendChan {
-		w, _ := c.conn.NewFrameWriter(websocket.TextFrame)
-		w.Write(bytes)
-		w.Close()
+		c.connLock.L.Lock()
+		for {
+			if c.conn == nil {
+				c.reconnect()
+				c.connLock.Wait()
+				continue
+			}
+			w, err := c.conn.NewFrameWriter(websocket.TextFrame)
+			if err != nil {
+				util.LogWarn("Websocket write error:", err)
+				c.reconnect()
+				c.connLock.Wait()
+				continue
+			}
+			w.Write(bytes)
+			err = w.Close()
+			if err != nil {
+				util.LogWarn("Websocket write error:", err)
+				c.reconnect()
+				c.connLock.Wait()
+				continue
+			}
+			break
+		}
+		c.connLock.L.Unlock()
 	}
+}
+
+func (c *Client) pinger() {
+	for range c.pingTimer.C {
+		c.connLock.L.Lock()
+		conn := c.conn
+		c.connLock.L.Unlock()
+
+		if conn == nil {
+			// already reconnecting
+			c.resetPingTimer()
+			continue
+		}
+
+		fw, err := conn.NewFrameWriter(websocket.PingFrame)
+		if err != nil {
+			c.connLock.L.Lock()
+			c.reconnect()
+			c.connLock.Wait()
+			c.connLock.L.Unlock()
+			c.resetPingTimer()
+			continue
+		}
+		err = fw.Close()
+		if err != nil {
+			c.connLock.L.Lock()
+			c.reconnect()
+			c.connLock.Wait()
+			c.connLock.L.Unlock()
+			c.resetPingTimer()
+			continue
+		}
+		util.LogGood("Sent websocket ping")
+		continue
+	}
+}
+
+func (c *Client) resetPingTimer() {
+	c.pingTimer.Reset(20 * time.Second)
 }
 
 func (c *Client) dispatchMessage(msg slack.RTMRawMessage) {

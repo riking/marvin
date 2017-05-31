@@ -27,7 +27,6 @@ const Identifier = "atcommand"
 type AtCommandModule struct {
 	team        marvin.Team
 	enabled     int
-	botUser     slack.UserID
 	mentionRgx2 *regexp.Regexp
 	mentionRgx1 *regexp.Regexp
 
@@ -48,9 +47,8 @@ func (mod *AtCommandModule) Identifier() marvin.ModuleID {
 }
 
 func (mod *AtCommandModule) Load(t marvin.Team) {
-	mod.botUser = mod.team.BotUser()
-	mod.mentionRgx1 = regexp.MustCompile(fmt.Sprintf(`<@%s>`, mod.botUser))
-	mod.mentionRgx2 = regexp.MustCompile(fmt.Sprintf(`(?m:(?:\n|^)\s*(<@%s>)\s+())`, mod.botUser))
+	mod.mentionRgx1 = regexp.MustCompile(fmt.Sprintf(`<@%s>`, mod.team.BotUser()))
+	mod.mentionRgx2 = regexp.MustCompile(fmt.Sprintf(`(?m:(?:\n|^)\s*(<@%s>)\s+())`, mod.team.BotUser()))
 
 	c := mod.team.ModuleConfig(Identifier)
 	c.Add(confKeyEmojiHi, "wave")
@@ -63,6 +61,7 @@ func (mod *AtCommandModule) Load(t marvin.Team) {
 }
 
 func (mod *AtCommandModule) Enable(t marvin.Team) {
+	t.OnEvent(Identifier, "hello", mod.OnHello)
 	t.OnNormalMessage(Identifier, mod.HandleMessage)
 	t.OnSpecialMessage(Identifier, []string{"message_changed", "message_deleted"}, mod.HandleEdit)
 	mod.enabled += 1
@@ -85,6 +84,11 @@ const (
 	confKeyEmojiUsage  = "emoji-usage"
 	confKeyEmojiHelp   = "emoji-help"
 )
+
+func (mod *AtCommandModule) OnHello(_rtm slack.RTMRawMessage) {
+	mod.mentionRgx1 = regexp.MustCompile(fmt.Sprintf(`<@%s>`, mod.team.BotUser()))
+	mod.mentionRgx2 = regexp.MustCompile(fmt.Sprintf(`(?m:(?:\n|^)\s*(<@%s>)\s+())`, mod.team.BotUser()))
+}
 
 type ReplyActionEmoji struct {
 	MessageID slack.MessageID
