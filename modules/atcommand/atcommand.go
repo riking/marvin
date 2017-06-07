@@ -27,6 +27,8 @@ const Identifier = "atcommand"
 type AtCommandModule struct {
 	team        marvin.Team
 	enabled     int
+
+	rgxLock     sync.RWMutex
 	mentionRgx2 *regexp.Regexp
 	mentionRgx1 *regexp.Regexp
 
@@ -86,6 +88,8 @@ const (
 )
 
 func (mod *AtCommandModule) OnHello(_rtm slack.RTMRawMessage) {
+	mod.rgxLock.Lock()
+	defer mod.rgxLock.Unlock()
 	mod.mentionRgx1 = regexp.MustCompile(fmt.Sprintf(`<@%s>`, mod.team.BotUser()))
 	mod.mentionRgx2 = regexp.MustCompile(fmt.Sprintf(`(?m:(?:\n|^)\s*(<@%s>)\s+())`, mod.team.BotUser()))
 }
@@ -208,6 +212,8 @@ func (mod *AtCommandModule) ParseMessage(rtm slack.SlackTextMessage) (result par
 		return
 	}
 
+	mod.rgxLock.RLock()
+	defer mod.rgxLock.RUnlock()
 	msgText := rtm.Text()
 	matches := mod.mentionRgx2.FindStringSubmatchIndex(msgText)
 	fullMsg := false

@@ -143,7 +143,9 @@ func (c *Client) pinger() {
 }
 
 func (c *Client) resetPingTimer() {
+	c.connLock.L.Lock()
 	c.pingTimer.Reset(pingOnIdleTime)
+	c.connLock.L.Unlock()
 }
 
 func (c *Client) dispatchMessage(msg slack.RTMRawMessage) {

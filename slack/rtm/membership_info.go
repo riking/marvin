@@ -19,6 +19,9 @@ func (c *Client) membershipWorker() {
 
 func (c *Client) rebuildMembershipMapFunc() func(m membershipMap) interface{} {
 	return func(m membershipMap) interface{} {
+		c.MetadataLock.Lock()
+		defer c.MetadataLock.Unlock()
+
 		for _, v := range c.Channels {
 			m := make(map[slack.UserID]bool)
 			for _, userID := range v.Members {

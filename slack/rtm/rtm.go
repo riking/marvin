@@ -174,7 +174,7 @@ func (c *Client) Connect() error {
 	c.MetadataLock.Unlock()
 
 	c.membershipCh <- membershipRequest{
-		C: make(chan interface{}),
+		C: make(chan interface{}, 1),
 		F: c.rebuildMembershipMapFunc(),
 	}
 
