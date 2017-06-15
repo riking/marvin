@@ -67,7 +67,7 @@ func (c *Client) pump() {
 		conn.SetReadDeadline(time.Now().Add(reconnectOnIdleTime))
 		err = c.codec.Receive(conn, &msg)
 		if err != nil {
-			util.LogWarn("Websocket error calling wait:", err)
+			util.LogWarn("Websocket error calling recv:", err)
 			c.connLock.L.Lock()
 			c.reconnect()
 			c.connLock.Wait()

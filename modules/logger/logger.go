@@ -52,7 +52,9 @@ func (mod *LoggerModule) Enable(t marvin.Team) {
 	t.OnEvent(Identifier, "message", mod.OnMessage)
 	t.OnEvent(Identifier, "channel_joined", mod.OnJoinChannel)
 	t.OnEvent(Identifier, "group_joined", mod.OnJoinGroup)
-	go mod.BackfillAll()
+	t.OnEvent(Identifier, "hello", func(_ slack.RTMRawMessage) {
+		mod.BackfillAll()
+	})
 	t.HandleHTTP("/logs", http.HandlerFunc(mod.LogsIndex))
 }
 
