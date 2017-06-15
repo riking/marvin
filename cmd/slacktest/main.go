@@ -7,6 +7,8 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"strings"
+	"sync"
 	"syscall"
 
 	"github.com/mgutz/ansi"
@@ -93,14 +95,33 @@ func messagePrinter(team marvin.Team, dumpMessages bool) func(msg slack.RTMRawMe
 	}
 }
 
-func startTeam(cfg *ini.File, name string) *marvin.Team {
+func readyTeam(cfg *ini.File, name string) (marvin.Team, *rtm.Client, error) {
+	teamConfig := marvin.LoadTeamConfig(cfg.Section(name))
+	team, err := controller.NewTeam(teamConfig)
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "NewTeam")
+	}
+	l, err := net.Listen("tcp4", teamConfig.HTTPListen)
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "listen tcp")
+	}
+	client := rtm.NewClient(team)
+	client.RegisterRawHandler("main.go", messagePrinter(team, false),
+		rtm.MsgTypeAll, nil)
 
+	team.ConnectRTM(client)
+	if !team.EnableModules() {
+		return nil, nil, errors.Errorf("Some modules failed to load, exiting")
+	}
+	team.ConnectHTTP(l)
+
+	return team, client, nil
 }
 
 func main() {
-	teamName := flag.String("team", "Test", "which team to use")
+	teamNamesStr := flag.String("team", "Test", "which team to use")
 	configFile := flag.String("conf", "", "override config file")
-	dumpMessages := flag.Bool("msgdump", false, "dump message events")
+	// dumpMessages := flag.Bool("msgdump", false, "dump message events")
 	flag.Parse()
 
 	var cfg *ini.File
@@ -112,34 +133,36 @@ func main() {
 	}
 	if err != nil {
 		util.LogError(errors.Wrap(err, "loading config"))
-		return
+		os.Exit(1)
 	}
 
-	teamConfig := marvin.LoadTeamConfig(cfg.Section(*teamName))
-	team, err := controller.NewTeam(teamConfig)
-	if err != nil {
-		util.LogError(errors.Wrap(err, "NewTeam"))
-		return
+	teamNames := strings.Split(*teamNamesStr, ",")
+	teams := make([]marvin.Team, len(teamNames))
+	rtmClients := make([]*rtm.Client, len(teamNames))
+	for i, name := range teamNames {
+		teams[i], rtmClients[i], err = readyTeam(cfg, name)
+		if err != nil {
+			util.LogError(err)
+			os.Exit(1)
+		}
 	}
-	l, err := net.Listen("tcp4", teamConfig.HTTPListen)
-	if err != nil {
-		util.LogError(errors.Wrap(err, "listen tcp"))
-		return
-	}
-	client := rtm.NewClient(team)
-	client.RegisterRawHandler("main.go", , rtm.MsgTypeAll, nil)
 
-	team.ConnectRTM(client)
-	if !team.EnableModules() {
-		util.LogWarn("Some modules failed to load. Quitting.")
-		return
+	for _, v := range rtmClients {
+		go v.Start()
 	}
-	team.ConnectHTTP(l)
-
-	client.Start()
 
 	signalCh := make(chan os.Signal)
 	signal.Notify(signalCh, syscall.SIGINT)
 	<-signalCh
-	team.Shutdown()
+
+	var wg sync.WaitGroup
+	wg.Add(len(teams))
+	for _, v := range teams {
+		go func(t marvin.Team) {
+			defer wg.Done()
+			t.Shutdown()
+		}(v)
+	}
+	wg.Wait()
+	return
 }
