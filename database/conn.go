@@ -23,7 +23,7 @@ func Dial(connect string) (*Conn, error) {
 	err = c.setupMigrate()
 	if err != nil {
 		db.Close()
-		return nil, errors.Wrap(err, "failed to setup database")
+		return nil, errors.Wrapf(err, "failed to setup database [%s]", connect)
 	}
 	return c, nil
 }

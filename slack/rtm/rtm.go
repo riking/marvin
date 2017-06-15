@@ -215,6 +215,7 @@ func (c *Client) Start() {
 	go c.pump()
 	go c.pumpSend()
 	go c.pinger()
+	c.reconnect()
 }
 
 func (c *Client) reconnect() {
