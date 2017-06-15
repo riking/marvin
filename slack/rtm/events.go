@@ -130,3 +130,17 @@ func (c *Client) ReplaceGroupObject(cacheTS time.Time, obj *slack.Channel) {
 	}
 	c.Groups = append(c.Groups, obj)
 }
+
+func (c *Client) ReplaceIMObject(cacheTS time.Time, obj *slack.ChannelIM) {
+	c.MetadataLock.Lock()
+	defer c.MetadataLock.Unlock()
+
+	//obj.CacheTS = cacheTS
+	for i, v := range c.Ims {
+		if v.ID == obj.ID {
+			c.Ims[i] = obj
+			return
+		}
+	}
+	c.Ims = append(c.Ims, obj)
+}

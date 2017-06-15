@@ -240,5 +240,6 @@ type Team interface {
 	ChannelMemberCount(channel slack.ChannelID) int
 	ChannelMemberList(channel slack.ChannelID) []slack.UserID
 	UserInfo(user slack.UserID) (*slack.User, error)
+	// Only supports private channels
 	UserInChannels(user slack.UserID, channels ...slack.ChannelID) map[slack.ChannelID]bool
 }

@@ -85,7 +85,7 @@ func (mod *LoggerModule) LogsIndex(w http.ResponseWriter, r *http.Request) {
 	}
 
 	rtmClient := mod.team.GetRTMClient().(*rtm.Client)
-	data.Channels = rtmClient.Channels
+	data.Channels = rtmClient.ListPublicChannels()
 	data.Layout = lc
 	lc.BodyData = data
 

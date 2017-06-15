@@ -153,7 +153,7 @@ func (t *Team) BotUser() slack.UserID {
 }
 
 func (t *Team) TeamID() slack.TeamID {
-	return t.client.AboutTeam.ID
+	return t.client.Team.ID
 }
 
 func (t *Team) GetRTMClient() interface{} {

@@ -336,6 +336,10 @@ func (t *Team) GetIM(user slack.UserID) (slack.ChannelID, error) {
 	if err != nil {
 		return "", err
 	}
+	t.client.ReplaceIMObject(time.Now(), &slack.ChannelIM{
+		ID:   response.Channel.ID,
+		User: user,
+	})
 	return response.Channel.ID, nil
 }
 

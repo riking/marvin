@@ -1,7 +1,11 @@
 package rtm
 
 import (
+	"net/url"
+
+	"github.com/pkg/errors"
 	"github.com/riking/marvin/slack"
+	"github.com/riking/marvin/util"
 )
 
 type membershipMap map[slack.ChannelID]map[slack.UserID]bool
@@ -17,26 +21,10 @@ func (c *Client) membershipWorker() {
 	}
 }
 
-func (c *Client) rebuildMembershipMapFunc() func(m membershipMap) interface{} {
+func (c *Client) rebuildMembershipMapFunc(groups []*slack.Channel) func(m membershipMap) interface{} {
 	return func(m membershipMap) interface{} {
-		c.MetadataLock.Lock()
-		defer c.MetadataLock.Unlock()
-
-		for _, v := range c.Channels {
-			m := make(map[slack.UserID]bool)
-			for _, userID := range v.Members {
-				m[userID] = true
-			}
-			c.channelMembers[v.ID] = m
-		}
-		for _, v := range c.Groups {
-			m := make(map[slack.UserID]bool)
-			for _, userID := range v.Members {
-				m[userID] = true
-			}
-			c.channelMembers[v.ID] = m
-		}
-		for _, v := range c.Mpims {
+		// Only groups are relevant
+		for _, v := range groups {
 			m := make(map[slack.UserID]bool)
 			for _, userID := range v.Members {
 				m[userID] = true
@@ -123,5 +111,47 @@ func (c *Client) onUserLeaveChannel(msg slack.RTMRawMessage) {
 	ch := make(chan interface{}, 1)
 	c.membershipCh <- membershipRequest{C: ch,
 		F: userJoinChannel(msg.UserID(), msg.ChannelID(), false),
+	}
+}
+
+func (c *Client) ListPublicChannels() []*slack.Channel {
+	c.MetadataLock.RLock()
+	defer c.MetadataLock.RUnlock()
+	return c.Channels // TODO channels.list
+}
+
+func (c *Client) ListPrivateChannels() []*slack.Channel {
+	c.MetadataLock.RLock()
+	defer c.MetadataLock.RUnlock()
+	return c.Groups
+}
+
+func (c *Client) ListMPIMs() []*slack.Channel {
+	c.MetadataLock.RLock()
+	defer c.MetadataLock.RUnlock()
+	return c.Groups
+}
+
+func (c *Client) ListIMs() []*slack.ChannelIM {
+	c.MetadataLock.RLock()
+	defer c.MetadataLock.RUnlock()
+	return c.Ims
+}
+
+func (c *Client) getGroupList() {
+	var groups []*slack.Channel
+	err := c.team.SlackAPIPostJSON("groups.list", url.Values{}, &groups)
+	if err != nil {
+		util.LogError(errors.Wrapf(err, "[%s] Could not retrieve groups list", c.Team.Domain))
+		return
+	}
+
+	c.MetadataLock.Lock()
+	c.Groups = groups
+	c.MetadataLock.Unlock()
+
+	c.membershipCh <- membershipRequest{
+		C: make(chan interface{}, 1),
+		F: c.rebuildMembershipMapFunc(groups),
 	}
 }

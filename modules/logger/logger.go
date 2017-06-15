@@ -239,102 +239,52 @@ func (mod *LoggerModule) BackfillAll() {
 	}
 	defer stmt.Close()
 
-	publicList := mod.listChannels()
-	for _, v := range publicList {
-		messages, err := mod.getHistory("channels.history", v, stmt)
+	c := mod.team.GetRTMClient().(*rtm.Client)
+
+	for _, v := range c.ListPublicChannels() {
+		messages, err := mod.getHistory("channels.history", v.ID, stmt)
 		if err != nil {
 			util.LogError(errors.Wrapf(err, "could not backfill logs for %s", v))
 			return
 		}
-		c := mod.saveBackfillData(v, messages)
+		c := mod.saveBackfillData(v.ID, messages)
 		if c != 0 {
 			util.LogGood(fmt.Sprintf("Backfilled %d messages from %s", c, v))
 		}
 	}
-	groupList := mod.listGroups()
-	for _, v := range groupList {
-		messages, err := mod.getHistory("groups.history", v, stmt)
+	for _, v := range c.ListPrivateChannels() {
+		messages, err := mod.getHistory("groups.history", v.ID, stmt)
 		if err != nil {
 			util.LogError(errors.Wrapf(err, "could not backfill logs for %s", v))
 			return
 		}
-		c := mod.saveBackfillData(v, messages)
+		c := mod.saveBackfillData(v.ID, messages)
 		if c != 0 {
 			util.LogGood(fmt.Sprintf("Backfilled %d messages from %s", c, v))
 		}
 	}
-	mpimList := mod.listMPIMs()
-	for _, v := range mpimList {
-		messages, err := mod.getHistory("mpim.history", v, stmt)
+	for _, v := range c.ListMPIMs() {
+		messages, err := mod.getHistory("mpim.history", v.ID, stmt)
 		if err != nil {
 			util.LogError(errors.Wrapf(err, "could not backfill logs for %s", v))
 			return
 		}
-		c := mod.saveBackfillData(v, messages)
+		c := mod.saveBackfillData(v.ID, messages)
 		if c != 0 {
 			util.LogGood(fmt.Sprintf("Backfilled %d messages from %s", c, v))
 		}
 	}
-	imList := mod.listIMs()
-	for _, v := range imList {
-		messages, err := mod.getHistory("im.history", v, stmt)
+	for _, v := range c.ListIMs() {
+		messages, err := mod.getHistory("im.history", v.ID, stmt)
 		if err != nil {
 			util.LogError(errors.Wrapf(err, "could not backfill logs for %s", v))
 			return
 		}
-		c := mod.saveBackfillData(v, messages)
+		c := mod.saveBackfillData(v.ID, messages)
 		if c != 0 {
 			util.LogGood(fmt.Sprintf("Backfilled %d messages from %s", c, v))
 		}
 	}
-}
-
-func (mod *LoggerModule) listChannels() []slack.ChannelID {
-	c := mod.team.GetRTMClient().(*rtm.Client)
-	c.MetadataLock.RLock()
-	defer c.MetadataLock.RUnlock()
-
-	ids := make([]slack.ChannelID, len(c.Channels))
-	for i := range c.Channels {
-		ids[i] = c.Channels[i].ID
-	}
-	return ids
-}
-
-func (mod *LoggerModule) listGroups() []slack.ChannelID {
-	c := mod.team.GetRTMClient().(*rtm.Client)
-	c.MetadataLock.RLock()
-	defer c.MetadataLock.RUnlock()
-
-	ids := make([]slack.ChannelID, len(c.Groups))
-	for i := range c.Groups {
-		ids[i] = c.Groups[i].ID
-	}
-	return ids
-}
-
-func (mod *LoggerModule) listMPIMs() []slack.ChannelID {
-	c := mod.team.GetRTMClient().(*rtm.Client)
-	c.MetadataLock.RLock()
-	defer c.MetadataLock.RUnlock()
-
-	ids := make([]slack.ChannelID, len(c.Mpims))
-	for i := range c.Mpims {
-		ids[i] = c.Mpims[i].ID
-	}
-	return ids
-}
-
-func (mod *LoggerModule) listIMs() []slack.ChannelID {
-	c := mod.team.GetRTMClient().(*rtm.Client)
-	c.MetadataLock.RLock()
-	defer c.MetadataLock.RUnlock()
-
-	ids := make([]slack.ChannelID, len(c.Ims))
-	for i := range c.Ims {
-		ids[i] = c.Ims[i].ID
-	}
-	return ids
 }
 
 func (mod *LoggerModule) saveBackfillData(channel slack.ChannelID, messages []json.RawMessage) (totalAdded int64) {

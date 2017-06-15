@@ -9,7 +9,7 @@ import (
 )
 
 var (
-	mentionRegexp     = regexp.MustCompile(`<@(U[A-Z0-9]+)>`)
+	mentionRegexp     = regexp.MustCompile(`<@([UW][A-Z0-9]+)>`)
 	channelMentionRgx = regexp.MustCompile(`<#(C[A-Z0-9]+)\|?([a-z0-9_-]+)?>`)
 	userIDRgx         = regexp.MustCompile(`U[A-Z0-9]+`)
 	channelIDRgx      = regexp.MustCompile(`C[A-Z0-9]+`)

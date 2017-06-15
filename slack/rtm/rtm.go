@@ -41,24 +41,27 @@ type Client struct {
 	channelMembers membershipMap
 
 	MetadataLock sync.RWMutex
-	Self         struct {
-		ID             slack.UserID
+	Team struct {
+		ID             slack.TeamID
 		Name           string
-		Prefs          slack.SelfPrefs
-		Created        int
-		ManualPresence string `json:"manual_presence"`
+		Domain         string
+		EnterpriseID   slack.EnterpriseID `json:"enterprise_id"`
+		EnterpriseName string `json:"enterprise_name"`
 	}
-	Users     []*slack.User
-	AboutTeam slack.TeamInfo     `json:"team"`
-	Channels  []*slack.Channel   // C
-	Groups    []*slack.Channel   // G
-	Mpims     []*slack.Channel   // G
-	Ims       []*slack.ChannelIM // D
-	Bots      []struct {
+	Self struct {
+		ID   slack.UserID
+		Name string
+	}
+	Users    []*slack.User
+	Channels []*slack.Channel   // C
+	Groups   []*slack.Channel   // G
+	//Mpims    []*slack.Channel   // G
+	Ims      []*slack.ChannelIM // D
+	Bots []struct {
 		ID      string `json:"id"`
 		Deleted bool   `json:"deleted"`
 		Name    string `json:"name"`
-		Icons   struct {
+		Icons struct {
 			Image36 string `json:"image_36"`
 			Image48 string `json:"image_48"`
 			Image72 string `json:"image_72"`
@@ -84,8 +87,6 @@ type messageHandler struct {
 	SubtypesOnly []string
 	Module       marvin.ModuleID
 }
-
-const startAPIURL = "https://slack.com/api/rtm.start"
 
 // Dial tries to connect to the Slack RTM API. The caller should register
 // message handlers then call Start() to start the message pump.
@@ -114,15 +115,24 @@ func NewClient(team marvin.Team) *Client {
 func (c *Client) Connect() error {
 	data := url.Values{}
 	data.Set("token", c.team.TeamConfig().UserToken)
-	data.Set("no-unreads", "true")
-	data.Set("mipm-aware", "true")
+	data.Set("presence_sub", "true") // Only get user presence when requested
 	var startResponse struct {
 		URL            string
 		CacheVersion   string `json:"cache_version"`
 		CacheTsVersion string `json:"cache_ts_version"`
-		*Client
+		Team struct {
+			ID             slack.TeamID
+			Name           string
+			Domain         string
+			EnterpriseID   slack.EnterpriseID `json:"enterprise_id"`
+			EnterpriseName string `json:"enterprise_name"`
+		}
+		Self struct {
+			ID   slack.UserID
+			Name string
+		}
 	}
-	err := c.team.SlackAPIPostJSON(startAPIURL, data, &startResponse)
+	err := c.team.SlackAPIPostJSON("rtm.connect", data, &startResponse)
 	if err != nil {
 		return err
 	}
@@ -151,32 +161,19 @@ func (c *Client) Connect() error {
 	}
 
 	c.MetadataLock.Lock()
-	c.Self = startResponse.Client.Self
-	c.Users = startResponse.Client.Users
-	c.AboutTeam = startResponse.Client.AboutTeam
-	c.Groups = startResponse.Client.Groups
-	c.Mpims = startResponse.Client.Mpims
-	c.Ims = startResponse.Client.Ims
-	c.Bots = startResponse.Client.Bots
-	c.LatestEventTs = startResponse.Client.LatestEventTs
-
-	now := time.Now()
-	for _, v := range c.Users {
-		v.CacheTS = now
-	}
-	for _, v := range c.Channels {
-		v.CacheTS = now
-	}
-	for _, v := range c.Groups {
-		v.CacheTS = now
-	}
-
+	c.Self = startResponse.Self
+	c.Team = startResponse.Team
+	//c.Users = startResponse.Client.Users
+	//c.AboutTeam = startResponse.Client.AboutTeam
+	//c.Channels = startResponse.Client.Channels
+	//c.Groups = startResponse.Client.Groups
+	//c.Mpims = startResponse.Client.Mpims
+	//c.Ims = startResponse.Client.Ims
+	//c.Bots = startResponse.Client.Bots
+	//c.LatestEventTs = startResponse.Client.LatestEventTs
 	c.MetadataLock.Unlock()
 
-	c.membershipCh <- membershipRequest{
-		C: make(chan interface{}, 1),
-		F: c.rebuildMembershipMapFunc(),
-	}
+	go c.getGroupList()
 
 	var msg slack.RTMRawMessage
 	err = c.codec.Receive(conn, &msg)
@@ -323,7 +320,7 @@ func (c *Client) SendMessageRaw(rtmOut slack.RTMRawMessage) (slack.RTMRawMessage
 					fakeEvent[k] = v
 				}
 			}
-			fakeEvent["team"] = string(c.AboutTeam.ID)
+			fakeEvent["team"] = string(c.Team.ID)
 			fakeEvent["type"] = "message"
 			fakeEvent["channel"] = rtmOut["channel"]
 			fakeEvent["user"] = string(c.Self.ID)
