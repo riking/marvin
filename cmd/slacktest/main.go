@@ -9,49 +9,24 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/mgutz/ansi"
 	"github.com/pkg/errors"
-	"gopkg.in/ini.v1"
-
 	"github.com/riking/marvin"
 	"github.com/riking/marvin/slack"
 	"github.com/riking/marvin/slack/controller"
 	"github.com/riking/marvin/slack/rtm"
 	"github.com/riking/marvin/util"
+	"gopkg.in/ini.v1"
+)
 
+import (
 	_ "github.com/riking/marvin/modules/_all"
 )
 
-func main() {
-	teamName := flag.String("team", "Test", "which team to use")
-	configFile := flag.String("conf", "", "override config file")
-	dumpMessages := flag.Bool("msgdump", false, "dump message events")
-	flag.Parse()
+var colorDebug = ansi.ColorFunc("black+h")
 
-	var cfg *ini.File
-	var err error
-	if *configFile != "" {
-		cfg, err = ini.Load(*configFile)
-	} else {
-		cfg, err = ini.LooseLoad("testdata/config.ini", "config.ini", "/tank/www/apiserver/config.ini")
-	}
-	if err != nil {
-		util.LogError(errors.Wrap(err, "loading config"))
-		return
-	}
-
-	teamConfig := marvin.LoadTeamConfig(cfg.Section(*teamName))
-	team, err := controller.NewTeam(teamConfig)
-	if err != nil {
-		util.LogError(errors.Wrap(err, "NewTeam"))
-		return
-	}
-	l, err := net.Listen("tcp4", teamConfig.HTTPListen)
-	if err != nil {
-		util.LogError(errors.Wrap(err, "listen tcp"))
-		return
-	}
-	client := rtm.NewClient(team)
-	client.RegisterRawHandler("main.go", func(msg slack.RTMRawMessage) {
+func messagePrinter(team marvin.Team, dumpMessages bool) func(msg slack.RTMRawMessage) {
+	return func(msg slack.RTMRawMessage) {
 	typeswitch:
 		switch msg.Type() {
 		case "user_typing", "reconnect_url", "presence_change":
@@ -86,16 +61,16 @@ func main() {
 					TS          slack.MessageTS `json:"ts"`
 				}
 				json.Unmarshal(msg.Original(), &msgStruct)
-				fmt.Printf("[%s] [EDIT BY %s] [@%s] %s\n", team.ChannelName(msgStruct.Channel), team.UserName(msgStruct.Message.Edited.User), team.UserName(msgStruct.Message.User), msgStruct.Message.Text)
-				if *dumpMessages {
+				fmt.Printf("[%s%s] [EDIT BY %s] [@%s] %s\n", team.Domain(), team.ChannelName(msgStruct.Channel), team.UserName(msgStruct.Message.Edited.User), team.UserName(msgStruct.Message.User), msgStruct.Message.Text)
+				if dumpMessages {
 					break typeswitch
 				}
 				return
 			default:
 				break typeswitch
 			}
-			fmt.Printf("[%s] [@%s] %s\n", team.ChannelName(msg.ChannelID()), team.UserName(msg.UserID()), msg.Text())
-			if *dumpMessages {
+			fmt.Printf("[%s%s] [@%s] %s\n", team.Domain(), team.ChannelName(msg.ChannelID()), team.UserName(msg.UserID()), msg.Text())
+			if dumpMessages {
 				break typeswitch
 			}
 			return
@@ -109,13 +84,50 @@ func main() {
 			}
 			ts := slack.MessageTS(item["ts"].(string))
 			channel := slack.ChannelID(item["channel"].(string))
-			fmt.Printf("[%s] :%s: @%s -> @%s %s\n", team.ChannelName(channel),
+			fmt.Printf("[%s%s] :%s: @%s -> @%s %s\n", team.Domain(), team.ChannelName(channel),
 				msg.StringField("reaction"), team.UserName(msg.UserID()),
 				team.UserName(slack.UserID(msg.StringField("item_user"))), team.ArchiveURL(slack.MsgID(channel, ts)))
 			return
 		}
-		util.LogDebug("main.go rtm message:", msg)
-	}, rtm.MsgTypeAll, nil)
+		fmt.Println(colorDebug(fmt.Sprintf("[%s] raw message: %s", team.Domain(), msg)))
+	}
+}
+
+func startTeam(cfg *ini.File, name string) *marvin.Team {
+
+}
+
+func main() {
+	teamName := flag.String("team", "Test", "which team to use")
+	configFile := flag.String("conf", "", "override config file")
+	dumpMessages := flag.Bool("msgdump", false, "dump message events")
+	flag.Parse()
+
+	var cfg *ini.File
+	var err error
+	if *configFile != "" {
+		cfg, err = ini.Load(*configFile)
+	} else {
+		cfg, err = ini.LooseLoad("testdata/config.ini", "config.ini")
+	}
+	if err != nil {
+		util.LogError(errors.Wrap(err, "loading config"))
+		return
+	}
+
+	teamConfig := marvin.LoadTeamConfig(cfg.Section(*teamName))
+	team, err := controller.NewTeam(teamConfig)
+	if err != nil {
+		util.LogError(errors.Wrap(err, "NewTeam"))
+		return
+	}
+	l, err := net.Listen("tcp4", teamConfig.HTTPListen)
+	if err != nil {
+		util.LogError(errors.Wrap(err, "listen tcp"))
+		return
+	}
+	client := rtm.NewClient(team)
+	client.RegisterRawHandler("main.go", , rtm.MsgTypeAll, nil)
 
 	team.ConnectRTM(client)
 	if !team.EnableModules() {
