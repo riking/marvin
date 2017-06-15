@@ -353,7 +353,6 @@ func (mod *AutoInviteModule) PostInvite(t marvin.Team, args *marvin.CommandArgum
 		return marvin.CmdError(args, err, "error marshal callback")
 	}
 
-	util.LogDebug("sending invite to", messageChannel, "text:", msg)
 	ts, _, err := t.SendMessage(messageChannel, msg)
 	if err != nil {
 		return marvin.CmdError(args, err, "Couldn't send message")

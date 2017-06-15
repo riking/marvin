@@ -273,7 +273,7 @@ func (mod *OnReactionModule) ReactionEvent(rtm slack.RTMRawMessage) {
 			util.LogError(err)
 		}
 	}
-	util.LogDebug("dispatched reaction to", len(cbs), "callbacks")
+	util.LogTeamDebug(mod.team.Domain(), "onreaction: dispatched reaction to", len(cbs), "callbacks")
 }
 
 func (mod *OnReactionModule) getHandler(modID marvin.ModuleID) ReactionHandler {

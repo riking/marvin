@@ -321,7 +321,7 @@ func (t *Team) SlackAPIPostJSON(method string, form url.Values, result interface
 
 	// Early return - no result needed
 	if result == nil {
-		util.LogDebug("Slack API", method, "success", slackResponse)
+		util.LogTeamDebug(t.Domain(),"Slack API", method, "success", slackResponse)
 		return nil
 	}
 
@@ -330,7 +330,7 @@ func (t *Team) SlackAPIPostJSON(method string, form url.Values, result interface
 		util.LogBadf("Slack API %s error: %s", method, err)
 		return errors.Wrapf(err, "Slack API %s: decode json", method)
 	}
-	util.LogDebug("Slack API", method, "success", result)
+	util.LogTeamDebug(t.Domain(), "Slack API", method, "success")
 	return nil
 }
 

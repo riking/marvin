@@ -48,6 +48,11 @@ func LogDebug(msg ...interface{}) {
 	fmt.Fprint(os.Stderr, funcDebug(fmt.Sprintln(msg...)))
 }
 
+func LogTeamDebug(team string, msg ...interface{}) {
+	msg = append([]interface{}{fmt.Sprintf("[DEBUG %s]", team)}, msg...)
+	fmt.Fprint(os.Stderr, funcDebug(fmt.Sprintln(msg...)))
+}
+
 func LogGood(msg ...interface{}) {
 	msg = append([]interface{}{"[ INFO]"}, msg...)
 	fmt.Fprint(os.Stderr, funcGood(fmt.Sprintln(msg...)))
