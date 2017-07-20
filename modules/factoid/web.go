@@ -27,6 +27,7 @@ type bodyList struct {
 }
 
 type bodyShow struct {
+	Layout  *weblogin.LayoutContent
 	Factoid *Factoid
 	team    marvin.Team
 	History []Factoid
@@ -34,11 +35,6 @@ type bodyShow struct {
 
 func (d bodyList) Team() marvin.Team { return d.team }
 func (d bodyShow) Team() marvin.Team { return d.team }
-
-var (
-	_ marvin.HasTeam = bodyList{}
-	_ marvin.HasTeam = bodyShow{}
-)
 
 func (mod *FactoidModule) HTTPListFactoids(w http.ResponseWriter, r *http.Request) {
 	lc, err := weblogin.NewLayoutContent(mod.team, w, r, weblogin.NavSectionFactoids)
@@ -111,6 +107,7 @@ func (mod *FactoidModule) HTTPShowFactoid(w http.ResponseWriter, r *http.Request
 		Factoid: finfo,
 		team:    mod.team,
 		History: history,
+		Layout:  lc,
 	}
 
 	util.LogIfError(
