@@ -159,7 +159,11 @@ func (mod *AutoInviteModule) HTTPSingleInvite(w http.ResponseWriter, r *http.Req
 	}
 
 	channelID := mod.team.ResolveChannelName(m[1])
-	fmt.Println("resolved", r.URL.Path, "->", m[1], "into", channelID)
+	if channelID == "" {
+		w.WriteHeader(http.StatusNotFound)
+		wlAPI.HTTPError(w, r, errors.Wrap(err, "Channel not found"))
+		return
+	}
 	mod.HTTPInvitesPage(w, r, string(channelID))
 }
 
