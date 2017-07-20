@@ -13,6 +13,9 @@ import (
 )
 
 func (t *Team) ChannelName(channel slack.ChannelID) string {
+	if channel == "" {
+		return "#(!Empty channel ID)"
+	}
 	switch channel[0] {
 	case 'C':
 		ch, err := t.PublicChannelInfo(channel)
