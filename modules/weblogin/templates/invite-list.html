@@ -159,22 +159,12 @@ function buttonClick(evt) {
 }
 // with jquery
 $('.join-btn').on('click', buttonClick);
-// no jquery
-document.querySelectorAll(".join-btn").forEach(function(el) {
-    el.addEventListener('click', function(evt) {
-        evt.delegateTarget = el;
-        return buttonClick(evt);
-    });
-});
-
-
-    createIncrementer = function() {
-        var i = 0;
-        return function() {
-            i = i + 1;
-            return i;
-        };
-    }
-
+//// no jquery
+//document.querySelectorAll(".join-btn").forEach(function(el) {
+//    el.addEventListener('click', function(evt) {
+//        evt.delegateTarget = el;
+//        return buttonClick(evt);
+//    });
+//});
 </script>
 {{end}}

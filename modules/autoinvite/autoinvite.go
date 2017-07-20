@@ -112,7 +112,7 @@ const (
 	sqlListInvites = `
 	SELECT invited_channel, inviting_user, inviting_ts, msg_text
 	FROM module_invites
-	WHERE valid = true AND public = true
+	WHERE valid = true AND public = true AND ($1 = '' OR invited_channel = $1)
 	ORDER BY inviting_ts DESC`
 )
 

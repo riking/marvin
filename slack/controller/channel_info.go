@@ -134,10 +134,7 @@ func (t *Team) ResolveChannelName(input string) slack.ChannelID {
 	if chID != "" {
 		return chID
 	}
-	m := rgxPlainTextChannelName.FindStringSubmatch(input)
-	if m != nil {
-		chID = t.ChannelIDByName(m[1])
-	}
+	chID = t.ChannelIDByName(strings.TrimPrefix(input, "#"))
 	if chID != "" {
 		return chID
 	}

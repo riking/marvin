@@ -24,6 +24,14 @@ nav.navbar-inverse {
     padding-left: 0;
     margin-left: 5px;
 }
+
+.fullpage-dialog-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 70vh;
+}
+
 /* Top of content */
 .page-header {
     margin-top: 70px;
