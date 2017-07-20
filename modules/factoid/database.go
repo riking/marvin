@@ -90,7 +90,7 @@ const (
 	SELECT f.id, f.name, f.rawtext, f.channel_only, f.last_set_user, f.last_set_channel, f.last_set_ts, f.last_set, f.locked, f.forgotten
 	FROM names
 	INNER JOIN module_factoid_factoids f ON names.id = f.id
-	ORDER BY name DESC, channel_only DESC, last_set DESC
+	ORDER BY last_set DESC, name ASC, channel_only DESC
 	`
 
 	// $1 = isLocked $2 = dbID
