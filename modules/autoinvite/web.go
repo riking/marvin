@@ -29,7 +29,7 @@ var tmplSingleInvite = template.Must(weblogin.LayoutTemplateCopy().Parse(string(
 
 var rgxInviteURL = regexp.MustCompile(`/invites/([A-Z0-9]+)`)
 // https://twitter.com/FakeUnicode/status/843937911707906048
-var rgxInviteSlackChannel = regexp.MustCompile(`/invites/([\pL\pM\p{Nd}-_]+)(\?.*)?$`)
+var rgxInviteSlackChannel = regexp.MustCompile(`/invites/([\pL\pM\p{Nd}-_]*)(\?.*)?$`)
 
 type singleChannel struct {
 	Name       string
@@ -157,7 +157,11 @@ func (mod *AutoInviteModule) HTTPSingleInvite(w http.ResponseWriter, r *http.Req
 		wlAPI.HTTPError(w, r, errors.Wrap(err, "Database query error"))
 		return
 	}
-
+	if m[1] == "" {
+		// /invites/ - use as index
+		mod.HTTPListInvites(w, r)
+		return
+	}
 	channelID := mod.team.ResolveChannelName(m[1])
 	if channelID == "" {
 		w.WriteHeader(http.StatusNotFound)
