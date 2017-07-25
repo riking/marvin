@@ -13,7 +13,6 @@ import (
 
 	"github.com/riking/marvin"
 	"github.com/riking/marvin/slack"
-	"github.com/riking/marvin/slack/rtm"
 	"github.com/riking/marvin/util"
 )
 
