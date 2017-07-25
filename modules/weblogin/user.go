@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 
 	"github.com/pkg/errors"
+	"github.com/riking/marvin"
 	"github.com/riking/marvin/slack"
 	"golang.org/x/oauth2"
 )
@@ -102,6 +103,38 @@ func (u User) NameWarning() bool {
 		return true
 	}
 	return false
+}
+
+type ActionSourceWeb struct {
+	Team marvin.Team
+	User *User
+}
+
+func (ws ActionSourceWeb) ChannelID() slack.ChannelID    { return "(via web)" }
+func (ws ActionSourceWeb) ArchiveLink() string           { return "" }
+func (ws ActionSourceWeb) MsgTimestamp() slack.MessageTS { return "" }
+func (ws ActionSourceWeb) AccessLevel() marvin.AccessLevel {
+	if ws.User == nil {
+		return marvin.AccessLevelBlacklisted
+	} else if ws.User.IntraLogin == "" {
+		return marvin.AccessLevelBlacklisted
+	} else if ws.User.SlackUser == "" {
+		return marvin.AccessLevelNormal
+	}
+	return ws.Team.UserLevel(ws.User.SlackUser)
+}
+
+func (ws ActionSourceWeb) UserID() slack.UserID {
+	if ws.User == nil {
+		return ""
+	}
+	if ws.User.SlackUser != "" {
+		return ws.User.SlackUser
+	}
+	if ws.User.IntraLogin != "" {
+		return slack.UserID("intra:" + ws.User.IntraLogin)
+	}
+	return ""
 }
 
 // --- User save/load functions

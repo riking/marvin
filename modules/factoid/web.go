@@ -11,12 +11,16 @@ import (
 	"github.com/riking/marvin/modules/weblogin"
 	"github.com/riking/marvin/slack"
 	"github.com/riking/marvin/util"
+	"fmt"
 )
 
 func (mod *FactoidModule) registerHTTP() {
-	mod.team.HandleHTTP("/factoids", http.HandlerFunc(mod.HTTPListFactoids))
-	mod.team.HandleHTTP("/factoids/_/{name}", http.HandlerFunc(mod.HTTPShowFactoid))
-	mod.team.HandleHTTP("/factoids/{channel}/{name}", http.HandlerFunc(mod.HTTPShowFactoid))
+	r := mod.team.Router()
+	r.Path("/factoids").HandlerFunc(mod.HTTPListFactoids)
+	r.Path("/factoids/_/{name}").HandlerFunc(http.HandlerFunc(mod.HTTPShowFactoid))
+	r.Path("/factoids/{channel}/{name}").HandlerFunc(http.HandlerFunc(mod.HTTPShowFactoid))
+	r.Methods("POST").Path("/factoids/_/{name}/edit").HandlerFunc(mod.HTTPEditFactoid)
+	r.Methods("POST").Path("/factoids/{channel}/{name}/edit").HandlerFunc(mod.HTTPEditFactoid)
 }
 
 var tmplListFactoids = template.Must(weblogin.LayoutTemplateCopy().Parse(string(weblogin.MustAsset("templates/factoid-list.html"))))
@@ -27,10 +31,11 @@ type bodyList struct {
 }
 
 type bodyShow struct {
-	Layout  *weblogin.LayoutContent
-	Factoid *Factoid
-	team    marvin.Team
-	History []Factoid
+	Layout          *weblogin.LayoutContent
+	Factoid         *Factoid
+	team            marvin.Team
+	ScopeChannelURL string
+	History         []Factoid
 }
 
 func (d bodyList) Team() marvin.Team { return d.team }
@@ -104,12 +109,92 @@ func (mod *FactoidModule) HTTPShowFactoid(w http.ResponseWriter, r *http.Request
 	}
 
 	lc.BodyData = bodyShow{
-		Factoid: finfo,
-		team:    mod.team,
-		History: history,
-		Layout:  lc,
+		Factoid:         finfo,
+		team:            mod.team,
+		History:         history,
+		ScopeChannelURL: m[1],
+		Layout:          lc,
 	}
 
 	util.LogIfError(
 		tmplShowFactoid.ExecuteTemplate(w, "layout", lc))
+}
+
+func (mod *FactoidModule) HTTPEditFactoid(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	lc, err := weblogin.NewLayoutContent(mod.team, w, r, weblogin.NavSectionFactoids)
+	if err != nil {
+		http.Error(w, `{"ok": false, "message": "bad login/cookies"}`, 401)
+		return
+	}
+
+	m := rgxShowFactoid.FindStringSubmatch(r.URL.Path)
+	if m == nil {
+		http.Error(w, `{"ok": false, "message": "bad URL"}`, 404)
+		return
+	}
+
+	scopeChannel := slack.ChannelID(m[1])
+	if scopeChannel == "_" {
+		scopeChannel = ""
+	}
+	factoidName := m[2]
+
+	if lc.CurrentUser == nil {
+		http.Error(w, `{"ok": false, "message": "must log in"}`, 403)
+		return
+	}
+
+	actionSource := weblogin.ActionSourceWeb{Team: mod.Team(), User: lc.CurrentUser}
+
+	r.ParseMultipartForm(-1)
+	fmt.Println(r.Form)
+	factoidSource := r.Form.Get("raw")
+	if factoidSource == "" {
+		http.Error(w, `{"ok": false, "message": "new raw not provided"}`, 422)
+		return
+	}
+	fmt.Println("web factoid set by", lc.CurrentUser.IntraLogin, "set", factoidName, "to", factoidSource)
+
+	prevFactoidInfo, err := mod.GetFactoidInfo(factoidName, scopeChannel, false)
+	if err == ErrNoSuchFactoid {
+		// make a pseudo value that passes all the checks
+		prevFactoidInfo = &Factoid{IsLocked: false, ScopeChannel: ""}
+	} else if err != nil {
+		http.Error(w, fmt.Sprintf(`{"ok": false, "message": "internal server error: %v"}`, err), 500)
+		return
+	}
+
+	if prevFactoidInfo.IsLocked {
+		if scopeChannel != "" {
+			// Overriding a locked global with a local is OK
+			if prevFactoidInfo.ScopeChannel != "" {
+				http.Error(w, `{"ok": false, "message": "Factoid is locked"}`, 403)
+			}
+		} else {
+			http.Error(w, `{"ok": false, "message": "Factoid is locked"}`, 403)
+		}
+	}
+
+	// Attempt parse
+	fi := Factoid{
+		Mod:       mod,
+		RawSource: factoidSource,
+	}
+	err = util.PCall(func() error {
+		fi.Tokens()
+		return nil
+	})
+	if err != nil {
+		http.Error(w, fmt.Sprintf(`{"ok": false, "message": "Bad syntax: %v"}`, err), 422)
+		return
+	}
+
+	util.LogGood("Saving factoid", factoidName, "-", factoidSource)
+	err = mod.SaveFactoid(factoidName, scopeChannel, factoidSource, actionSource)
+	if err != nil {
+		http.Error(w, fmt.Sprintf(`{"ok": false, "message": "Could not save factoid: %v"}`, err), 500)
+	}
+
+	fmt.Fprint(w, `{"ok": true}`)
 }

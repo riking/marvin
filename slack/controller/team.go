@@ -422,6 +422,9 @@ func (t *Team) ArchiveURL(msgID slack.MessageID) string {
 		}
 		return slack.ArchiveURL(t.teamConfig.TeamDomain, info.Name, msgID)
 	}
+	if channel[0] == '(' {
+		return string(channel) + string(msgID.MessageTS)
+	}
 	panic(errors.Errorf("Invalid channel id '%s' passed to ArchiveURL", channel))
 }
 

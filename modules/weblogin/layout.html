@@ -26,6 +26,8 @@ function postData(url, data, options) {
     if (!options.headers) options.headers = new Headers();
     if (!options.method) options.method = 'POST';
     if (!options.credentials) options.credentials = 'same-origin';
+
+    options.headers.set('Content-Type', 'application/x-www-form-urlencoded');
     return getCSRFToken().then(function(csrfToken) {
         options.headers.set('X-CSRF-Token', csrfToken);
         options.body = Object.keys(data).map(function (k) {

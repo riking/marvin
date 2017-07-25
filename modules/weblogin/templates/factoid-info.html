@@ -63,7 +63,7 @@ $(document.getElementById("edit-factoid")).click(function() {
         $editButton.addClass('btn-default');
         $editButton.html('<i class="fa fa-spin fa-spinner"></i> Saving...');
         isSaving = true;
-        postData('./edit', {raw: textarea.value}).then(function(resp) {
+        postData('/factoids/{{.ScopeChannelURL}}/{{.Factoid.FactoidName}}/edit', {raw: textarea.value}).then(function(resp) {
             isSaving = false;
             var $source = $('#primary-source');
             var newPre = document.createElement('pre');
@@ -75,6 +75,7 @@ $(document.getElementById("edit-factoid")).click(function() {
             $source.replaceWith(newPre);
             $editButton.html('<i class="fa fa-pencil"></i> Edit');
             isEditing = false;
+            window.location.reload();
         });
     }
 });

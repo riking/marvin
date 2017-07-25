@@ -81,6 +81,9 @@ func (t *Team) FormatChannel(channel slack.ChannelID) string {
 			return fmt.Sprintf("<!error getting other user for %s>", string(channel))
 		}
 		return fmt.Sprintf("#[IM @%s]", t.UserName(otherUser))
+	case '(':
+		// (via web)
+		return string(channel)
 	}
 	return string(channel)
 
