@@ -62,6 +62,7 @@ func CmdMassInvite(t marvin.Team, args *marvin.CommandArguments) marvin.CommandR
 						if slErr.SlackError == "already_in_channel" {
 							continue
 						}
+						continue
 					}
 					errCh <- err
 					return
