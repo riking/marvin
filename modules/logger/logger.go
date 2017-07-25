@@ -275,7 +275,7 @@ func (mod *LoggerModule) BackfillAll() {
 			util.LogGood(fmt.Sprintf("Backfilled %d messages from %s", c, v))
 		}
 	}
-	imList := mod.listIMs()
+	imList := mod.listChannels("im")
 	for _, v := range imList {
 		messages, err := mod.getHistory("im.history", v, stmt)
 		if err != nil {
@@ -304,18 +304,6 @@ func (mod *LoggerModule) listChannels(typ string) []slack.ChannelID {
 	ids := make([]slack.ChannelID, len(response.Channels))
 	for i := range response.Channels {
 		ids[i] = slack.ChannelID(response.Channels[i].ID)
-	}
-	return ids
-}
-
-func (mod *LoggerModule) listIMs() []slack.ChannelID {
-	c := mod.team.GetRTMClient().(*rtm.Client)
-	c.MetadataLock.RLock()
-	defer c.MetadataLock.RUnlock()
-
-	ids := make([]slack.ChannelID, len(c.Ims))
-	for i := range c.Ims {
-		ids[i] = c.Ims[i].ID
 	}
 	return ids
 }
