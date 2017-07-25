@@ -239,7 +239,7 @@ func (mod *LoggerModule) BackfillAll() {
 	}
 	defer stmt.Close()
 
-	publicList := mod.listChannels()
+	publicList := mod.listChannels("channels")
 	for _, v := range publicList {
 		messages, err := mod.getHistory("channels.history", v, stmt)
 		if err != nil {
@@ -251,7 +251,7 @@ func (mod *LoggerModule) BackfillAll() {
 			util.LogGood(fmt.Sprintf("Backfilled %d messages from %s", c, v))
 		}
 	}
-	groupList := mod.listGroups()
+	groupList := mod.listChannels("groups")
 	for _, v := range groupList {
 		messages, err := mod.getHistory("groups.history", v, stmt)
 		if err != nil {
@@ -263,7 +263,7 @@ func (mod *LoggerModule) BackfillAll() {
 			util.LogGood(fmt.Sprintf("Backfilled %d messages from %s", c, v))
 		}
 	}
-	mpimList := mod.listMPIMs()
+	mpimList := mod.listChannels("mpim")
 	for _, v := range mpimList {
 		messages, err := mod.getHistory("mpim.history", v, stmt)
 		if err != nil {
@@ -289,14 +289,14 @@ func (mod *LoggerModule) BackfillAll() {
 	}
 }
 
-func (mod *LoggerModule) listChannels() []slack.ChannelID {
+func (mod *LoggerModule) listChannels(typ string) []slack.ChannelID {
 	var response struct {
 		slack.APIResponse
 		Channels []struct {
 			ID string
 		}
 	}
-	mod.team.SlackAPIPostJSON("channels.list", url.Values{
+	mod.team.SlackAPIPostJSON(typ + ".list", url.Values{
 		"exclude_members": []string{"true"},
 		"exclude_archived": []string{"false"},
 	}, &response)
@@ -304,30 +304,6 @@ func (mod *LoggerModule) listChannels() []slack.ChannelID {
 	ids := make([]slack.ChannelID, len(response.Channels))
 	for i := range response.Channels {
 		ids[i] = slack.ChannelID(response.Channels[i].ID)
-	}
-	return ids
-}
-
-func (mod *LoggerModule) listGroups() []slack.ChannelID {
-	c := mod.team.GetRTMClient().(*rtm.Client)
-	c.MetadataLock.RLock()
-	defer c.MetadataLock.RUnlock()
-
-	ids := make([]slack.ChannelID, len(c.Groups))
-	for i := range c.Groups {
-		ids[i] = c.Groups[i].ID
-	}
-	return ids
-}
-
-func (mod *LoggerModule) listMPIMs() []slack.ChannelID {
-	c := mod.team.GetRTMClient().(*rtm.Client)
-	c.MetadataLock.RLock()
-	defer c.MetadataLock.RUnlock()
-
-	ids := make([]slack.ChannelID, len(c.Mpims))
-	for i := range c.Mpims {
-		ids[i] = c.Mpims[i].ID
 	}
 	return ids
 }
