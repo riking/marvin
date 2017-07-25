@@ -294,17 +294,40 @@ func (mod *LoggerModule) listChannels(typ string) []slack.ChannelID {
 		Channels []struct {
 			ID string
 		}
+		Groups []struct {
+			ID string
+		}
+		Ims []struct {
+			ID string
+		}
 	}
 	mod.team.SlackAPIPostJSON(typ + ".list", url.Values{
 		"exclude_members": []string{"true"},
 		"exclude_archived": []string{"false"},
 	}, &response)
 
-	ids := make([]slack.ChannelID, len(response.Channels))
-	for i := range response.Channels {
-		ids[i] = slack.ChannelID(response.Channels[i].ID)
+	if len(response.Channels) != 0 {
+		ids := make([]slack.ChannelID, len(response.Channels))
+		for i := range response.Channels {
+			ids[i] = slack.ChannelID(response.Channels[i].ID)
+		}
+		return ids
 	}
-	return ids
+	if len(response.Groups) != 0 {
+		ids := make([]slack.ChannelID, len(response.Groups))
+		for i := range response.Groups {
+			ids[i] = slack.ChannelID(response.Groups[i].ID)
+		}
+		return ids
+	}
+	if len(response.Ims) != 0 {
+		ids := make([]slack.ChannelID, len(response.Ims))
+		for i := range response.Ims {
+			ids[i] = slack.ChannelID(response.Ims[i].ID)
+		}
+		return ids
+	}
+	return nil
 }
 
 func (mod *LoggerModule) saveBackfillData(channel slack.ChannelID, messages []json.RawMessage) (totalAdded int64) {
