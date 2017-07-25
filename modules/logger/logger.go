@@ -290,13 +290,20 @@ func (mod *LoggerModule) BackfillAll() {
 }
 
 func (mod *LoggerModule) listChannels() []slack.ChannelID {
-	c := mod.team.GetRTMClient().(*rtm.Client)
-	c.MetadataLock.RLock()
-	defer c.MetadataLock.RUnlock()
+	var response struct {
+		slack.APIResponse
+		Channels []struct {
+			ID string
+		}
+	}
+	mod.team.SlackAPIPostJSON("channels.list", url.Values{
+		"exclude_members": []string{"true"},
+		"exclude_archived": []string{"false"},
+	}, &response)
 
-	ids := make([]slack.ChannelID, len(c.Channels))
-	for i := range c.Channels {
-		ids[i] = c.Channels[i].ID
+	ids := make([]slack.ChannelID, len(response.Channels))
+	for i := range response.Channels {
+		ids[i] = slack.ChannelID(response.Channels[i].ID)
 	}
 	return ids
 }
