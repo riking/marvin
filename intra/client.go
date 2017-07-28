@@ -26,7 +26,7 @@ func ClientCredentialsTokenSource(ctx context.Context, uid, secret string, scope
 		ClientID:     uid,
 		ClientSecret: secret,
 		TokenURL:     "https://api.intra.42.fr/oauth/token",
-		Scopes:       []string{"projects", "", "public"},
+		Scopes:       scopes,
 	}
 	return c.TokenSource(ctx)
 }

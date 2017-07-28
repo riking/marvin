@@ -367,6 +367,7 @@ func (t *Team) ConnectHTTP(l net.Listener) {
 		csrfArgs = append(csrfArgs, csrf.Secure(false))
 	}
 	csrfArgs = append(csrfArgs, csrf.RequestHeader("x-csrf-token"))
+	csrfArgs = append(csrfArgs, csrf.Path("/"))
 
 	var csrfKey [32]byte
 	_, err := t.TeamConfig().GetSecretKey("csrf protection", csrfKey[:])
