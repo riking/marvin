@@ -20,12 +20,33 @@ import (
 
 func (mod *AutoInviteModule) registerHTTP() {
 	mod.team.Router().HandleFunc("/invites", mod.HTTPListInvites)
+	mod.team.Router().Path("/invites/{channel}").Methods(http.MethodGet).HandlerFunc(mod.HTTPSingleInvite)
 	mod.team.Router().Path("/invites/{channel}").Methods(http.MethodPost).HandlerFunc(mod.HTTPInvite)
 }
 
 var tmplListInvites = template.Must(weblogin.LayoutTemplateCopy().Parse(string(weblogin.MustAsset("templates/invite-list.html"))))
+var tmplSingleInvite = template.Must(weblogin.LayoutTemplateCopy().Parse(string(weblogin.MustAsset("templates/invite-single.html"))))
 
-func (mod *AutoInviteModule) HTTPListInvites(w http.ResponseWriter, r *http.Request) {
+var rgxInviteURL = regexp.MustCompile(`/invites/([A-Z0-9]+)`)
+// https://twitter.com/FakeUnicode/status/843937911707906048
+var rgxInviteSlackChannel = regexp.MustCompile(`/invites/([\pL\pM\p{Nd}-_]*)(\?.*)?$`)
+
+type singleChannel struct {
+	Name       string
+	NameAnchor string
+	ID         slack.ChannelID
+
+	Available bool
+
+	User        slack.UserID
+	UserName    string
+	Timestamp   time.Time
+	Text        string
+	MemberCount int
+	Purpose     string
+}
+
+func (mod *AutoInviteModule) HTTPInvitesPage(w http.ResponseWriter, r *http.Request, channelFilter string) {
 	wlAPI := mod.team.GetModule(weblogin.Identifier).(weblogin.API)
 
 	user, err := wlAPI.GetCurrentUser(w, r)
@@ -35,21 +56,6 @@ func (mod *AutoInviteModule) HTTPListInvites(w http.ResponseWriter, r *http.Requ
 	}
 
 	lc, _ := weblogin.NewLayoutContent(mod.team, w, r, weblogin.NavSectionInvite)
-
-	type singleChannel struct {
-		Name       string
-		NameAnchor string
-		ID         slack.ChannelID
-
-		Available bool
-
-		User        slack.UserID
-		UserName    string
-		Timestamp   time.Time
-		Text        string
-		MemberCount int
-		Purpose     string
-	}
 
 	var data struct {
 		Layout         *weblogin.LayoutContent
@@ -68,7 +74,7 @@ func (mod *AutoInviteModule) HTTPListInvites(w http.ResponseWriter, r *http.Requ
 		return
 	}
 	defer stmt.Close()
-	rows, err := stmt.Query()
+	rows, err := stmt.Query(channelFilter)
 	if err != nil {
 		wlAPI.HTTPError(w, r, errors.Wrap(err, "Database query error"))
 		return
@@ -125,11 +131,45 @@ func (mod *AutoInviteModule) HTTPListInvites(w http.ResponseWriter, r *http.Requ
 	}
 
 	lc.BodyData = data
-	util.LogIfError(
-		tmplListInvites.Execute(w, lc))
+	if channelFilter != "" {
+		util.LogIfError(
+			tmplSingleInvite.Execute(w, lc))
+	} else {
+		util.LogIfError(
+			tmplListInvites.Execute(w, lc))
+	}
 }
 
-var rgxAcceptInvite = regexp.MustCompile(`/invites/([A-Z0-9]+)`)
+func (mod *AutoInviteModule) HTTPListInvites(w http.ResponseWriter, r *http.Request) {
+	mod.HTTPInvitesPage(w, r, "")
+}
+
+func (mod *AutoInviteModule) HTTPSingleInvite(w http.ResponseWriter, r *http.Request) {
+	wlAPI := mod.team.GetModule(weblogin.Identifier).(weblogin.API)
+	_, err := wlAPI.GetCurrentUser(w, r)
+	if err != nil {
+		wlAPI.HTTPError(w, r, errors.Wrap(err, "Error determining login state"))
+		return
+	}
+	m := rgxInviteSlackChannel.FindStringSubmatch(r.URL.Path)
+	if m == nil {
+		w.WriteHeader(http.StatusNotFound)
+		wlAPI.HTTPError(w, r, errors.Wrap(err, "Database query error"))
+		return
+	}
+	if m[1] == "" {
+		// /invites/ - use as index
+		mod.HTTPListInvites(w, r)
+		return
+	}
+	channelID := mod.team.ResolveChannelName(m[1])
+	if channelID == "" {
+		w.WriteHeader(http.StatusNotFound)
+		wlAPI.HTTPError(w, r, errors.Wrap(err, "Channel not found"))
+		return
+	}
+	mod.HTTPInvitesPage(w, r, string(channelID))
+}
 
 type jsonResponse struct {
 	OK    bool `json:"ok"`
@@ -156,7 +196,7 @@ func (mod *AutoInviteModule) HTTPInvite(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	m := rgxAcceptInvite.FindStringSubmatch(r.URL.Path)
+	m := rgxInviteURL.FindStringSubmatch(r.URL.Path)
 	if m == nil {
 		w.WriteHeader(http.StatusNotFound)
 		fmt.Fprint(w, `{"ok":false,"error":{"type":"bad_url","message":"Channel ID not found."}`)

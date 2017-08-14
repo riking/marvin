@@ -25,8 +25,8 @@ func init() {
 const Identifier = "atcommand"
 
 type AtCommandModule struct {
-	team        marvin.Team
-	enabled     int
+	team    marvin.Team
+	enabled int
 
 	rgxLock     sync.RWMutex
 	mentionRgx2 *regexp.Regexp

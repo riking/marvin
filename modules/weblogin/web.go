@@ -199,9 +199,9 @@ func (mod *WebLoginModule) ServeAsset(w http.ResponseWriter, r *http.Request) {
 
 var tmplError = template.Must(LayoutTemplateCopy().Parse(`
 {{define "content"}}
-<div style="display:flex;justify-content:center;align-items:center;">
+<div class="fullpage-dialog-container">
 <div style="width: 300px">
-<h1>Whoops!</h1>
+<h1 class="page-header">Whoops!</h1>
 {{- if . }}
   <p>It seems like something went a bit wrong. Here's the info:</p>
   <p>{{.}}</p>

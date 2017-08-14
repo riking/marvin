@@ -13,7 +13,6 @@ import (
 
 	"github.com/riking/marvin"
 	"github.com/riking/marvin/slack"
-	"github.com/riking/marvin/slack/rtm"
 	"github.com/riking/marvin/util"
 )
 
@@ -239,52 +238,96 @@ func (mod *LoggerModule) BackfillAll() {
 	}
 	defer stmt.Close()
 
-	c := mod.team.GetRTMClient().(*rtm.Client)
+	publicList := mod.listChannels("channels")
+	for _, v := range publicList {
+		messages, err := mod.getHistory("channels.history", v, stmt)
+		if err != nil {
+			util.LogError(errors.Wrapf(err, "could not backfill logs for %s", v))
+			return
+		}
+		c := mod.saveBackfillData(v, messages)
+		if c != 0 {
+			util.LogGood(fmt.Sprintf("Backfilled %d messages from %s", c, v))
+		}
+	}
+	groupList := mod.listChannels("groups")
+	for _, v := range groupList {
+		messages, err := mod.getHistory("groups.history", v, stmt)
+		if err != nil {
+			util.LogError(errors.Wrapf(err, "could not backfill logs for %s", v))
+			return
+		}
+		c := mod.saveBackfillData(v, messages)
+		if c != 0 {
+			util.LogGood(fmt.Sprintf("Backfilled %d messages from %s", c, v))
+		}
+	}
+	mpimList := mod.listChannels("mpim")
+	for _, v := range mpimList {
+		messages, err := mod.getHistory("mpim.history", v, stmt)
+		if err != nil {
+			util.LogError(errors.Wrapf(err, "could not backfill logs for %s", v))
+			return
+		}
+		c := mod.saveBackfillData(v, messages)
+		if c != 0 {
+			util.LogGood(fmt.Sprintf("Backfilled %d messages from %s", c, v))
+		}
+	}
+	imList := mod.listChannels("im")
+	for _, v := range imList {
+		messages, err := mod.getHistory("im.history", v, stmt)
+		if err != nil {
+			util.LogError(errors.Wrapf(err, "could not backfill logs for %s", v))
+			return
+		}
+		c := mod.saveBackfillData(v, messages)
+		if c != 0 {
+			util.LogGood(fmt.Sprintf("Backfilled %d messages from %s", c, v))
+		}
+	}
+}
 
-	for _, v := range c.ListPublicChannels() {
-		messages, err := mod.getHistory("channels.history", v.ID, stmt)
-		if err != nil {
-			util.LogError(errors.Wrapf(err, "could not backfill logs for %s", v))
-			return
+func (mod *LoggerModule) listChannels(typ string) []slack.ChannelID {
+	var response struct {
+		slack.APIResponse
+		Channels []struct {
+			ID string
 		}
-		c := mod.saveBackfillData(v.ID, messages)
-		if c != 0 {
-			util.LogGood(fmt.Sprintf("Backfilled %d messages from %s", c, v))
+		Groups []struct {
+			ID string
 		}
-	}
-	for _, v := range c.ListPrivateChannels() {
-		messages, err := mod.getHistory("groups.history", v.ID, stmt)
-		if err != nil {
-			util.LogError(errors.Wrapf(err, "could not backfill logs for %s", v))
-			return
-		}
-		c := mod.saveBackfillData(v.ID, messages)
-		if c != 0 {
-			util.LogGood(fmt.Sprintf("Backfilled %d messages from %s", c, v))
+		Ims []struct {
+			ID string
 		}
 	}
-	for _, v := range c.ListMPIMs() {
-		messages, err := mod.getHistory("mpim.history", v.ID, stmt)
-		if err != nil {
-			util.LogError(errors.Wrapf(err, "could not backfill logs for %s", v))
-			return
+	mod.team.SlackAPIPostJSON(typ+".list", url.Values{
+		"exclude_members":  []string{"true"},
+		"exclude_archived": []string{"false"},
+	}, &response)
+
+	if len(response.Channels) != 0 {
+		ids := make([]slack.ChannelID, len(response.Channels))
+		for i := range response.Channels {
+			ids[i] = slack.ChannelID(response.Channels[i].ID)
 		}
-		c := mod.saveBackfillData(v.ID, messages)
-		if c != 0 {
-			util.LogGood(fmt.Sprintf("Backfilled %d messages from %s", c, v))
-		}
+		return ids
 	}
-	for _, v := range c.ListIMs() {
-		messages, err := mod.getHistory("im.history", v.ID, stmt)
-		if err != nil {
-			util.LogError(errors.Wrapf(err, "could not backfill logs for %s", v))
-			return
+	if len(response.Groups) != 0 {
+		ids := make([]slack.ChannelID, len(response.Groups))
+		for i := range response.Groups {
+			ids[i] = slack.ChannelID(response.Groups[i].ID)
 		}
-		c := mod.saveBackfillData(v.ID, messages)
-		if c != 0 {
-			util.LogGood(fmt.Sprintf("Backfilled %d messages from %s", c, v))
-		}
+		return ids
 	}
+	if len(response.Ims) != 0 {
+		ids := make([]slack.ChannelID, len(response.Ims))
+		for i := range response.Ims {
+			ids[i] = slack.ChannelID(response.Ims[i].ID)
+		}
+		return ids
+	}
+	return nil
 }
 
 func (mod *LoggerModule) saveBackfillData(channel slack.ChannelID, messages []json.RawMessage) (totalAdded int64) {

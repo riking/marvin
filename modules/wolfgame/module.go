@@ -22,6 +22,11 @@ type WolfGameModule struct {
 
 type Player struct {
 	ID slack.UserID
+	Role *Role
+}
+
+type Role struct {
+	Name string
 }
 
 func NewWolfGameModule(t marvin.Team) marvin.Module {

@@ -150,6 +150,8 @@ func (mod *DebugModule) CommandConfigSet(t marvin.Team, args *marvin.CommandArgu
 			return marvin.CmdError(args, err, "Database error")
 		}
 		return marvin.CmdSuccess(args, "Configuration value set").WithNoUndo()
+	} else if conf == nil {
+		return marvin.CmdFailuref(args, "'%s' is not a valid module name", module).WithSimpleUndo()
 	} else {
 		err := conf.SetDefault(key)
 		if err != nil {

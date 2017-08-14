@@ -367,6 +367,7 @@ func (t *Team) ConnectHTTP(l net.Listener) {
 		csrfArgs = append(csrfArgs, csrf.Secure(false))
 	}
 	csrfArgs = append(csrfArgs, csrf.RequestHeader("x-csrf-token"))
+	csrfArgs = append(csrfArgs, csrf.Path("/"))
 
 	var csrfKey [32]byte
 	_, err := t.TeamConfig().GetSecretKey("csrf protection", csrfKey[:])
@@ -421,6 +422,9 @@ func (t *Team) ArchiveURL(msgID slack.MessageID) string {
 			panic(errors.Wrap(err, "could not get info about public channel"))
 		}
 		return slack.ArchiveURL(t.teamConfig.TeamDomain, info.Name, msgID)
+	}
+	if channel[0] == '(' {
+		return string(channel) + string(msgID.MessageTS)
 	}
 	panic(errors.Errorf("Invalid channel id '%s' passed to ArchiveURL", channel))
 }

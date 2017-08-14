@@ -12,9 +12,11 @@
     {{with .Factoid}}
     <p>Last edit: {{user_link $ .LastUser}}
         in {{channel_link $ .LastChannel}}
-        {{reltime .LastTimestamp}} - <a href="{{archive_href $ .LastChannel .LastMessage}}">Slack Archive</a></p>
+        {{reltime .LastTimestamp}} - <a href="{{archive_href $ .LastChannel .LastMessage}}">Slack Archive</a>
+    {{if $.Layout.CurrentUser}}<span id="edit-factoid" class="btn btn-default" style="float:right"><i class="fa fa-pencil"></i> Edit</span>{{end}}</p>
+    <div style="clear:both"></div>
 
-    <pre class="source"><code>{{.RawSource}}</code></pre>
+    <pre id="primary-source" class="source"><code>{{.RawSource}}</code></pre>
     {{end}}
 
     <h2>History</h2>
@@ -33,4 +35,49 @@
 {{end}}
 </div>
 </div>
+<script>
+    var isEditing = false;
+    var isSaving = false;
+    var textarea = null;
+$(document.getElementById("edit-factoid")).click(function() {
+    var $editButton = $('#edit-factoid');
+    if (!isEditing) {
+        var $source = $('#primary-source');
+        var curText = $source.text();
+        var newTextarea = document.createElement('textarea');
+        newTextarea.value = curText;
+        newTextarea.setAttribute('contenteditable', '');
+        newTextarea.setAttribute('id', 'primary-source');
+        newTextarea.classList.add('factoid-edit');
+        textarea = newTextarea;
+        $source.replaceWith(newTextarea);
+        $editButton.removeClass('btn-default');
+        $editButton.addClass('btn-primary');
+        $editButton.html('<i class="fa fa-check"></i> Save');
+        isEditing = true;
+    } else {
+        if (isSaving) return;
+
+        textarea.setAttribute('disabled', '');
+        $editButton.removeClass('btn-primary');
+        $editButton.addClass('btn-default');
+        $editButton.html('<i class="fa fa-spin fa-spinner"></i> Saving...');
+        isSaving = true;
+        postData('/factoids/{{.ScopeChannelURL}}/{{.Factoid.FactoidName}}/edit', {raw: textarea.value}).then(function(resp) {
+            isSaving = false;
+            var $source = $('#primary-source');
+            var newPre = document.createElement('pre');
+            var newCode = document.createElement('code');
+            newPre.appendChild(newCode);
+            newCode.textContent = textarea.value;
+            newPre.setAttribute('id', 'primary-source');
+            newPre.classList.add('source');
+            $source.replaceWith(newPre);
+            $editButton.html('<i class="fa fa-pencil"></i> Edit');
+            isEditing = false;
+            window.location.reload();
+        });
+    }
+});
+</script>
 {{end}}

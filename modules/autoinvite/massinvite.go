@@ -58,8 +58,15 @@ func CmdMassInvite(t marvin.Team, args *marvin.CommandArguments) marvin.CommandR
 				form.Set("user", string(uid))
 				err := t.SlackAPIPostJSON(method, form, nil)
 				if err != nil {
-					errCh <- err
-					return
+					continue
+					//if slErr, ok := err.(slack.APIResponse); ok {
+					//	if slErr.SlackError == "already_in_channel" {
+					//		continue
+					//	}
+					//	continue
+					//}
+					//errCh <- err
+					//return
 				} else {
 					count++
 				}

@@ -24,6 +24,14 @@ nav.navbar-inverse {
     padding-left: 0;
     margin-left: 5px;
 }
+
+.fullpage-dialog-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 70vh;
+}
+
 /* Top of content */
 .page-header {
     margin-top: 70px;
@@ -99,6 +107,31 @@ nav.navbar-inverse {
     width: 400px;
     height: 400px;
     z-index: -1;
+}
+
+pre, .factoid-edit {
+    display: block;
+    padding: 9.5px;
+    margin: 0 0 10px;
+    font-size: 13px;
+    line-height: 1.42857143;
+    color: #333;
+    word-break: break-all;
+    word-wrap: break-word;
+    background-color: #f5f5f5;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-family: Menlo,Monaco,Consolas,"Courier New",monospace;
+    overflow: auto;
+    white-space: pre;
+}
+
+.factoid-edit {
+    width: 100%;
+}
+
+.btn .fa {
+    margin-right: 2px;
 }
 
 

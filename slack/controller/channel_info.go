@@ -13,6 +13,9 @@ import (
 )
 
 func (t *Team) ChannelName(channel slack.ChannelID) string {
+	if channel == "" {
+		return "#(!Empty channel ID)"
+	}
 	switch channel[0] {
 	case 'C':
 		ch, err := t.PublicChannelInfo(channel)
@@ -78,6 +81,9 @@ func (t *Team) FormatChannel(channel slack.ChannelID) string {
 			return fmt.Sprintf("<!error getting other user for %s>", string(channel))
 		}
 		return fmt.Sprintf("#[IM @%s]", t.UserName(otherUser))
+	case '(':
+		// (via web)
+		return string(channel)
 	}
 	return string(channel)
 
@@ -131,10 +137,7 @@ func (t *Team) ResolveChannelName(input string) slack.ChannelID {
 	if chID != "" {
 		return chID
 	}
-	m := rgxPlainTextChannelName.FindStringSubmatch(input)
-	if m != nil {
-		chID = t.ChannelIDByName(m[1])
-	}
+	chID = t.ChannelIDByName(strings.TrimPrefix(input, "#"))
 	if chID != "" {
 		return chID
 	}
