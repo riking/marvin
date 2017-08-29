@@ -26,7 +26,7 @@ type TeamConfig struct {
 	LogChannel      slack.ChannelID
 	HTTPListen      string
 	HTTPURL         string
-	Controller      slack.UserID
+	Controller      []slack.UserID
 	IsDevelopment   bool
 }
 
@@ -43,8 +43,19 @@ func LoadTeamConfig(sec *ini.Section) *TeamConfig {
 	c.HTTPListen = sec.Key("HTTPListen").String()
 	c.HTTPURL = sec.Key("HTTPURL").String()
 	c.LogChannel = slack.ChannelID(sec.Key("LogChannel").String())
-	c.Controller = slack.UserID(sec.Key("Controller").String())
 	c.IsDevelopment, _ = sec.Key("IsDevelopment").Bool()
+
+	var controllerKey = sec.Key("Controller").String()
+	if strings.ContainsAny(controllerKey, ",") {
+		var split = strings.Split(controllerKey, ",")
+		c.Controller = make([]slack.UserID, len(split))
+		for uid := range c.Controller {
+			c.Controller[uid] = slack.UserID(split[uid])
+		}
+	} else {
+		c.Controller = []slack.UserID{slack.UserID(controllerKey)}
+	}
+
 
 	if c.HTTPURL == "__auto" {
 		hostname, err := os.Hostname()
