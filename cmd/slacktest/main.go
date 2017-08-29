@@ -133,7 +133,7 @@ func main() {
 	}
 	if err != nil {
 		util.LogError(errors.Wrap(err, "loading config"))
-		os.Exit(1)
+		os.Exit(9)
 	}
 
 	teamNames := strings.Split(*teamNamesStr, ",")
@@ -143,7 +143,7 @@ func main() {
 		teams[i], rtmClients[i], err = readyTeam(cfg, name)
 		if err != nil {
 			util.LogError(err)
-			os.Exit(1)
+			os.Exit(9)
 		}
 	}
 
