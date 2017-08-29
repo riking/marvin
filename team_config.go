@@ -26,7 +26,7 @@ type TeamConfig struct {
 	LogChannel      slack.ChannelID
 	HTTPListen      string
 	HTTPURL         string
-	Controller      []slack.UserID
+	Controllers     []slack.UserID
 	IsDevelopment   bool
 }
 
@@ -46,16 +46,11 @@ func LoadTeamConfig(sec *ini.Section) *TeamConfig {
 	c.IsDevelopment, _ = sec.Key("IsDevelopment").Bool()
 
 	var controllerKey = sec.Key("Controller").String()
-	if strings.ContainsAny(controllerKey, ",") {
-		var split = strings.Split(controllerKey, ",")
-		c.Controller = make([]slack.UserID, len(split))
-		for uid := range c.Controller {
-			c.Controller[uid] = slack.UserID(split[uid])
-		}
-	} else {
-		c.Controller = []slack.UserID{slack.UserID(controllerKey)}
+	var split = strings.Split(controllerKey, ",")
+	c.Controllers = make([]slack.UserID, len(split))
+	for uid := range c.Controllers {
+		c.Controllers[uid] = slack.UserID(split[uid])
 	}
-
 
 	if c.HTTPURL == "__auto" {
 		hostname, err := os.Hostname()
@@ -70,6 +65,15 @@ func LoadTeamConfig(sec *ini.Section) *TeamConfig {
 		c.HTTPURL = fmt.Sprintf("http://%s:%s", hostname[:idx], port)
 	}
 	return c
+}
+
+func (t *TeamConfig) IsController(user string) bool {
+	for id := range t.Controllers {
+		if string(t.Controllers[id]) == user {
+			return true
+		}
+	}
+	return false
 }
 
 // GetSecretKey expands the CookieSecretKey value using the 'purpose' parameter as a salt.

@@ -101,10 +101,8 @@ func (t *Team) UserName(user slack.UserID) string {
 }
 
 func (t *Team) UserLevel(user slack.UserID) marvin.AccessLevel {
-	for id := range t.TeamConfig().Controller {
-		if t.TeamConfig().Controller[id] == user {
-			return marvin.AccessLevelController
-		}
+	if t.TeamConfig().IsController(string(user)) {
+		return marvin.AccessLevelController
 	}
 
 	u := t.cachedUserInfo(user)
