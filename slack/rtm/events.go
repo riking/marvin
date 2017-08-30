@@ -103,6 +103,28 @@ func (c *Client) ReplaceUserObject(obj *slack.User) {
 	c.Users = append(c.Users, obj)
 }
 
+func (c *Client) ReplaceManyUserObjects(objs []*slack.User) {
+	c.MetadataLock.Lock()
+	defer c.MetadataLock.Unlock()
+
+	now := time.Now()
+	for ci, cv := range c.Users {
+		for ii, iv := range objs {
+			if iv != nil && cv.ID == iv.ID {
+				iv.CacheTS = now
+				c.Users[ci] = iv
+				objs[ii] = nil
+			}
+		}
+	}
+	for _, iv := range objs {
+		if iv != nil {
+			iv.CacheTS = now
+			c.Users = append(c.Users, iv)
+		}
+	}
+}
+
 func (c *Client) ReplaceChannelObject(cacheTS time.Time, obj *slack.Channel) {
 	c.MetadataLock.Lock()
 	defer c.MetadataLock.Unlock()

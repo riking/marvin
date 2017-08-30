@@ -2,6 +2,7 @@ package rtm
 
 import (
 	"net/url"
+	"time"
 
 	"github.com/pkg/errors"
 	"github.com/riking/marvin/slack"
@@ -138,20 +139,62 @@ func (c *Client) ListIMs() []*slack.ChannelIM {
 	return c.Ims
 }
 
-func (c *Client) getGroupList() {
-	var groups []*slack.Channel
-	err := c.team.SlackAPIPostJSON("groups.list", url.Values{}, &groups)
+func (c *Client) fetchTeamInfo() {
+	go c.fillGroupList()
+	go c.fillUsersList()
+
+	// TODO(kyork): list normal channels too
+	// TODO(kyork): use the listChannels() from logger module
+}
+
+func (c *Client) fillUsersList() {
+	var response struct {
+		slack.APIResponse
+		Members  []*slack.User
+		PageInfo struct {
+			NextCursor string `json:"next_cursor"`
+		} `json:"response_metadata"`
+	}
+	var form = url.Values{
+		"presence": []string{"false"},
+		"limit":    []string{"200"},
+	}
+
+	err := c.team.SlackAPIPostJSON("users.list", form, &response)
+	if err != nil {
+		util.LogError(errors.Wrapf(err, "[%s] Could not retrieve users list", c.Team.Domain))
+	}
+
+	for response.PageInfo.NextCursor != "" {
+		c.ReplaceManyUserObjects(response.Members)
+		time.Sleep(2*time.Second)
+
+		form.Set("cursor", response.PageInfo.NextCursor)
+		err := c.team.SlackAPIPostJSON("users.list", form, &response)
+		if err != nil {
+			util.LogError(errors.Wrapf(err, "[%s] Could not retrieve users list", c.Team.Domain))
+			break
+		}
+	}
+}
+
+func (c *Client) fillGroupList() {
+	var response struct {
+		slack.APIResponse
+		Groups []*slack.Channel
+	}
+	err := c.team.SlackAPIPostJSON("groups.list", url.Values{}, &response)
 	if err != nil {
 		util.LogError(errors.Wrapf(err, "[%s] Could not retrieve groups list", c.Team.Domain))
 		return
 	}
 
 	c.MetadataLock.Lock()
-	c.Groups = groups
+	c.Groups = response.Groups
 	c.MetadataLock.Unlock()
 
 	c.membershipCh <- membershipRequest{
 		C: make(chan interface{}, 1),
-		F: c.rebuildMembershipMapFunc(groups),
+		F: c.rebuildMembershipMapFunc(response.Groups),
 	}
 }

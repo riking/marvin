@@ -28,6 +28,7 @@ var tmplListInvites = template.Must(weblogin.LayoutTemplateCopy().Parse(string(w
 var tmplSingleInvite = template.Must(weblogin.LayoutTemplateCopy().Parse(string(weblogin.MustAsset("templates/invite-single.html"))))
 
 var rgxInviteURL = regexp.MustCompile(`/invites/([A-Z0-9]+)`)
+
 // https://twitter.com/FakeUnicode/status/843937911707906048
 var rgxInviteSlackChannel = regexp.MustCompile(`/invites/([\pL\pM\p{Nd}-_]*)(\?.*)?$`)
 

@@ -101,7 +101,7 @@ func (t *Team) UserName(user slack.UserID) string {
 }
 
 func (t *Team) UserLevel(user slack.UserID) marvin.AccessLevel {
-	if user == t.TeamConfig().Controller {
+	if t.TeamConfig().IsController(user) {
 		return marvin.AccessLevelController
 	}
 
@@ -185,6 +185,11 @@ func (t *Team) cachedUserInfo(user slack.UserID) *slack.User {
 			}
 			return t.client.Users[i]
 		}
+	}
+
+	uID := slack.ParseUserMention(string(user))
+	if uID != "" {
+		go t.updateUserInfo(user)
 	}
 	return nil
 }

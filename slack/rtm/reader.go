@@ -12,7 +12,7 @@ import (
 
 const MsgTypeAll = "_all"
 
-const pingOnIdleTime = 5*time.Minute
+const pingOnIdleTime = 5 * time.Minute
 const reconnectOnIdleTime = pingOnIdleTime + 15*time.Second
 
 type SlackCodec struct{}
