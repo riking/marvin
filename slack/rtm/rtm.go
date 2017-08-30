@@ -132,7 +132,7 @@ func (c *Client) Connect() error {
 			Name string
 		}
 	}
-	err := c.team.SlackAPIPostJSON("rtm.connect", data, &startResponse)
+	err := c.team.SlackAPIPostJSON("rtm.start", data, &startResponse)
 	if err != nil {
 		return err
 	}
