@@ -139,19 +139,22 @@ func (c *Client) ListIMs() []*slack.ChannelIM {
 }
 
 func (c *Client) getGroupList() {
-	var groups []*slack.Channel
-	err := c.team.SlackAPIPostJSON("groups.list", url.Values{}, &groups)
+	var response struct {
+		slack.APIResponse
+		Groups []*slack.Channel
+	}
+	err := c.team.SlackAPIPostJSON("groups.list", url.Values{}, &response)
 	if err != nil {
 		util.LogError(errors.Wrapf(err, "[%s] Could not retrieve groups list", c.Team.Domain))
 		return
 	}
 
 	c.MetadataLock.Lock()
-	c.Groups = groups
+	c.Groups = response.Groups
 	c.MetadataLock.Unlock()
 
 	c.membershipCh <- membershipRequest{
 		C: make(chan interface{}, 1),
-		F: c.rebuildMembershipMapFunc(groups),
+		F: c.rebuildMembershipMapFunc(response.Groups),
 	}
 }
