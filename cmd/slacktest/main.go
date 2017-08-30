@@ -17,7 +17,6 @@ import (
 	"github.com/riking/marvin/slack"
 	"github.com/riking/marvin/slack/controller"
 	"github.com/riking/marvin/slack/rtm"
-	"github.com/riking/marvin/modules/restart"
 	"github.com/riking/marvin/util"
 	"gopkg.in/ini.v1"
 )
@@ -165,8 +164,6 @@ func main() {
 		}(v)
 	}
 	wg.Wait()
-	if restart.RestartInProgress {
-		os.Exit(14)
-	}
+	os.Exit(14)
 	return
 }
