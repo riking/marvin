@@ -67,9 +67,9 @@ func LoadTeamConfig(sec *ini.Section) *TeamConfig {
 	return c
 }
 
-func (t *TeamConfig) IsController(user string) bool {
+func (t *TeamConfig) IsController(user slack.UserID) bool {
 	for id := range t.Controllers {
-		if string(t.Controllers[id]) == user {
+		if t.Controllers[id] == user {
 			return true
 		}
 	}
