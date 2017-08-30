@@ -21,7 +21,7 @@ type WolfGameModule struct {
 }
 
 type Player struct {
-	ID slack.UserID
+	ID   slack.UserID
 	Role *Role
 }
 

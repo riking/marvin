@@ -41,27 +41,27 @@ type Client struct {
 	channelMembers membershipMap
 
 	MetadataLock sync.RWMutex
-	Team struct {
+	Team         struct {
 		ID             slack.TeamID
 		Name           string
 		Domain         string
 		EnterpriseID   slack.EnterpriseID `json:"enterprise_id"`
-		EnterpriseName string `json:"enterprise_name"`
+		EnterpriseName string             `json:"enterprise_name"`
 	}
 	Self struct {
 		ID   slack.UserID
 		Name string
 	}
 	Users    []*slack.User
-	Channels []*slack.Channel   // C
-	Groups   []*slack.Channel   // G
+	Channels []*slack.Channel // C
+	Groups   []*slack.Channel // G
 	//Mpims    []*slack.Channel   // G
-	Ims      []*slack.ChannelIM // D
+	Ims  []*slack.ChannelIM // D
 	Bots []struct {
 		ID      string `json:"id"`
 		Deleted bool   `json:"deleted"`
 		Name    string `json:"name"`
-		Icons struct {
+		Icons   struct {
 			Image36 string `json:"image_36"`
 			Image48 string `json:"image_48"`
 			Image72 string `json:"image_72"`
@@ -120,12 +120,12 @@ func (c *Client) Connect() error {
 		URL            string
 		CacheVersion   string `json:"cache_version"`
 		CacheTsVersion string `json:"cache_ts_version"`
-		Team struct {
+		Team           struct {
 			ID             slack.TeamID
 			Name           string
 			Domain         string
 			EnterpriseID   slack.EnterpriseID `json:"enterprise_id"`
-			EnterpriseName string `json:"enterprise_name"`
+			EnterpriseName string             `json:"enterprise_name"`
 		}
 		Self struct {
 			ID   slack.UserID

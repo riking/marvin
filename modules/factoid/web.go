@@ -1,6 +1,7 @@
 package factoid
 
 import (
+	"fmt"
 	"html/template"
 	"net/http"
 	"regexp"
@@ -11,7 +12,6 @@ import (
 	"github.com/riking/marvin/modules/weblogin"
 	"github.com/riking/marvin/slack"
 	"github.com/riking/marvin/util"
-	"fmt"
 )
 
 func (mod *FactoidModule) registerHTTP() {
