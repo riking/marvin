@@ -186,6 +186,11 @@ func (t *Team) cachedUserInfo(user slack.UserID) *slack.User {
 			return t.client.Users[i]
 		}
 	}
+
+	uID := slack.ParseUserMention(string(user))
+	if uID != "" {
+		go t.updateUserInfo(user)
+	}
 	return nil
 }
 
