@@ -10,6 +10,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/gorilla/csrf"
 	"github.com/gorilla/mux"
@@ -316,6 +317,9 @@ func (t *Team) SlackAPIPostJSON(method string, form url.Values, result interface
 		err = slackResponse
 		util.LogBadf("Slack API %s error: %s", method, err)
 		util.LogBadf("Form for %s: %v", method, form)
+		if slackResponse.SlackError == "ratelimited" {
+			time.Sleep(1*time.Second)
+		}
 		return errors.Wrapf(err, "Slack API %s", method)
 	}
 

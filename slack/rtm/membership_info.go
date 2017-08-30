@@ -165,14 +165,15 @@ func (c *Client) fillUsersList() {
 		util.LogError(errors.Wrapf(err, "[%s] Could not retrieve users list", c.Team.Domain))
 	}
 
-	for len(response.Members) > 0 && response.PageInfo.NextCursor != "" {
+	for response.PageInfo.NextCursor != "" {
 		c.ReplaceManyUserObjects(response.Members)
-		time.Sleep(100*time.Millisecond)
+		time.Sleep(4*time.Second)
 
 		form.Set("cursor", response.PageInfo.NextCursor)
 		err := c.team.SlackAPIPostJSON("users.list", form, &response)
 		if err != nil {
 			util.LogError(errors.Wrapf(err, "[%s] Could not retrieve users list", c.Team.Domain))
+			break
 		}
 	}
 }
