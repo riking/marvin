@@ -2,6 +2,7 @@ package rtm
 
 import (
 	"net/url"
+	"time"
 
 	"github.com/pkg/errors"
 	"github.com/riking/marvin/slack"
@@ -156,7 +157,7 @@ func (c *Client) fillUsersList() {
 	}
 	var form = url.Values{
 		"presence": []string{"false"},
-		"limit":    []string{"100"},
+		"limit":    []string{"200"},
 	}
 
 	err := c.team.SlackAPIPostJSON("users.list", form, &response)
@@ -164,8 +165,9 @@ func (c *Client) fillUsersList() {
 		util.LogError(errors.Wrapf(err, "[%s] Could not retrieve users list", c.Team.Domain))
 	}
 
-	for len(response.Members) > 0 {
+	for len(response.Members) > 0 && response.PageInfo.NextCursor != "" {
 		c.ReplaceManyUserObjects(response.Members)
+		time.Sleep(100*time.Millisecond)
 
 		form.Set("cursor", response.PageInfo.NextCursor)
 		err := c.team.SlackAPIPostJSON("users.list", form, &response)
