@@ -173,7 +173,7 @@ func (c *Client) Connect() error {
 	//c.LatestEventTs = startResponse.Client.LatestEventTs
 	c.MetadataLock.Unlock()
 
-	go c.getGroupList()
+	go c.fetchTeamInfo()
 
 	var msg slack.RTMRawMessage
 	err = c.codec.Receive(conn, &msg)

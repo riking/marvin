@@ -138,7 +138,44 @@ func (c *Client) ListIMs() []*slack.ChannelIM {
 	return c.Ims
 }
 
-func (c *Client) getGroupList() {
+func (c *Client) fetchTeamInfo() {
+	go c.fillGroupList()
+	go c.fillUsersList()
+
+	// TODO(kyork): list normal channels too
+	// TODO(kyork): use the listChannels() from logger module
+}
+
+func (c *Client) fillUsersList() {
+	var response struct {
+		slack.APIResponse
+		Members  []*slack.User
+		PageInfo struct {
+			NextCursor string `json:"next_cursor"`
+		} `json:"response_metadata"`
+	}
+	var form = url.Values{
+		"presence": []string{"false"},
+		"limit":    []string{"100"},
+	}
+
+	err := c.team.SlackAPIPostJSON("users.list", form, &response)
+	if err != nil {
+		util.LogError(errors.Wrapf(err, "[%s] Could not retrieve users list", c.Team.Domain))
+	}
+
+	for len(response.Members) > 0 {
+		c.ReplaceManyUserObjects(response.Members)
+
+		form.Set("cursor", response.PageInfo.NextCursor)
+		err := c.team.SlackAPIPostJSON("users.list", form, &response)
+		if err != nil {
+			util.LogError(errors.Wrapf(err, "[%s] Could not retrieve users list", c.Team.Domain))
+		}
+	}
+}
+
+func (c *Client) fillGroupList() {
 	var response struct {
 		slack.APIResponse
 		Groups []*slack.Channel
