@@ -132,16 +132,16 @@ func (c *Client) Connect() error {
 			Name string
 		}
 	}
-	err := c.team.SlackAPIPostJSON("rtm.start", data, &startResponse)
+	err := c.team.SlackAPIPostJSON("rtm.connect", data, &startResponse)
 	if err != nil {
 		return err
 	}
-	if startResponse.CacheTsVersion != "v2-bunny" {
-		panic(errors.Errorf("Unexpected CacheTSVersion %s", startResponse.CacheTsVersion))
-	}
-	if startResponse.CacheVersion != "v16-giraffe" {
-		panic(errors.Errorf("Unexpected CacheVersion %s", startResponse.CacheVersion))
-	}
+	//if startResponse.CacheTsVersion != "v2-bunny" {
+	//	panic(errors.Errorf("Unexpected CacheTSVersion %s", startResponse.CacheTsVersion))
+	//}
+	//if startResponse.CacheVersion != "v16-giraffe" {
+	//	panic(errors.Errorf("Unexpected CacheVersion %s", startResponse.CacheVersion))
+	//}
 	wsURL, err := url.Parse(startResponse.URL)
 	if err != nil {
 		return errors.Wrap(err, "start RTM - could not parse URL")
