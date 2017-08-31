@@ -11,11 +11,12 @@ import (
 
 func init() {
 	marvin.RegisterModule(NewRestartModule)
+	recompileChannel <- struct{}{}
 }
 
 const Identifier = "restart"
 
-var RecompileInProgress = false
+var recompileChannel = make(chan struct{}, 1)
 
 type RestartModule struct {
 	team marvin.Team
@@ -49,48 +50,54 @@ func (mod *RestartModule) Disable(t marvin.Team) {
 
 func (mod *RestartModule) RecompileCommand(t marvin.Team, args *marvin.CommandArguments) marvin.CommandResult {
 	if args.Source.AccessLevel() < marvin.AccessLevelController {
-		return marvin.CmdFailuref(args, "This command is restricted to admins only.")
+		return marvin.CmdFailuref(args, "This command is restricted to controllers only.")
 	}
 
-	if RecompileInProgress {
-		return marvin.CmdFailuref(args, "There is an already existing recompile in progress.")
+	select {
+	case <-recompileChannel:
+		return mod.RecompileMarvin(args)
+	default:
+		return marvin.CmdFailuref(args, "There is a recompile in progress.")
 	}
-
-	return mod.RecompileMarvin(args)
 }
 
 func (mod *RestartModule) RestartCommand(t marvin.Team, args *marvin.CommandArguments) marvin.CommandResult {
 	if args.Source.AccessLevel() < marvin.AccessLevelController {
-		return marvin.CmdFailuref(args, "This command is restricted to admins only.")
+		return marvin.CmdFailuref(args, "This command is restricted to controllers only.")
 	}
 
-	if RecompileInProgress {
-		return marvin.CmdFailuref(args, "There is an recompile in progress.")
+	select {
+	case <-recompileChannel:
+		defer func() { recompileChannel <- struct{}{} }()
+	default:
+		return marvin.CmdFailuref(args, "There is a recompile in progress.")
 	}
 
 	go mod.RestartMarvin()
-	return marvin.CmdSuccess(args, "I am restarting now, be back soon.")
+	return marvin.CmdSuccess(args, "Restarting, be back soon.")
 }
 
 func (mod *RestartModule) RecompileMarvin(args *marvin.CommandArguments) marvin.CommandResult {
-	RecompileInProgress = true
-	mod.team.SendMessage(args.Source.ChannelID(), "Recompiling Marvin....")
-	cmd := exec.Command("/bin/sh", os.Getenv("HOME")+"/marvin/build.sh")
+	mod.team.SendMessage(args.Source.ChannelID(), "Recompiling....")
+	cmd := exec.Command(os.Getenv("HOME") + "/marvin/build.sh")
 	stdout, err := cmd.CombinedOutput()
 	if err != nil {
-		fmt.Printf("Failed to recompile Marvin: \n%s", stdout)
-		RecompileInProgress = false
-		return marvin.CmdFailuref(args, fmt.Sprintf("Failed to recompile Marvin: \n%s", stdout))
+		fmt.Printf("Failed to recompile: \n%s", stdout)
+		defer func() { recompileChannel <- struct{}{} }()
+		return marvin.CmdFailuref(args, fmt.Sprintf("Failed to recompile: \n%s", stdout))
 	}
 
-	mod.team.SendMessage(mod.team.TeamConfig().LogChannel, "Successfully recompiled Marvin!")
+	mod.team.SendMessage(mod.team.TeamConfig().LogChannel, "Successfully recompiled!")
 	fmt.Printf("Compile Logs: \n%s", fmt.Sprintf("%s", stdout))
-	RecompileInProgress = false
-	return marvin.CmdSuccess(args, "Successfully recompiled marvin.")
+	defer func() { recompileChannel <- struct{}{} }()
+	if len(args.Arguments) == 1 && args.Arguments[0] == "restart" {
+		go mod.RestartMarvin()
+	}
+	return marvin.CmdSuccess(args, "Successfully recompiled!")
 }
 
 func (mod *RestartModule) RestartMarvin() {
-	fmt.Printf("Restarting Marvin...")
-	mod.team.SendMessage(mod.team.TeamConfig().LogChannel, "Restarting Marvin...be back soon.")
+	fmt.Printf("Restarting...")
+	mod.team.SendMessage(mod.team.TeamConfig().LogChannel, "Restarting...be back soon.")
 	syscall.Kill(syscall.Getpid(), syscall.SIGINT)
 }
