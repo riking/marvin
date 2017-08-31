@@ -9,14 +9,14 @@ import (
 	"github.com/riking/marvin"
 )
 
-func init() {
-	marvin.RegisterModule(NewRestartModule)
-	recompileChannel <- struct{}{}
-}
+var recompileSemaphore = make(chan struct{}, 1)
 
 const Identifier = "restart"
 
-var recompileChannel = make(chan struct{}, 1)
+func init() {
+	marvin.RegisterModule(NewRestartModule)
+	recompileSemaphore <- struct{}{}
+}
 
 type RestartModule struct {
 	team marvin.Team
@@ -41,8 +41,9 @@ func (mod *RestartModule) Enable(team marvin.Team) {
 		"`@marvin restart`"+
 			"This restarts the active Marvin instance.\n")
 	team.RegisterCommandFunc("recompile", mod.RecompileCommand,
-		"`@marvin recompile`"+
-			"This recompiles Marvin, pulling the latest changes.\n")
+		"`@marvin recompile [restart]`"+
+			"This recompiles Marvin, pulling the latest changes.\n" +
+			"With optional parameter, restarts the server after a successful compile.\n")
 }
 
 func (mod *RestartModule) Disable(t marvin.Team) {
@@ -53,9 +54,24 @@ func (mod *RestartModule) RecompileCommand(t marvin.Team, args *marvin.CommandAr
 		return marvin.CmdFailuref(args, "This command is restricted to controllers only.")
 	}
 
+	// This will check if it can take a buffer slot, if not, it means there's a recompile in progress.
+	// Otherwise it will recompile.
 	select {
-	case <-recompileChannel:
-		return mod.RecompileMarvin(args)
+	case <-recompileSemaphore:
+		// defer reinserting the token until the recompile command is finished.
+		defer func() { recompileSemaphore <- struct{}{} }()
+		stdout, err := mod.Recompile()
+		if err != nil {
+			return marvin.CmdError(args, err, fmt.Sprintf("Failed to recompile: \n%s", stdout))
+		}
+
+		mod.team.SendMessage(mod.team.TeamConfig().LogChannel, fmt.Sprintf("Successfully recompiled: \n%s", stdout))
+
+		if len(args.Arguments) == 1 && args.Arguments[0] == "restart" {
+			go mod.Restart()
+		}
+
+		return marvin.CmdSuccess(args, "Successfully recompiled.")
 	default:
 		return marvin.CmdFailuref(args, "There is a recompile in progress.")
 	}
@@ -67,36 +83,26 @@ func (mod *RestartModule) RestartCommand(t marvin.Team, args *marvin.CommandArgu
 	}
 
 	select {
-	case <-recompileChannel:
-		defer func() { recompileChannel <- struct{}{} }()
+	case <-recompileSemaphore:
+		defer func() { recompileSemaphore <- struct{}{} }()
+
+		go mod.Restart()
+		return marvin.CmdSuccess(args, "Restarting, be back soon.")
 	default:
 		return marvin.CmdFailuref(args, "There is a recompile in progress.")
 	}
-
-	go mod.RestartMarvin()
-	return marvin.CmdSuccess(args, "Restarting, be back soon.")
 }
 
-func (mod *RestartModule) RecompileMarvin(args *marvin.CommandArguments) marvin.CommandResult {
-	mod.team.SendMessage(args.Source.ChannelID(), "Recompiling....")
+// Execute the shell script located in $HOME/marvin/build (with +x perms).
+func (mod *RestartModule) Recompile() (string, error) {
 	cmd := exec.Command(os.Getenv("HOME") + "/marvin/build.sh")
 	stdout, err := cmd.CombinedOutput()
-	if err != nil {
-		fmt.Printf("Failed to recompile: \n%s", stdout)
-		defer func() { recompileChannel <- struct{}{} }()
-		return marvin.CmdFailuref(args, fmt.Sprintf("Failed to recompile: \n%s", stdout))
-	}
-
-	mod.team.SendMessage(mod.team.TeamConfig().LogChannel, "Successfully recompiled!")
-	fmt.Printf("Compile Logs: \n%s", fmt.Sprintf("%s", stdout))
-	defer func() { recompileChannel <- struct{}{} }()
-	if len(args.Arguments) == 1 && args.Arguments[0] == "restart" {
-		go mod.RestartMarvin()
-	}
-	return marvin.CmdSuccess(args, "Successfully recompiled!")
+	fmt.Printf("Recompile output: \n%s", stdout)
+	return string(stdout), err
 }
 
-func (mod *RestartModule) RestartMarvin() {
+// This sends the SIGINT signal to itself so the proper shutdown procedures can be run from the main.
+func (mod *RestartModule) Restart() {
 	fmt.Printf("Restarting...")
 	mod.team.SendMessage(mod.team.TeamConfig().LogChannel, "Restarting...be back soon.")
 	syscall.Kill(syscall.Getpid(), syscall.SIGINT)
