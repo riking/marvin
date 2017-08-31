@@ -42,7 +42,7 @@ func (mod *RestartModule) Enable(team marvin.Team) {
 			"This restarts the active Marvin instance.\n")
 	team.RegisterCommandFunc("recompile", mod.RecompileCommand,
 		"`@marvin recompile [restart]`"+
-			"This recompiles Marvin, pulling the latest changes.\n" +
+			"This recompiles Marvin, pulling the latest changes.\n"+
 			"With optional parameter, restarts the server after a successful compile.\n")
 }
 
