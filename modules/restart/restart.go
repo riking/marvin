@@ -58,12 +58,12 @@ func (mod *RestartModule) RecompileCommand(t marvin.Team, args *marvin.CommandAr
 	// Otherwise it will recompile.
 	select {
 	case <-recompileSemaphore:
-		// defer reinserting the token until the recompile command is finished.
 		break
 	default:
 		return marvin.CmdFailuref(args, "There is a recompile in progress.")
 	}
 
+	// defer reinserting the token until the recompile command is finished.
 	defer func() { recompileSemaphore <- struct{}{} }()
 	stdout, err := mod.Recompile()
 	if err != nil {
