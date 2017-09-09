@@ -59,22 +59,24 @@ func (mod *RestartModule) RecompileCommand(t marvin.Team, args *marvin.CommandAr
 	select {
 	case <-recompileSemaphore:
 		// defer reinserting the token until the recompile command is finished.
-		defer func() { recompileSemaphore <- struct{}{} }()
-		stdout, err := mod.Recompile()
-		if err != nil {
-			return marvin.CmdError(args, err, fmt.Sprintf("Failed to recompile: \n%s", stdout))
-		}
-
-		mod.team.SendMessage(mod.team.TeamConfig().LogChannel, fmt.Sprintf("Successfully recompiled: \n%s", stdout))
-
-		if len(args.Arguments) == 1 && args.Arguments[0] == "restart" {
-			go mod.Restart()
-		}
-
-		return marvin.CmdSuccess(args, "Successfully recompiled.")
+		break
 	default:
 		return marvin.CmdFailuref(args, "There is a recompile in progress.")
 	}
+
+	defer func() { recompileSemaphore <- struct{}{} }()
+	stdout, err := mod.Recompile()
+	if err != nil {
+		return marvin.CmdError(args, err, fmt.Sprintf("Failed to recompile: \n%s", stdout))
+	}
+
+	mod.team.SendMessage(mod.team.TeamConfig().LogChannel, fmt.Sprintf("Successfully recompiled: \n%s", stdout))
+
+	if len(args.Arguments) == 1 && args.Arguments[0] == "restart" {
+		go mod.Restart()
+	}
+
+	return marvin.CmdSuccess(args, "Successfully recompiled.")
 }
 
 func (mod *RestartModule) RestartCommand(t marvin.Team, args *marvin.CommandArguments) marvin.CommandResult {
