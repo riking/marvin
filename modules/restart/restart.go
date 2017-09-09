@@ -86,13 +86,15 @@ func (mod *RestartModule) RestartCommand(t marvin.Team, args *marvin.CommandArgu
 
 	select {
 	case <-recompileSemaphore:
-		defer func() { recompileSemaphore <- struct{}{} }()
-
-		go mod.Restart()
-		return marvin.CmdSuccess(args, "Restarting, be back soon.")
+		break
 	default:
 		return marvin.CmdFailuref(args, "There is a recompile in progress.")
 	}
+
+	defer func() { recompileSemaphore <- struct{}{} }()
+
+	go mod.Restart()
+	return marvin.CmdSuccess(args, "Restarting, be back soon.")
 }
 
 // Execute the shell script located in $HOME/marvin/build (with +x perms).
