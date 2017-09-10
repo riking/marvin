@@ -164,5 +164,6 @@ func main() {
 		}(v)
 	}
 	wg.Wait()
+	os.Exit(14)
 	return
 }
