@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	"github.com/riking/marvin"
 	"github.com/riking/marvin/slack"
 	"github.com/riking/marvin/util"
 )
@@ -14,6 +15,14 @@ type membershipMap map[slack.ChannelID]map[slack.UserID]bool
 type membershipRequest struct {
 	F func(membershipMap) interface{}
 	C chan interface{}
+}
+
+type userCacheAPI interface {
+	marvin.Module
+
+	GetEntry(userid slack.UserID) (slack.User, error)
+	UpdateEntry(userobject slack.User) error
+	UpdateEntries(userobjects []*slack.User) error
 }
 
 func (c *Client) membershipWorker() {
@@ -167,13 +176,13 @@ func (c *Client) fillUsersList() {
 
 	for response.PageInfo.NextCursor != "" {
 		c.ReplaceManyUserObjects(response.Members)
-		time.Sleep(2*time.Second)
+		time.Sleep(2 * time.Second)
 
 		form.Set("cursor", response.PageInfo.NextCursor)
 		err := c.team.SlackAPIPostJSON("users.list", form, &response)
 		if err != nil {
 			util.LogError(errors.Wrapf(err, "[%s] Could not retrieve users list", c.Team.Domain))
-			break
+			continue
 		}
 	}
 }

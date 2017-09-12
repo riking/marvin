@@ -15,5 +15,6 @@ import (
 	_ "github.com/riking/marvin/modules/restart"
 	_ "github.com/riking/marvin/modules/rss"
 	_ "github.com/riking/marvin/modules/timedpin"
+	_ "github.com/riking/marvin/modules/usercache"
 	_ "github.com/riking/marvin/modules/weblogin"
 )

@@ -92,11 +92,16 @@ func (c *Client) onChannelJoin(msg slack.RTMRawMessage) {
 func (c *Client) ReplaceUserObject(obj *slack.User) {
 	c.MetadataLock.Lock()
 	defer c.MetadataLock.Unlock()
+	cacheApi := c.team.GetModule("usercache").(userCacheAPI)
 
 	obj.CacheTS = time.Now()
 	for i, v := range c.Users {
 		if v.ID == obj.ID {
 			c.Users[i] = obj
+
+			if cacheApi != nil {
+				cacheApi.UpdateEntry(*v)
+			}
 			return
 		}
 	}
@@ -106,6 +111,7 @@ func (c *Client) ReplaceUserObject(obj *slack.User) {
 func (c *Client) ReplaceManyUserObjects(objs []*slack.User) {
 	c.MetadataLock.Lock()
 	defer c.MetadataLock.Unlock()
+	cacheApi := c.team.GetModule("usercache").(userCacheAPI)
 
 	now := time.Now()
 	for ci, cv := range c.Users {
@@ -114,6 +120,10 @@ func (c *Client) ReplaceManyUserObjects(objs []*slack.User) {
 				iv.CacheTS = now
 				c.Users[ci] = iv
 				objs[ii] = nil
+
+				if cacheApi != nil {
+					cacheApi.UpdateEntry(*iv)
+				}
 			}
 		}
 	}
@@ -121,6 +131,10 @@ func (c *Client) ReplaceManyUserObjects(objs []*slack.User) {
 		if iv != nil {
 			iv.CacheTS = now
 			c.Users = append(c.Users, iv)
+
+			if cacheApi != nil {
+				cacheApi.UpdateEntry(*iv)
+			}
 		}
 	}
 }
