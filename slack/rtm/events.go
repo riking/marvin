@@ -92,7 +92,12 @@ func (c *Client) onChannelJoin(msg slack.RTMRawMessage) {
 func (c *Client) ReplaceUserObject(obj *slack.User) {
 	c.MetadataLock.Lock()
 	defer c.MetadataLock.Unlock()
-	cacheApi := c.team.GetModule("usercache").(userCacheAPI)
+
+	var cacheApi userCacheAPI
+	moduleCacheApi := c.team.GetModule("usercache")
+	if moduleCacheApi != nil {
+		cacheApi = moduleCacheApi.(userCacheAPI)
+	}
 
 	obj.CacheTS = time.Now()
 	for i, v := range c.Users {
@@ -111,7 +116,12 @@ func (c *Client) ReplaceUserObject(obj *slack.User) {
 func (c *Client) ReplaceManyUserObjects(objs []*slack.User) {
 	c.MetadataLock.Lock()
 	defer c.MetadataLock.Unlock()
-	cacheApi := c.team.GetModule("usercache").(userCacheAPI)
+
+	var cacheApi userCacheAPI
+	moduleCacheApi := c.team.GetModule("usercache")
+	if moduleCacheApi != nil {
+		cacheApi = moduleCacheApi.(userCacheAPI)
+	}
 
 	now := time.Now()
 	for ci, cv := range c.Users {
