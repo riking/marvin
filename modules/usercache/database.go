@@ -10,9 +10,9 @@ import (
 
 const (
 	sqlMigrate1 = `CREATE TABLE module_user_cache (
-						user_id varchar(15) PRIMARY KEY NOT NULL,
-						data text
-					)`
+		user_id           varchar(15) PRIMARY KEY NOT NULL,
+		data              text
+	)`
 
 	sqlGetAllEntries = `SELECT * FROM module_user_cache`
 
