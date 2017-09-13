@@ -2,8 +2,8 @@ package usercache
 
 import (
 	"encoding/json"
+	"fmt"
 
-	"github.com/pkg/errors"
 	"github.com/riking/marvin/slack"
 	"github.com/riking/marvin/slack/rtm"
 )
@@ -12,6 +12,8 @@ const (
 	sqlMigrate1 = `CREATE TABLE module_user_cache (
 		user_id           varchar(15) PRIMARY KEY NOT NULL,
 		data              text
+
+		UNIQUE(user_id)
 	)`
 
 	sqlGetAllEntries = `SELECT * FROM module_user_cache`
@@ -21,11 +23,8 @@ const (
 
 	// $1 = slack.UserID
 	// $2 = data (json encoded)
-	sqlAddEntry = `INSERT INTO module_user_cache (user_id,data) VALUES ($1, $2)`
-
-	// $1 = data (json encoded)
-	// $2 = slack.UserID
-	sqlUpdateEntry = `UPDATE module_user_cache SET data = $1 WHERE user_id = $2`
+	sqlUpsertEntry = `INSERT INTO module_user_cache (user_id,data) VALUES ($1, $2)
+		ON CONFLICT (user_id) DO UPDATE SET data = EXCLUDED.data`
 )
 
 func (mod *UserCacheModule) GetEntry(userid slack.UserID) (slack.User, error) {
@@ -55,59 +54,59 @@ func (mod *UserCacheModule) LoadEntries() error {
 		return err
 	}
 
+	rtmClient := mod.team.GetRTMClient().(*rtm.Client)
+
 	defer stmt.Close()
+	var arr = make([]*slack.User, 200)
 	for stmt.Next() {
 		var id string
 		var data string
-		var user slack.User
+		var user *slack.User = &slack.User{}
 
 		err = stmt.Scan(&id, &data)
 		if err != nil {
-			return errors.Wrap(err, "error in user cache: obtaining row info")
-			continue
+			return err
 		}
-		err = json.Unmarshal([]byte(data), &user)
+		err = json.Unmarshal([]byte(data), user)
 		if err != nil {
-			return errors.Wrap(err, "error in user cache: unmarshal user object")
+			return err
 		}
-		rtmClient := mod.team.GetRTMClient().(*rtm.Client)
-		rtmClient.ReplaceUserObject(&user)
+		arr = append(arr, user)
+		if len(arr) >= 199 {
+			go rtmClient.ReplaceManyUserObjects(arr, false)
+			arr = make([]*slack.User, 200)
+		}
 	}
+	if len(arr) >= 0 {
+		go rtmClient.ReplaceManyUserObjects(arr, false)
+		arr = nil
+	}
+
 	return stmt.Err()
 }
 
-func (mod *UserCacheModule) UpdateEntry(userobject slack.User) error {
-	_, exists := mod.GetEntry(userobject.ID)
+func (mod *UserCacheModule) UpdateEntry(userobject *slack.User) error {
+	var objarray = make([]*slack.User, 1)
+	objarray[0] = userobject
+	return mod.UpdateEntries(objarray)
+}
 
-	var entrydata []byte
-	entrydata, err := json.Marshal(&userobject)
-	if err != nil {
-		return err
-	}
-
-	var query = sqlAddEntry
-	if exists != nil {
-		query = sqlUpdateEntry
-	}
-
-	stmt, err := mod.team.DB().Prepare(query)
+func (mod *UserCacheModule) UpdateEntries(userobjects []*slack.User) error {
+	stmt, err := mod.team.DB().Prepare(sqlUpsertEntry)
 	if err != nil {
 		return err
 	}
 
 	defer stmt.Close()
-	row := stmt.QueryRow(userobject.ID, entrydata)
-	var id slack.UserID
-	err = row.Scan(&id)
-	return err
-}
 
-func (mod *UserCacheModule) UpdateEntries(userobjects []*slack.User) error {
 	for _, obj := range userobjects {
 		if obj != nil {
-			err := mod.UpdateEntry(*obj)
-			if err != nil {
-				return err
+			entrydata, err := json.Marshal(obj)
+			if err == nil {
+				_, err := stmt.Exec(obj.ID, entrydata)
+				if err != nil {
+					return err
+				}
 			}
 		}
 	}

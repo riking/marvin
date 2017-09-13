@@ -20,8 +20,7 @@ type membershipRequest struct {
 type userCacheAPI interface {
 	marvin.Module
 
-	GetEntry(userid slack.UserID) (slack.User, error)
-	UpdateEntry(userobject slack.User) error
+	UpdateEntry(userobject *slack.User) error
 	UpdateEntries(userobjects []*slack.User) error
 }
 
@@ -174,16 +173,17 @@ func (c *Client) fillUsersList() {
 		util.LogError(errors.Wrapf(err, "[%s] Could not retrieve users list", c.Team.Domain))
 	}
 
-	for response.PageInfo.NextCursor != "" {
-		c.ReplaceManyUserObjects(response.Members)
-		time.Sleep(2 * time.Second)
+	c.ReplaceManyUserObjects(response.Members, true)
 
+	for response.PageInfo.NextCursor != "" {
+		time.Sleep(2 * time.Second)
 		form.Set("cursor", response.PageInfo.NextCursor)
 		err := c.team.SlackAPIPostJSON("users.list", form, &response)
 		if err != nil {
 			util.LogError(errors.Wrapf(err, "[%s] Could not retrieve users list", c.Team.Domain))
 			continue
 		}
+		c.ReplaceManyUserObjects(response.Members, true)
 	}
 }
 

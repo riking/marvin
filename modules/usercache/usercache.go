@@ -1,19 +1,19 @@
 package usercache
 
 import (
-	"sync"
-
 	"fmt"
 
 	"github.com/riking/marvin"
 	"github.com/riking/marvin/slack"
 )
 
+// interface duplicated in rtm package
 type API interface {
 	marvin.Module
 
 	GetEntry(userid slack.UserID) (slack.User, error)
-	UpdateEntry(userobject slack.User) error
+	LoadEntries() error
+	UpdateEntry(userobject *slack.User) error
 	UpdateEntries(userobjects []*slack.User) error
 }
 
@@ -28,15 +28,11 @@ const Identifier = "usercache"
 
 type UserCacheModule struct {
 	team marvin.Team
-
-	cacheLock sync.Mutex
-	cacheMap  map[slack.UserID]slack.User
 }
 
 func NewUserCacheModule(t marvin.Team) marvin.Module {
 	mod := &UserCacheModule{
-		team:     t,
-		cacheMap: make(map[slack.UserID]slack.User),
+		team: t,
 	}
 	return mod
 }
@@ -47,16 +43,18 @@ func (mod *UserCacheModule) Identifier() marvin.ModuleID {
 
 func (mod *UserCacheModule) Load(t marvin.Team) {
 	t.DB().MustMigrate(Identifier, 1505192548, sqlMigrate1)
-	t.DB().SyntaxCheck(sqlGetAllEntries, sqlGetEntry, sqlAddEntry, sqlUpdateEntry)
+	t.DB().SyntaxCheck(sqlGetAllEntries, sqlGetEntry, sqlUpsertEntry)
 }
 
 func (mod *UserCacheModule) Enable(team marvin.Team) {
 	go func() {
+		fmt.Printf("Loading cache entries....\n")
 		err := mod.LoadEntries()
 		if err != nil {
-			fmt.Errorf("Error whilst updating entries: %s", err.Error())
+			fmt.Printf("Error whilst updating entries: %s\n", err.Error())
 			return
 		}
+		fmt.Printf("Loaded all entries from the cache.\n")
 	}()
 }
 
