@@ -2,7 +2,6 @@ package usercache
 
 import (
 	"encoding/json"
-	"fmt"
 
 	"github.com/riking/marvin/slack"
 	"github.com/riking/marvin/slack/rtm"
@@ -61,24 +60,24 @@ func (mod *UserCacheModule) LoadEntries() error {
 	for stmt.Next() {
 		var id string
 		var data string
-		var user *slack.User = &slack.User{}
+		var user *slack.User
 
 		err = stmt.Scan(&id, &data)
 		if err != nil {
 			return err
 		}
-		err = json.Unmarshal([]byte(data), user)
+		err = json.Unmarshal([]byte(data), &user)
 		if err != nil {
-			return err
+			continue
 		}
 		arr = append(arr, user)
 		if len(arr) >= 199 {
-			go rtmClient.ReplaceManyUserObjects(arr, false)
-			arr = make([]*slack.User, 200)
+			rtmClient.ReplaceManyUserObjects(arr, false)
+			arr = arr[:0]
 		}
 	}
 	if len(arr) >= 0 {
-		go rtmClient.ReplaceManyUserObjects(arr, false)
+		rtmClient.ReplaceManyUserObjects(arr, false)
 		arr = nil
 	}
 
@@ -86,9 +85,7 @@ func (mod *UserCacheModule) LoadEntries() error {
 }
 
 func (mod *UserCacheModule) UpdateEntry(userobject *slack.User) error {
-	var objarray = make([]*slack.User, 1)
-	objarray[0] = userobject
-	return mod.UpdateEntries(objarray)
+	return mod.UpdateEntries([]*slack.User{userobject})
 }
 
 func (mod *UserCacheModule) UpdateEntries(userobjects []*slack.User) error {

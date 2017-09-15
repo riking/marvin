@@ -149,13 +149,12 @@ func (c *Client) ListIMs() []*slack.ChannelIM {
 
 func (c *Client) fetchTeamInfo() {
 	go c.fillGroupList()
-	go c.fillUsersList()
 
 	// TODO(kyork): list normal channels too
 	// TODO(kyork): use the listChannels() from logger module
 }
 
-func (c *Client) fillUsersList() {
+func (c *Client) FillUsersList() {
 	var response struct {
 		slack.APIResponse
 		Members  []*slack.User
