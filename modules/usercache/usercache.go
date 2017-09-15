@@ -77,7 +77,6 @@ func (mod *UserCacheModule) UpdateTask() {
 		timeint, _ := strconv.ParseInt(timestr, 10, 64)
 		var timeres = time.Unix(timeint, 0)
 		delayres, err := time.ParseDuration(delaystr)
-		fmt.Printf("pls")
 
 		if err != nil || timeres.Before(time.Now().Add(-delayres)) {
 			fmt.Printf("Repolling user list....\n")
