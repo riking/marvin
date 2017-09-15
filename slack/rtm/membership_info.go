@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	"github.com/riking/marvin"
 	"github.com/riking/marvin/slack"
 	"github.com/riking/marvin/util"
 )
@@ -14,6 +15,13 @@ type membershipMap map[slack.ChannelID]map[slack.UserID]bool
 type membershipRequest struct {
 	F func(membershipMap) interface{}
 	C chan interface{}
+}
+
+type userCacheAPI interface {
+	marvin.Module
+
+	UpdateEntry(userobject *slack.User) error
+	UpdateEntries(userobjects []*slack.User) error
 }
 
 func (c *Client) membershipWorker() {
@@ -141,13 +149,12 @@ func (c *Client) ListIMs() []*slack.ChannelIM {
 
 func (c *Client) fetchTeamInfo() {
 	go c.fillGroupList()
-	go c.fillUsersList()
 
 	// TODO(kyork): list normal channels too
 	// TODO(kyork): use the listChannels() from logger module
 }
 
-func (c *Client) fillUsersList() {
+func (c *Client) FillUsersList() {
 	var response struct {
 		slack.APIResponse
 		Members  []*slack.User
@@ -165,16 +172,17 @@ func (c *Client) fillUsersList() {
 		util.LogError(errors.Wrapf(err, "[%s] Could not retrieve users list", c.Team.Domain))
 	}
 
-	for response.PageInfo.NextCursor != "" {
-		c.ReplaceManyUserObjects(response.Members)
-		time.Sleep(2*time.Second)
+	c.ReplaceManyUserObjects(response.Members, true)
 
+	for response.PageInfo.NextCursor != "" {
+		time.Sleep(2 * time.Second)
 		form.Set("cursor", response.PageInfo.NextCursor)
 		err := c.team.SlackAPIPostJSON("users.list", form, &response)
 		if err != nil {
 			util.LogError(errors.Wrapf(err, "[%s] Could not retrieve users list", c.Team.Domain))
-			break
+			continue
 		}
+		c.ReplaceManyUserObjects(response.Members, true)
 	}
 }
 

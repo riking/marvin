@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -318,7 +319,13 @@ func (t *Team) SlackAPIPostJSON(method string, form url.Values, result interface
 		util.LogBadf("Slack API %s error: %s", method, err)
 		util.LogBadf("Form for %s: %v", method, form)
 		if slackResponse.SlackError == "ratelimited" {
-			time.Sleep(1*time.Second)
+			retryafter := resp.Header.Get("Retry-After")
+			intp, err := strconv.ParseInt(retryafter, 10, 64)
+			if err == nil {
+				time.Sleep(time.Duration(intp) * time.Second)
+			} else {
+				time.Sleep(1 * time.Second)
+			}
 		}
 		return errors.Wrapf(err, "Slack API %s", method)
 	}

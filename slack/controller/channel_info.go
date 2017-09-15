@@ -189,8 +189,15 @@ func (t *Team) cachedUserInfo(user slack.UserID) *slack.User {
 
 	uID := slack.ParseUserMention(string(user))
 	if uID != "" {
-		go t.updateUserInfo(user)
+		// XXX HACK to get around unlocking.
+		t.client.MetadataLock.RUnlock()
+		defer t.client.MetadataLock.RLock()
+		user, err := t.updateUserInfo(user)
+		if err == nil {
+			return user
+		}
 	}
+
 	return nil
 }
 
