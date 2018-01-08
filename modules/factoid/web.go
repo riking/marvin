@@ -21,6 +21,8 @@ func (mod *FactoidModule) registerHTTP() {
 	r.Path("/factoids/{channel}/{name}").HandlerFunc(http.HandlerFunc(mod.HTTPShowFactoid))
 	r.Methods("POST").Path("/factoids/_/{name}/edit").HandlerFunc(mod.HTTPEditFactoid)
 	r.Methods("POST").Path("/factoids/{channel}/{name}/edit").HandlerFunc(mod.HTTPEditFactoid)
+	r.Methods("POST").Path("/factoids/_/{name}/run").HandlerFunc(mod.HTTPShowFactoid)
+	r.Methods("POST").Path("/factoids/{channel}/{name}/run").HandlerFunc(mod.HTTPShowFactoid)
 }
 
 var tmplListFactoids = template.Must(weblogin.LayoutTemplateCopy().Parse(string(weblogin.MustAsset("templates/factoid-list.html"))))
