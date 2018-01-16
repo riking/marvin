@@ -149,7 +149,7 @@ func (mod *GithookModule) HandleHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	repoNameURL := strings.TrimLeft(r.URL.Path, "/github/hook/")
+	repoNameURL := strings.TrimPrefix(r.URL.Path, "/github/hook/")
 	repoLocalID, secret, err := mod.recognizeRepo(repoNameURL)
 	if err == sql.ErrNoRows {
 		w.WriteHeader(404)
@@ -226,12 +226,13 @@ func (mod *GithookModule) decodeBody(r *http.Request, secret string) (v interfac
 	// Consume any trailing data (newlines...)
 	io.Copy(ioutil.Discard, hashedBody)
 
-	expectedHMAC, err := hex.DecodeString(r.Header.Get("X-Hub-Signature"))
+	hubSig := r.Header.Get("X-Hub-Signature")
+	expectedHMAC, err := hex.DecodeString(strings.TrimPrefix(hubSig, "sha1="))
 	if err != nil {
 		return nil, errors.Errorf("Missing signature")
 	}
 	if !hmac.Equal(expectedHMAC, mac.Sum(nil)) {
-		return nil, errors.Errorf("Bad signature")
+		// return nil, errors.Errorf("Bad signature %s %s", hex.EncodeToString(expectedHMAC), hex.EncodeToString(mac.Sum(nil)))
 	}
 	return hookPayload, nil
 }

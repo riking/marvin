@@ -167,7 +167,7 @@ func (c *Client) fillUsersList() {
 
 	for response.PageInfo.NextCursor != "" {
 		c.ReplaceManyUserObjects(response.Members)
-		time.Sleep(2*time.Second)
+		time.Sleep(10 * time.Second)
 
 		form.Set("cursor", response.PageInfo.NextCursor)
 		err := c.team.SlackAPIPostJSON("users.list", form, &response)

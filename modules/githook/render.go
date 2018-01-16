@@ -79,12 +79,16 @@ func (mod *GithookModule) RenderPush(payload interface{}) slack.OutgoingSlackMes
 	var msg slack.OutgoingSlackMessage
 	msg.UnfurlLinks = util.TriNo
 	msg.LinkNames = util.TriNo
+	msg.Parse = slack.ParseStyleNone
 
 	var atch slack.Attachment
-	atch.AuthorIcon = "https://assets-cdn.github.com/pinned-octocat.svg"
-	atch.AuthorName = fmt.Sprintf("[%s] Push", jGet(payload, "repository", "full_name"))
+	atch.AuthorIcon = "https://assets-cdn.github.com/favicon.ico"
+	atch.AuthorName = fmt.Sprintf("[%s] push", jGet(payload, "repository", "full_name"))
 	atch.Color = "#24292e"
-	atch.TS = time.Now().Unix()
+	tsFloat, ok := jGet(payload, "repository", "pushed_at").(float64)
+	if ok {
+		atch.TS = int64(tsFloat)
+	}
 	var buf bytes.Buffer
 
 	compare := jStr(jGet(payload, "compare"))
@@ -111,8 +115,11 @@ func (mod *GithookModule) RenderPush(payload interface{}) slack.OutgoingSlackMes
 		}
 		objid := jStr(jGet(commit, "id"))
 		timestamp := jStr(jGet(commit, "timestamp"))
-		ts, _ := time.Parse(timestamp, "2006-01-02T15:04:05-07:00")
-		fmt.Fprintf(&buf, "<%s|%s> by *%s* [<!date^%d^{time}^|%s>] %s\n",
+		ts, err := time.Parse("2006-01-02T15:04:05Z07:00", timestamp)
+		if err != nil {
+			util.LogError(err)
+		}
+		fmt.Fprintf(&buf, "<%s|%s> by *%s* [<!date^%d^{time}|%s>] %s\n",
 			jStr(jGet(commit, "url")), objid[:8], jStr(jGet(commit, "author", "name")),
 			ts.Unix(), ts.Format(time.Kitchen),
 			jStr(jGet(commit, "message")))
@@ -158,7 +165,7 @@ func getDiffStat(apiURL string) string {
 		}
 	}
 	if fileAdd > 0 || fileDel > 0 {
-		return fmt.Sprintf("[++%d --%d] %d files changed, %d added, %d removed", totalAdd, totalDel, fileMod, fileAdd, fileDel)
+		return fmt.Sprintf("[+%d -%d] %d files changed, %d added, %d removed", totalAdd, totalDel, fileMod, fileAdd, fileDel)
 	}
-	return fmt.Sprintf("[++%d --%d] %d files changed", totalAdd, totalDel, fileMod)
+	return fmt.Sprintf("[+%d -%d] %d files changed", totalAdd, totalDel, fileMod)
 }
