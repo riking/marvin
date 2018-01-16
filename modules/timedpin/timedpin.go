@@ -101,7 +101,7 @@ var regexpArchiveLink = regexp.MustCompile(`https://[^./]+\.slack\.com/archives/
 func (mod *TimedPinModule) CommandTimedPin(t marvin.Team, args *marvin.CommandArguments) marvin.CommandResult {
 
 	if len(args.Arguments) < 1 {
-		return marvin.CmdFailuref(args, "Usage: " + usage).WithSimpleUndo()
+		return marvin.CmdUsage(args, "Usage: " + usage).WithSimpleUndo()
 	}
 	durationArg := args.Pop()
 	duration, err := time.ParseDuration(durationArg)

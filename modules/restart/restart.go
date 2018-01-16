@@ -74,9 +74,9 @@ func (mod *RestartModule) RecompileCommand(t marvin.Team, args *marvin.CommandAr
 
 	if len(args.Arguments) == 1 && args.Arguments[0] == "restart" {
 		go mod.Restart()
+		return marvin.CmdSuccess(args, "Successfully recompiled, restarting.")
 	}
-
-	return marvin.CmdSuccess(args, "Successfully recompiled.")
+	return marvin.CmdSuccess(args, "Successfully recompiled; not restarting.")
 }
 
 func (mod *RestartModule) RestartCommand(t marvin.Team, args *marvin.CommandArguments) marvin.CommandResult {

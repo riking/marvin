@@ -1,0 +1,250 @@
+package githook
+
+import (
+	"crypto/hmac"
+	"crypto/sha1"
+	"database/sql"
+	"encoding/hex"
+	"encoding/json"
+	"fmt"
+	"io"
+	"io/ioutil"
+	"net/http"
+
+	"github.com/pkg/errors"
+	"github.com/riking/marvin"
+	"github.com/riking/marvin/slack"
+)
+
+const Identifier = "githook"
+
+func init() {
+	marvin.RegisterModule(NewGithookModule)
+	recompileSemaphore <- struct{}{}
+}
+
+type GithookModule struct {
+	team marvin.Team
+}
+
+func NewGithookModule(t marvin.Team) marvin.Module {
+	mod := &GithookModule{
+		team: t,
+	}
+	return mod
+}
+
+func (mod *GithookModule) Identifier() marvin.ModuleID {
+	return Identifier
+}
+
+func (mod *GithookModule) Load(t marvin.Team) {
+}
+
+func (mod *GithookModule) Enable(team marvin.Team) {
+	mod.team.HTTPMiddleware(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if strings.StartsWith(r.URL.Path, "/github/hook/") {
+				mod.HandleHTTP(w, r)
+				return
+			}
+			next(w, r)
+		})
+	})
+}
+
+func (mod *GithookModule) Disable(t marvin.Team) {
+}
+
+const (
+	sqlMigrate1 = `
+	CREATE TABLE module_githook_repos (
+		id         SERIAL PRIMARY KEY,
+		repo_name  text,
+		secret     text,
+		created_by varchar(10),
+		created_at timestamptz default(CURRENT_TIMESTAMP),
+		last_used  timestamptz default(NULL),
+
+		UNIQUE(repo_name)
+	)`
+	sqlMigrate2 = `
+	CREATE TABLE module_githook_configs (
+		id         SERIAL PRIMARY KEY,
+		repo_id    int 		REFERENCES module_githook_repos(id) ON DELETE CASCADE,
+		channel    varchar(10),
+		created_by varchar(10),
+		created_at timestamptz default(CURRENT_TIMESTAMP),
+
+		UNIQUE(repo_id, channel)
+	)`
+
+	// $1 = name
+	sqlGetRepoByName = `SELECT id, secret, created_at, last_used FROM module_githook_repos WHERE repo_name = $1`
+
+	// $1 = id
+	sqlGetDestinations = `SELECT channel FROM module_githook_configs WHERE repo_id = $1`
+
+	// $1 = channel
+	sqlGetSubscriptions = `
+	SELECT r.repo_name, c.created_by
+	FROM module_githook_configs c
+	WHERE c.channel = $1
+	LEFT INNER JOIN module_githook_repos r
+		ON r.id = c.repo_id`
+
+	// $1 = name $2 = secret $3 = userid
+	sqlInsertRepo = `
+	INSERT INTO module_githook_repos
+	(repo_name, secret, created_by)
+	VALUES ($1, $2, $3)`
+
+	// $1 = repo id $2 = channel $3 = userid
+	sqlInsertSubscription = `
+	INSERT INTO module_githook_configs
+	(repo_id, channel, created_by)
+	VALUES ($1, $2, $3)`
+
+	// $1 = channel id $2 = name
+	sqlDeleteSubscription = `
+	DELETE FROM module_githook_configs
+	WHERE channel = $1
+	AND repo_id = (SELECT id FROM module_githook_repos WHERE repo_name = $2)`
+
+	// $1 = name
+	sqlDeleteRepo = `
+	DELETE FROM module_githook_repos
+	WHERE repo_name = $1`
+
+	sqlDeleteUnverifiedRepo = `
+	DELETE FROM module_githook_repos
+	WHERE last_used IS NULL
+	AND created_at < (CURRENT_TIMESTAMP - INTERVAL '1 month')`
+
+	// $1 = id
+	sqlStampLastUsed = `
+	UDPATE module_githook_repos
+	WHERE id = $1
+	SET last_used = CURRENT_TIMESTAMP`
+)
+
+// Handle Github webhooks.
+func (mod *GithookModule) HandleHTTP(w http.ResponseWriter, r *http.Request) {
+	eventType := r.Header.Get("X-Github-Event")
+	if eventType == "" {
+		w.WriteHeader(400)
+		fmt.Fprintln(w, "GitHub event deliveries only!")
+		return
+	}
+
+	repoNameURL := strings.TrimLeft(r.URL.Path, "/github/hook/")
+	repoLocalID, secret, err := mod.recognizeRepo(repoNameURL)
+	if err == sql.ErrNoRows {
+		w.WriteHeader(404)
+		fmt.Fprintln(w, "no config for", repoNameURL, "\nplease register and retry delivery")
+		return
+	} else if err != nil {
+		w.WriteHeader(500)
+		fmt.Fprintln(w, "internal server error", err)
+		return true
+	}
+
+	hookPayload, err := mod.decodeBody(r, secret)
+	if err != nil {
+		w.WriteHeader(400)
+		fmt.Fprintln(w, "bad request:", err)
+		return
+	}
+
+	destinations, err := mod.getDestinations(repoLocalID)
+	if err != nil {
+		w.WriteHeader(500)
+		fmt.Fprintln(w, "internal server error", err)
+		return true
+	}
+	if len(destinations) == 0 {
+		w.WriteHeader(200)
+		fmt.Fprintln(w, "Hook valid, but no destinations found")
+		return
+	}
+
+	var msg slack.OutgoingSlackMessage
+
+	switch eventType {
+	case "push":
+		msg = mod.RenderPush(payload)
+	}
+
+	if msg.Text != "" || len(msg.Attachments) > 0 {
+		for _, v := range destinations {
+			mod.team.SendComplexMessage(v, msg)
+		}
+	}
+
+	w.WriteHeader(200)
+}
+
+func (mod *GithookModule) recognizeRepo(name string) (id int, secret string, err error) {
+	// id, secret, created_at, last_used
+	stmt, err := mod.team.DB().Prepare(sqlGetRepoByName)
+	if err != nil {
+		return -1, "", err
+	}
+	defer stmt.Close()
+	row, err := stmt.QueryRow(repoNameURL)
+	if err != nil {
+		return -1, "", err
+	}
+	var repoLocalID int
+	var secret string
+	err = row.Scan(&repoLocalID, &secret, nil, nil)
+	if err != nil {
+		return -1, "", err
+	}
+	return repoLocalID, secret, nil
+}
+
+func (mod *GithookModule) decodeBody(r *http.Request, secret string) (v interface{}, err error) {
+	mac := hmac.New(sha1.New, []byte(secret))
+	hashedBody := io.TeeReader(r.Body, mac)
+
+	var hookPayload interface{}
+	err = json.NewDecoder(hashedBody).Decode(&hookPayload)
+	if err != nil {
+		return nil, err
+	}
+	// Consume any trailing data (newlines...)
+	io.Copy(ioutil.Discard, hashedBody)
+
+	expectedHMAC := hex.DecodeString(r.Header.Get("X-Hub-Signature"))
+	if !hmac.Equal(expectedHMAC, mac.Sum(nil)) {
+		return nil, errors.Errorf("Bad signature")
+	}
+	return hookPayload, nil
+}
+
+func (mod *GithookModule) getDestinations(repoID int) ([]slack.ChannelID, error) {
+	stmt, err := mod.team.DB().Prepare(sqlGetDestinations)
+	if err != nil {
+		return nil, err
+	}
+	defer stmt.Close()
+	var result []slack.ChannelID
+	rows, err := stmt.Query(repoID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var str string
+		err = rows.Scan(&str)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, slack.ChannelID(str))
+	}
+	if rows.Err() != nil {
+		return nil, rows.Err()
+	}
+	return result, nil
+}
