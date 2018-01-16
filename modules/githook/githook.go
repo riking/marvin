@@ -10,6 +10,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"strings"
 
 	"github.com/pkg/errors"
 	"github.com/riking/marvin"
@@ -20,7 +21,6 @@ const Identifier = "githook"
 
 func init() {
 	marvin.RegisterModule(NewGithookModule)
-	recompileSemaphore <- struct{}{}
 }
 
 type GithookModule struct {
@@ -39,16 +39,28 @@ func (mod *GithookModule) Identifier() marvin.ModuleID {
 }
 
 func (mod *GithookModule) Load(t marvin.Team) {
+	t.DB().MustMigrate(Identifier, 1516095152, sqlMigrate1, sqlMigrate2)
+	t.DB().SyntaxCheck(
+		sqlGetRepoSecret,
+		sqlGetDestinations,
+		sqlGetSubscriptions,
+		sqlInsertRepo,
+		sqlInsertSubscription,
+		sqlDeleteSubscription,
+		sqlDeleteRepo,
+		sqlDeleteUnverifiedRepo,
+		sqlStampLastUsed,
+	)
 }
 
 func (mod *GithookModule) Enable(team marvin.Team) {
 	mod.team.HTTPMiddleware(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if strings.StartsWith(r.URL.Path, "/github/hook/") {
+			if strings.HasPrefix(r.URL.Path, "/github/hook/") {
 				mod.HandleHTTP(w, r)
 				return
 			}
-			next(w, r)
+			next.ServeHTTP(w, r)
 		})
 	})
 }
@@ -80,7 +92,7 @@ const (
 	)`
 
 	// $1 = name
-	sqlGetRepoByName = `SELECT id, secret, created_at, last_used FROM module_githook_repos WHERE repo_name = $1`
+	sqlGetRepoSecret = `SELECT id, secret FROM module_githook_repos WHERE repo_name = $1`
 
 	// $1 = id
 	sqlGetDestinations = `SELECT channel FROM module_githook_configs WHERE repo_id = $1`
@@ -89,9 +101,9 @@ const (
 	sqlGetSubscriptions = `
 	SELECT r.repo_name, c.created_by
 	FROM module_githook_configs c
-	WHERE c.channel = $1
-	LEFT INNER JOIN module_githook_repos r
-		ON r.id = c.repo_id`
+	LEFT JOIN module_githook_repos r
+		ON r.id = c.repo_id
+	WHERE c.channel = $1`
 
 	// $1 = name $2 = secret $3 = userid
 	sqlInsertRepo = `
@@ -123,9 +135,9 @@ const (
 
 	// $1 = id
 	sqlStampLastUsed = `
-	UDPATE module_githook_repos
-	WHERE id = $1
-	SET last_used = CURRENT_TIMESTAMP`
+	UPDATE module_githook_repos
+	SET last_used = CURRENT_TIMESTAMP
+	WHERE id = $1`
 )
 
 // Handle Github webhooks.
@@ -146,7 +158,7 @@ func (mod *GithookModule) HandleHTTP(w http.ResponseWriter, r *http.Request) {
 	} else if err != nil {
 		w.WriteHeader(500)
 		fmt.Fprintln(w, "internal server error", err)
-		return true
+		return
 	}
 
 	hookPayload, err := mod.decodeBody(r, secret)
@@ -155,12 +167,14 @@ func (mod *GithookModule) HandleHTTP(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintln(w, "bad request:", err)
 		return
 	}
+	// verification passed, this is from Github
+	go mod.stampLastUsed(repoLocalID)
 
 	destinations, err := mod.getDestinations(repoLocalID)
 	if err != nil {
 		w.WriteHeader(500)
 		fmt.Fprintln(w, "internal server error", err)
-		return true
+		return
 	}
 	if len(destinations) == 0 {
 		w.WriteHeader(200)
@@ -172,7 +186,7 @@ func (mod *GithookModule) HandleHTTP(w http.ResponseWriter, r *http.Request) {
 
 	switch eventType {
 	case "push":
-		msg = mod.RenderPush(payload)
+		msg = mod.RenderPush(hookPayload)
 	}
 
 	if msg.Text != "" || len(msg.Attachments) > 0 {
@@ -184,20 +198,16 @@ func (mod *GithookModule) HandleHTTP(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(200)
 }
 
-func (mod *GithookModule) recognizeRepo(name string) (id int, secret string, err error) {
+func (mod *GithookModule) recognizeRepo(name string) (repoLocalID int, secret string, err error) {
 	// id, secret, created_at, last_used
-	stmt, err := mod.team.DB().Prepare(sqlGetRepoByName)
+	stmt, err := mod.team.DB().Prepare(sqlGetRepoSecret)
 	if err != nil {
 		return -1, "", err
 	}
 	defer stmt.Close()
-	row, err := stmt.QueryRow(repoNameURL)
-	if err != nil {
-		return -1, "", err
-	}
-	var repoLocalID int
-	var secret string
-	err = row.Scan(&repoLocalID, &secret, nil, nil)
+	row := stmt.QueryRow(name)
+
+	err = row.Scan(&repoLocalID, &secret)
 	if err != nil {
 		return -1, "", err
 	}
@@ -216,7 +226,10 @@ func (mod *GithookModule) decodeBody(r *http.Request, secret string) (v interfac
 	// Consume any trailing data (newlines...)
 	io.Copy(ioutil.Discard, hashedBody)
 
-	expectedHMAC := hex.DecodeString(r.Header.Get("X-Hub-Signature"))
+	expectedHMAC, err := hex.DecodeString(r.Header.Get("X-Hub-Signature"))
+	if err != nil {
+		return nil, errors.Errorf("Missing signature")
+	}
 	if !hmac.Equal(expectedHMAC, mac.Sum(nil)) {
 		return nil, errors.Errorf("Bad signature")
 	}
@@ -247,4 +260,17 @@ func (mod *GithookModule) getDestinations(repoID int) ([]slack.ChannelID, error)
 		return nil, rows.Err()
 	}
 	return result, nil
+}
+
+func (mod *GithookModule) stampLastUsed(repoID int) error {
+	stmt, err := mod.team.DB().Prepare(sqlStampLastUsed)
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+	_, err = stmt.Exec(repoID)
+	if err != nil {
+		return err
+	}
+	return nil
 }
