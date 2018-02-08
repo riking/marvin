@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/riking/marvin/modules/atcommand"
 	"github.com/riking/marvin/slack"
 	"github.com/riking/marvin/util"
 )
@@ -102,8 +103,8 @@ func (mod *GithookModule) RenderPush(payload interface{}) slack.OutgoingSlackMes
 	commits, _ := jGet(payload, "commits").([]interface{})
 
 	fmt.Fprintf(&buf, "*<%s|%s>* pushed <%s|%d new commits> to *%s*\n",
-		jStr(jGet(payload, "sender", "url")), jStr(jGet(payload, "sender", "login")),
-		compare, len(commits), ref)
+		jStr(jGet(payload, "sender", "url")), atcommand.SanitizeAt(jStr(jGet(payload, "sender", "login"))),
+		compare, len(commits), atcommand.SanitizeAt(ref))
 
 	apiURL := strings.Replace(compare, "github.com/", "api.github.com/repos/", 1)
 	fmt.Fprintf(&buf, "%s\n", getDiffStat(apiURL))
@@ -120,9 +121,9 @@ func (mod *GithookModule) RenderPush(payload interface{}) slack.OutgoingSlackMes
 			util.LogError(err)
 		}
 		fmt.Fprintf(&buf, "<%s|%s> by *%s* [<!date^%d^{time}|%s>] %s\n",
-			jStr(jGet(commit, "url")), objid[:8], jStr(jGet(commit, "author", "name")),
+			jStr(jGet(commit, "url")), objid[:8], atcommand.SanitizeAt(jStr(jGet(commit, "author", "name"))),
 			ts.Unix(), ts.Format(time.Kitchen),
-			jStr(jGet(commit, "message")))
+			atcommand.SanitizeAt(jStr(jGet(commit, "message"))))
 	}
 
 	atch.Text = buf.String()
