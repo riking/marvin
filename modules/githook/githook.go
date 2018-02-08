@@ -15,6 +15,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/riking/marvin"
 	"github.com/riking/marvin/slack"
+	"github.com/riking/marvin/util"
 )
 
 const Identifier = "githook"
@@ -150,13 +151,16 @@ func (mod *GithookModule) HandleHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	repoNameURL := strings.TrimPrefix(r.URL.Path, "/github/hook/")
+	util.LogDebug("githook: got delivery for", repoNameURL)
 	repoLocalID, secret, err := mod.recognizeRepo(repoNameURL)
 	if err == sql.ErrNoRows {
 		w.WriteHeader(404)
+		util.LogDebug("githook: Repository not configured.")
 		fmt.Fprintln(w, "no config for", repoNameURL, "\nplease register and retry delivery")
 		return
 	} else if err != nil {
 		w.WriteHeader(500)
+		util.LogBad("githook: recognizeRepo() error:", err)
 		fmt.Fprintln(w, "internal server error", err)
 		return
 	}
@@ -164,6 +168,7 @@ func (mod *GithookModule) HandleHTTP(w http.ResponseWriter, r *http.Request) {
 	hookPayload, err := mod.decodeBody(r, secret)
 	if err != nil {
 		w.WriteHeader(400)
+		util.LogBad("githook: bad request:", err)
 		fmt.Fprintln(w, "bad request:", err)
 		return
 	}
@@ -173,11 +178,13 @@ func (mod *GithookModule) HandleHTTP(w http.ResponseWriter, r *http.Request) {
 	destinations, err := mod.getDestinations(repoLocalID)
 	if err != nil {
 		w.WriteHeader(500)
+		util.LogBad("githook: getDestinations() error:", err)
 		fmt.Fprintln(w, "internal server error", err)
 		return
 	}
 	if len(destinations) == 0 {
 		w.WriteHeader(200)
+		util.LogDebug("githook: decode successful, but nowhere to send")
 		fmt.Fprintln(w, "Hook valid, but no destinations found")
 		return
 	}
@@ -196,6 +203,7 @@ func (mod *GithookModule) HandleHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(200)
+	util.LogDebug("githook: successful delivery")
 }
 
 func (mod *GithookModule) recognizeRepo(name string) (repoLocalID int, secret string, err error) {
