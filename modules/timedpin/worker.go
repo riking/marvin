@@ -87,8 +87,7 @@ func doUnpins(t marvin.Team) error {
 			t.SendMessage(t.TeamConfig().LogChannel, fmt.Sprintf(
 				"<!channel> failed to unpin %s %s", v.Channel, v.ThingID))
 
-			// Bad, don't delete from database
-			continue
+			// Delete from database so it doesn't spam the log channel
 		}
 		_, err = deleteStmt.Exec(v.Id)
 		if err != nil {
@@ -98,7 +97,7 @@ func doUnpins(t marvin.Team) error {
 		thingMention := v.ThingID
 		if strings.Contains(v.ThingID, ".") {
 			thingMention = fmt.Sprintf(
-				"<%s>", t.ArchiveURL(slack.MessageID{ChannelID: slack.ChannelID(v.Channel), MessageTS: slack.MessageTS(v.ThingID)}))
+				"%s", t.ArchiveURL(slack.MessageID{ChannelID: slack.ChannelID(v.Channel), MessageTS: slack.MessageTS(v.ThingID)}))
 		}
 		t.SendMessage(slack.ChannelID(v.Channel), fmt.Sprintf(
 			"%v: Unpinned %s after %s.", slack.UserID(v.SourceUser), thingMention, v.OrigDuration))

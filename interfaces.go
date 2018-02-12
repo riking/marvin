@@ -217,11 +217,13 @@ type Team interface {
 	CommandRegistration
 	DispatchCommand(args *CommandArguments) CommandResult
 
-	// HandleHTTP must be called as follows:
-	//
-	//   team.HandleHTTP("/links/", module_or_other_handler)
+	// Add a new HTTP route handler.
 	HandleHTTP(path string, handler http.Handler) *mux.Route
+	// Get the Router object to add new routes.
 	Router() *mux.Router
+	// Inject middleware for every HTTP request. This is processed before CSRF protection.
+	HTTPMiddleware(f func(http.Handler) http.Handler)
+	// Resolve a relative path to an absolute URL, taking into account subfolder configuration.
 	AbsoluteURL(path string) string
 
 	ReportError(err error, source ActionSource)

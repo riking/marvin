@@ -34,6 +34,7 @@ type Team struct {
 	confLock sync.Mutex
 	confMap  map[marvin.ModuleID]marvin.ModuleConfig
 
+	outerHttp http.Handler
 	httpMux   *mux.Router
 	httpStrip string
 }
@@ -66,6 +67,9 @@ func NewTeam(cfg *marvin.TeamConfig) (*Team, error) {
 	if u.Path != "" && u.Path != "/" {
 		t.httpStrip = u.Path
 	}
+
+	t.outerHttp = t.httpMux
+	t.addCSRFMiddleware()
 
 	return t, nil
 }
@@ -364,14 +368,14 @@ func (t *Team) OffAllEvents(mod marvin.ModuleID) {
 
 // ---
 
-func (t *Team) ConnectHTTP(l net.Listener) {
+func (t *Team) addCSRFMiddleware() {
 	var csrfArgs []csrf.Option
 
 	if !strings.HasPrefix(t.teamConfig.HTTPURL, "https") {
 		csrfArgs = append(csrfArgs, csrf.Secure(false))
 	}
 	csrfArgs = append(csrfArgs, csrf.RequestHeader("x-csrf-token"))
-	csrfArgs = append(csrfArgs, csrf.Path("/"))
+	csrfArgs = append(csrfArgs, csrf.Path(t.httpStrip))
 
 	var csrfKey [32]byte
 	_, err := t.TeamConfig().GetSecretKey("csrf protection", csrfKey[:])
@@ -380,8 +384,12 @@ func (t *Team) ConnectHTTP(l net.Listener) {
 	}
 	csrfProtect := csrf.Protect(csrfKey[:], csrfArgs...)
 
+	t.HTTPMiddleware(csrfProtect)
+}
+
+func (t *Team) ConnectHTTP(l net.Listener) {
 	go func() {
-		err := http.Serve(l, csrfProtect(t.httpMux))
+		err := http.Serve(l, t.outerHttp)
 		if err != nil {
 			util.LogError(err)
 		}
@@ -398,6 +406,10 @@ func (t *Team) HandleHTTP(folder string, handler http.Handler) *mux.Route {
 
 func (t *Team) Router() *mux.Router {
 	return t.httpMux
+}
+
+func (t *Team) HTTPMiddleware(f func(http.Handler) http.Handler) {
+	t.outerHttp = f(t.outerHttp)
 }
 
 // MakeURL takes a (non-rooted) path to the webserver and makes it absolute.
