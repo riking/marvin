@@ -14,6 +14,7 @@ import (
 // ModuleID is a string constant identifying a module.
 type ModuleID string
 
+// ModuleState is an enum representing the state of a module.
 type ModuleState int
 
 const (
@@ -27,6 +28,8 @@ const (
 )
 
 type Module interface {
+	// Modules should declare a constant named 'Identifier' in their package
+	// and return it from this function.
 	Identifier() ModuleID
 
 	// Load should declare dependencies.
@@ -49,48 +52,50 @@ type ModuleStatus interface {
 }
 
 type ModuleConfig interface {
-	// Get gets a module configuration value. The error will be set on database errors.
-	// Get() will panic if the key was not initialized with Add() or AddProtect().
+	// Get gets a module configuration value.  The error will be set on
+	// database errors.  Get() will panic if the key was not initialized with
+	// Add() or AddProtect().
 	Get(key string) (string, error)
-	// GetIsDefault gets a module configuration value, but does not require the key
-	// have been initialized.
+	// GetIsDefault gets a module configuration value, but does not require the
+	// key have been initialized.
 	//
 	// 1) If the key was not initialized with Add(), value is the empty string,
-	//    isDefault is true, and err is ErrConfNoDefault.
-	// 2) If the key was initialized, but has no override, value is the default value,
-	//    isDefault is true, and err is nil.
-	// 3) If the key has an override, value is the override, isDefault is false, and
-	//    err is nil.
+	// isDefault is true, and err is ErrConfNoDefault.
+	//
+	// 2) If the key was initialized, but has no override, value is the default
+	// value, isDefault is true, and err is nil.
+	//
+	// 3) If the key has an override, value is the override, isDefault is
+	// false, and err is nil.
 	GetIsDefault(key string) (value string, isDefault bool, err error)
-	// GetIsDefaultNotProtected acts like GetIsDefault, but returns
-	// ("", false, ErrConfProtected) if the key is protected.
+	// GetIsDefaultNotProtected acts like GetIsDefault, but returns ("", false,
+	// ErrConfProtected) if the key is protected.
 	GetIsDefaultNotProtected(key string) (value string, isDefault bool, err error)
 	// Set sets an override for the given configuration key.
 	Set(key, value string) error
 	// SetDefault resets the configuration for the given key to the default.
 	SetDefault(key string) error
-	// Add initializes the default value for a key for use with Get().
-	// This must be called during the module Load phase.
+	// Add initializes the default value for a key for use with Get().  This
+	// must be called during the module Load phase.
 	Add(key, defaultValue string)
-	// Add initializes the default value for a key for use with Get(), and also sets
-	// the key as protected.
-	// This must be called during the module Load phase.
+	// Add initializes the default value for a key for use with Get(), and also
+	// sets the key as protected.  This must be called during the module Load
+	// phase.
 	AddProtect(key, defaultValue string, protect bool)
 	// OnModify registers a callback for when a key is modified.
 	OnModify(f func(key string))
 
-	// ListDefaults returns the defaults map.
-	// This cannot be called during the module Load phase.
+	// ListDefaults returns the defaults map.  This cannot be called during the
+	// module Load phase.
 	ListDefaults() map[string]string
-	// ListDefaults returns the protected-keys map.
-	// This cannot be called during the module Load phase.
+	// ListDefaults returns the protected-keys map.  This cannot be called
+	// during the module Load phase.
 	ListProtected() map[string]bool
 }
 
-// ErrConfProtected is an error return from ModuleConfig.GetIsDefaultNotProtected.
-type ErrConfProtected struct {
-	Key string
-}
+// ErrConfProtected is an error return from
+// ModuleConfig.GetIsDefaultNotProtected.
+type ErrConfProtected struct{ Key string }
 
 // Error implements the error interface.
 func (e ErrConfProtected) Error() string {
@@ -177,17 +182,16 @@ type Team interface {
 	EnableModules() bool
 	Shutdown()
 
-	// DependModule places the instance of the requested module in the
-	// given pointer.
+	// DependModule places the instance of the requested module in the given
+	// pointer.
 	//
-	// If the requested module is already enabled, the pointer is
-	// filled immediately and the function returns 1. If the requested
-	// module has errored, the pointer is left alone and the function
-	// returns -2.
+	// If the requested module is already enabled, the pointer is filled
+	// immediately and the function returns 1. If the requested module has
+	// errored, the pointer is left alone and the function returns -2.
 	//
-	// During loading, when the requested module has not been enabled
-	// yet, the function returns 0 and remembers the pointer. If the
-	// requested module is not known, the function returns -1.
+	// During loading, when the requested module has not been enabled yet, the
+	// function returns 0 and remembers the pointer. If the requested module is
+	// not known, the function returns -1.
 	DependModule(self Module, dependencyID ModuleID, ptr *Module) int
 	// GetModule returns the Module instance for a module directly.
 	GetModule(modID ModuleID) Module
@@ -200,8 +204,8 @@ type Team interface {
 	SendMessage
 	ReactMessage(msgID slack.MessageID, emojiName string) error
 
-	// SlackAPIPost makes a Slack API call by adding the token to the form.
-	// If the token parameter is already defined, the existing value is used.
+	// SlackAPIPost makes a Slack API call by adding the token to the form.  If
+	// the token parameter is already defined, the existing value is used.
 	SlackAPIPostRaw(method string, form url.Values) (*http.Response, error)
 	SlackAPIPostJSON(method string, form url.Values, result interface{}) error
 
@@ -221,9 +225,11 @@ type Team interface {
 	HandleHTTP(path string, handler http.Handler) *mux.Route
 	// Get the Router object to add new routes.
 	Router() *mux.Router
-	// Inject middleware for every HTTP request. This is processed before CSRF protection.
+	// Inject middleware for every HTTP request. This is processed before CSRF
+	// protection.
 	HTTPMiddleware(f func(http.Handler) http.Handler)
-	// Resolve a relative path to an absolute URL, taking into account subfolder configuration.
+	// Resolve a relative path to an absolute URL, taking into account
+	// subfolder configuration.
 	AbsoluteURL(path string) string
 
 	ReportError(err error, source ActionSource)
