@@ -106,7 +106,7 @@ func (mod *GithookModule) RenderPush(payload interface{}) slack.OutgoingSlackMes
 	ref = strings.TrimLeft(ref, "refs/heads/")
 	commits, _ := jGet(payload, "commits").([]interface{})
 
-	fmt.Fprintf(&buf, "*<%s|%s>* pushed <%s|%d new commits> to *%s*\n",
+	fmt.Fprintf(&buf, "*<%s|%s>* pushed <%s|%v new commits> to *%s*\n",
 		jStr(jGet(payload, "sender", "url")), atcommand.SanitizeAt(jStr(jGet(payload, "sender", "login"))),
 		compare, len(commits), atcommand.SanitizeAt(ref))
 
@@ -177,14 +177,14 @@ func (mod *GithookModule) RenderPR(payload interface{}) slack.OutgoingSlackMessa
 		}
 	}
 
-	fmt.Fprintf(&buf, "*<%s|%s>* %s <%s|PR #%d> (%s...%s): %s",
+	fmt.Fprintf(&buf, "*<%s|%s>* %s <%s|PR #%v> (%s...%s): %s",
 		jGet(payload, "sender", "url"), atcommand.SanitizeAt(author),
 		verb,
 		jGet(payload, "pull_request", "url"), jGet(payload, "number"),
 		jGet(payload, "pull_request", "base", "ref"), jGet(payload, "pull_request", "head", "ref"),
 		jGet(payload, "pull_request", "title"),
 	)
-	atch.Fallback = fmt.Sprintf("[%s] %s %s PR #%d",
+	atch.Fallback = fmt.Sprintf("[%s] %s %s PR #%v",
 		jGet(payload, "repository", "full_name"),
 		jGet(payload, "sender", "login"), verb,
 		jGet(payload, "number"), jGet(payload, "pull_request", "title"))
@@ -220,7 +220,7 @@ func (mod *GithookModule) RenderComment(payload interface{}) slack.OutgoingSlack
 	if verb == "created" {
 		fmt.Fprintf(&buf, "\n%s", jGet(payload, "comment", "body"))
 	}
-	atch.Fallback = fmt.Sprintf("%s %s comment on #%s: %s",
+	atch.Fallback = fmt.Sprintf("%s %s comment on #%v: %s",
 		author, verb, jGet(payload, "number"), jGet(payload, "issue", "title"))
 	atch.Text = buf.String()
 	msg.Attachments = []slack.Attachment{atch}
@@ -246,7 +246,7 @@ func (mod *GithookModule) RenderPRReview(payload interface{}) slack.OutgoingSlac
 	if jGet(payload, "submitted_at") == nil {
 		return slack.OutgoingSlackMessage{}
 	}
-	fmt.Fprintf(&buf, "*<%s|%s>* %s review on <%s|#%d> (%s...%s): *%s*\n<%s>",
+	fmt.Fprintf(&buf, "*<%s|%s>* %s review on <%s|#%v> (%s...%s): *%s*\n<%s>",
 		jGet(payload, "sender", "url"), author,
 		verb,
 		jGet(payload, "review", "html_url"), jGet(payload, "number"),
@@ -267,7 +267,7 @@ func (mod *GithookModule) RenderPRReview(payload interface{}) slack.OutgoingSlac
 			atch.Color = colorMap["rejectRed"]
 		}
 	}
-	atch.Fallback = fmt.Sprintf("%s %s review on #%d: %s",
+	atch.Fallback = fmt.Sprintf("%s %s review on #%v: %s",
 		author, verb, jGet(payload, "number"), jGet(payload, "pull_request", "title"))
 	atch.Text = buf.String()
 	msg.Attachments = []slack.Attachment{atch}
@@ -309,7 +309,7 @@ func getDiffStat(apiURL string) string {
 		}
 	}
 	if fileAdd > 0 || fileDel > 0 {
-		return fmt.Sprintf("[+%d -%d] %d files changed, %d added, %d removed", totalAdd, totalDel, fileMod, fileAdd, fileDel)
+		return fmt.Sprintf("[++%d --%d] %d files changed, %d added, %d removed", totalAdd, totalDel, fileMod, fileAdd, fileDel)
 	}
-	return fmt.Sprintf("[+%d -%d] %d files changed", totalAdd, totalDel, fileMod)
+	return fmt.Sprintf("[++%d --%d] %d files changed", totalAdd, totalDel, fileMod)
 }
