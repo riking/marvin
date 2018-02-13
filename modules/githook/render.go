@@ -139,6 +139,7 @@ var verbMap = map[string]string{
 	"review_requested":       "requested review on",
 	"review_request_removed": "removed review request on",
 	"synchronize":            "updated",
+	"edited":                 "edited description of",
 }
 
 var prColors = map[string]string{
@@ -188,6 +189,12 @@ func (mod *GithookModule) RenderPR(payload interface{}) slack.OutgoingSlackMessa
 		jGet(payload, "repository", "full_name"),
 		jGet(payload, "sender", "login"), verb,
 		jGet(payload, "number"), jGet(payload, "pull_request", "title"))
+	if verb == "opened" || verb == "edited description of" {
+		prBody := jStr(jGet(payload, "pull_request", "body"))
+		if prBody != "" {
+			fmt.Fprintf(&buf, "\n%s", prBody)
+		}
+	}
 	atch.Text = buf.String()
 	msg.Attachments = []slack.Attachment{atch}
 	return msg
