@@ -194,6 +194,14 @@ func (mod *GithookModule) HandleHTTP(w http.ResponseWriter, r *http.Request) {
 	switch eventType {
 	case "push":
 		msg = mod.RenderPush(hookPayload)
+	case "ping":
+		// ignore
+	case "pull_request":
+		msg = mod.RenderPR(hookPayload)
+	case "issue_comment":
+		msg = mod.RenderComment(hookPayload)
+	case "pull_request_review":
+		msg = mod.RenderPRReview(hookPayload)
 	}
 
 	if msg.Text != "" || len(msg.Attachments) > 0 {

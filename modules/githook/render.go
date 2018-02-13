@@ -73,31 +73,35 @@ func jStr(v interface{}) string {
 	return str
 }
 
+var colorMap = map[string]string{
+	"topBlack":     "#24292e",
+	"pushBlue":     "#052049",
+	"approveGreen": "#2cbe4e",
+	"mergePurple":  "#6f42c1",
+	"rejectRed":    "#cb2431",
+}
+
 func (mod *GithookModule) RenderPush(payload interface{}) slack.OutgoingSlackMessage {
 	/*
 		[riking/marvin] *riking* pushed 2 new commits to master:
 	*/
 	var msg slack.OutgoingSlackMessage
+	var atch slack.Attachment
+	var buf bytes.Buffer
 	msg.UnfurlLinks = util.TriNo
 	msg.LinkNames = util.TriNo
 	msg.Parse = slack.ParseStyleNone
-
-	var atch slack.Attachment
 	atch.AuthorIcon = "https://assets-cdn.github.com/favicon.ico"
-	atch.AuthorName = fmt.Sprintf("[%s] push", jGet(payload, "repository", "full_name"))
-	atch.Color = "#24292e"
+	atch.AuthorName = fmt.Sprintf("[%s]", jGet(payload, "repository", "full_name"))
+	atch.AuthorLink = jStr(jGet(payload, "repository", "html_url"))
+	atch.TS = time.Now().Unix()
+	atch.Color = colorMap["pushBlue"]
 	tsFloat, ok := jGet(payload, "repository", "pushed_at").(float64)
 	if ok {
 		atch.TS = int64(tsFloat)
 	}
-	var buf bytes.Buffer
 
 	compare := jStr(jGet(payload, "compare"))
-	if compare == "" {
-		return slack.OutgoingSlackMessage{}
-	}
-	atch.AuthorLink = compare
-
 	ref := jStr(jGet(payload, "ref"))
 	ref = strings.TrimLeft(ref, "refs/heads/")
 	commits, _ := jGet(payload, "commits").([]interface{})
@@ -126,6 +130,145 @@ func (mod *GithookModule) RenderPush(payload interface{}) slack.OutgoingSlackMes
 			atcommand.SanitizeAt(jStr(jGet(commit, "message"))))
 	}
 
+	atch.Text = buf.String()
+	msg.Attachments = []slack.Attachment{atch}
+	return msg
+}
+
+var verbMap = map[string]string{
+	"review_requested":       "requested review on",
+	"review_request_removed": "removed review request on",
+	"synchronize":            "updated",
+}
+
+var prColors = map[string]string{
+	"":         "topBlack",
+	"opened":   "approveGreen",
+	"closed":   "rejectRed",
+	"reopened": "topBlack",
+	"updated":  "pushBlue",
+}
+
+func (mod *GithookModule) RenderPR(payload interface{}) slack.OutgoingSlackMessage {
+	var msg slack.OutgoingSlackMessage
+	var atch slack.Attachment
+	var buf bytes.Buffer
+	msg.UnfurlLinks = util.TriNo
+	msg.LinkNames = util.TriNo
+	msg.Parse = slack.ParseStyleNone
+	atch.AuthorIcon = "https://assets-cdn.github.com/favicon.ico"
+	atch.AuthorName = fmt.Sprintf("[%s]", jGet(payload, "repository", "full_name"))
+	atch.AuthorLink = jStr(jGet(payload, "pull_request", "html_url"))
+	atch.TS = time.Now().Unix()
+	atch.Color = colorMap["topBlack"]
+
+	author := jStr(jGet(payload, "sender", "login"))
+	verb := jStr(jGet(payload, "action"))
+	if verbMap[verb] != "" {
+		verb = verbMap[verb]
+	}
+	if prColors[verb] != "" {
+		atch.Color = colorMap[prColors[verb]]
+	}
+	if verb == "closed" {
+		merged, _ := jGet(payload, "pull_request", "merged").(bool)
+		if merged {
+			atch.Color = colorMap["mergePurple"]
+		}
+	}
+
+	fmt.Fprintf(&buf, "*<%s|%s>* %s <%s|PR #%d> (%s...%s): %s",
+		jGet(payload, "sender", "url"), atcommand.SanitizeAt(author),
+		verb,
+		jGet(payload, "pull_request", "url"), jGet(payload, "number"),
+		jGet(payload, "pull_request", "base", "ref"), jGet(payload, "pull_request", "head", "ref"),
+		jGet(payload, "pull_request", "title"),
+	)
+	atch.Fallback = fmt.Sprintf("[%s] %s %s PR #%d",
+		jGet(payload, "repository", "full_name"),
+		jGet(payload, "sender", "login"), verb,
+		jGet(payload, "number"), jGet(payload, "pull_request", "title"))
+	atch.Text = buf.String()
+	msg.Attachments = []slack.Attachment{atch}
+	return msg
+}
+
+func (mod *GithookModule) RenderComment(payload interface{}) slack.OutgoingSlackMessage {
+	var msg slack.OutgoingSlackMessage
+	var atch slack.Attachment
+	var buf bytes.Buffer
+	msg.UnfurlLinks = util.TriNo
+	msg.LinkNames = util.TriNo
+	msg.Parse = slack.ParseStyleNone
+	atch.AuthorIcon = "https://assets-cdn.github.com/favicon.ico"
+	atch.AuthorName = fmt.Sprintf("[%s]", jGet(payload, "repository", "full_name"))
+	atch.AuthorLink = jStr(jGet(payload, "comment", "html_url"))
+	atch.TS = time.Now().Unix()
+	atch.Color = colorMap["topBlack"]
+
+	author := jStr(jGet(payload, "sender", "login"))
+	verb := jStr(jGet(payload, "action"))
+	if jStr(jGet(payload, "issue", "state")) == "closed" {
+		atch.Color = colorMap["rejectRed"]
+	}
+	fmt.Fprintf(&buf, "*<%s|%s>* %s comment on <%s|#%d>: *%s*",
+		jGet(payload, "sender", "url"), atcommand.SanitizeAt(author),
+		verb,
+		jGet(payload, "comment", "html_url"), jGet(payload, "issue", "number"),
+		jGet(payload, "issue", "title"),
+	)
+	if verb == "created" {
+		fmt.Fprintf(&buf, "\n%s", jGet(payload, "comment", "body"))
+	}
+	atch.Fallback = fmt.Sprintf("%s %s comment on #%s: %s",
+		author, verb, jGet(payload, "number"), jGet(payload, "issue", "title"))
+	atch.Text = buf.String()
+	msg.Attachments = []slack.Attachment{atch}
+	return msg
+}
+
+func (mod *GithookModule) RenderPRReview(payload interface{}) slack.OutgoingSlackMessage {
+	var msg slack.OutgoingSlackMessage
+	var atch slack.Attachment
+	var buf bytes.Buffer
+	msg.UnfurlLinks = util.TriNo
+	msg.LinkNames = util.TriNo
+	msg.Parse = slack.ParseStyleNone
+	atch.AuthorIcon = "https://assets-cdn.github.com/favicon.ico"
+	atch.AuthorName = fmt.Sprintf("[%s]", jGet(payload, "repository", "full_name"))
+	atch.AuthorLink = jStr(jGet(payload, "review", "html_url"))
+	atch.TS = time.Now().Unix()
+	atch.Color = colorMap["topBlack"]
+
+	author := jStr(jGet(payload, "sender", "login"))
+	verb := jStr(jGet(payload, "action"))
+
+	if jGet(payload, "submitted_at") == nil {
+		return slack.OutgoingSlackMessage{}
+	}
+	fmt.Fprintf(&buf, "*<%s|%s>* %s review on <%s|#%d> (%s...%s): *%s*\n<%s>",
+		jGet(payload, "sender", "url"), author,
+		verb,
+		jGet(payload, "review", "html_url"), jGet(payload, "number"),
+		jGet(payload, "pull_request", "base", "ref"), jGet(payload, "pull_request", "head", "ref"),
+		jGet(payload, "pull_request", "title"),
+		jGet(payload, "review", "html_url"),
+	)
+	if verb == "submitted" && jGet(payload, "review", "body") != nil {
+		fmt.Fprintf(&buf, "\n%s", jGet(payload, "review", "body"))
+	}
+	if verb == "submitted" {
+		switch jStr(jGet("review", "state")) {
+		case "approved", "APPROVED":
+			atch.Color = colorMap["approveGreen"]
+		case "comment", "COMMENT":
+			atch.Color = colorMap["pushBlue"]
+		case "request_changes", "REQUEST_CHANGES":
+			atch.Color = colorMap["rejectRed"]
+		}
+	}
+	atch.Fallback = fmt.Sprintf("%s %s review on #%d: %s",
+		author, verb, jGet(payload, "number"), jGet(payload, "pull_request", "title"))
 	atch.Text = buf.String()
 	msg.Attachments = []slack.Attachment{atch}
 	return msg
