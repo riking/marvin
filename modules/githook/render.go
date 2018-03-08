@@ -107,7 +107,7 @@ func (mod *GithookModule) RenderPush(payload interface{}) slack.OutgoingSlackMes
 	commits, _ := jGet(payload, "commits").([]interface{})
 
 	fmt.Fprintf(&buf, "*<%s|%s>* pushed <%s|%v new commits> to *%s*\n",
-		jStr(jGet(payload, "sender", "url")), atcommand.SanitizeAt(jStr(jGet(payload, "sender", "login"))),
+		jStr(jGet(payload, "sender", "html_url")), atcommand.SanitizeAt(jStr(jGet(payload, "sender", "login"))),
 		compare, len(commits), atcommand.SanitizeAt(ref))
 
 	apiURL := strings.Replace(compare, "github.com/", "api.github.com/repos/", 1)
@@ -125,7 +125,7 @@ func (mod *GithookModule) RenderPush(payload interface{}) slack.OutgoingSlackMes
 			util.LogError(err)
 		}
 		fmt.Fprintf(&buf, "<%s|%s> by *%s* [<!date^%d^{time}|%s>] %s\n",
-			jStr(jGet(commit, "url")), objid[:8], atcommand.SanitizeAt(jStr(jGet(commit, "author", "name"))),
+			jStr(jGet(commit, "html_url")), objid[:8], atcommand.SanitizeAt(jStr(jGet(commit, "author", "name"))),
 			ts.Unix(), ts.Format(time.Kitchen),
 			atcommand.SanitizeAt(jStr(jGet(commit, "message"))))
 	}
@@ -179,9 +179,9 @@ func (mod *GithookModule) RenderPR(payload interface{}) slack.OutgoingSlackMessa
 	}
 
 	fmt.Fprintf(&buf, "*<%s|%s>* %s <%s|PR #%v> (%s...%s): %s",
-		jGet(payload, "sender", "url"), atcommand.SanitizeAt(author),
+		jGet(payload, "sender", "html_url"), atcommand.SanitizeAt(author),
 		verb,
-		jGet(payload, "pull_request", "url"), jGet(payload, "number"),
+		jGet(payload, "pull_request", "html_url"), jGet(payload, "number"),
 		jGet(payload, "pull_request", "base", "ref"), jGet(payload, "pull_request", "head", "ref"),
 		jGet(payload, "pull_request", "title"),
 	)
@@ -219,7 +219,7 @@ func (mod *GithookModule) RenderComment(payload interface{}) slack.OutgoingSlack
 		atch.Color = colorMap["rejectRed"]
 	}
 	fmt.Fprintf(&buf, "*<%s|%s>* %s comment on <%s|#%d>: *%s*",
-		jGet(payload, "sender", "url"), atcommand.SanitizeAt(author),
+		jGet(payload, "sender", "html_url"), atcommand.SanitizeAt(author),
 		verb,
 		jGet(payload, "comment", "html_url"), jGet(payload, "issue", "number"),
 		jGet(payload, "issue", "title"),
@@ -254,7 +254,7 @@ func (mod *GithookModule) RenderPRReview(payload interface{}) slack.OutgoingSlac
 		return slack.OutgoingSlackMessage{}
 	}
 	fmt.Fprintf(&buf, "*<%s|%s>* %s review on <%s|#%v> (%s...%s): *%s*\n<%s>",
-		jGet(payload, "sender", "url"), author,
+		jGet(payload, "sender", "html_url"), author,
 		verb,
 		jGet(payload, "review", "html_url"), jGet(payload, "number"),
 		jGet(payload, "pull_request", "base", "ref"), jGet(payload, "pull_request", "head", "ref"),
