@@ -182,7 +182,7 @@ func (mod *GithookModule) RenderPR(payload interface{}) slack.OutgoingSlackMessa
 		jGet(payload, "sender", "url"), atcommand.SanitizeAt(author),
 		verb,
 		jGet(payload, "pull_request", "url"), jGet(payload, "number"),
-		jGet(payload, "pull_request", "html_url"), jGet(payload, "pull_request", "head", "ref"),
+		jGet(payload, "pull_request", "base", "ref"), jGet(payload, "pull_request", "head", "ref"),
 		jGet(payload, "pull_request", "title"),
 	)
 	atch.Fallback = fmt.Sprintf("[%s] %s %s PR #%v",
@@ -257,7 +257,7 @@ func (mod *GithookModule) RenderPRReview(payload interface{}) slack.OutgoingSlac
 		jGet(payload, "sender", "url"), author,
 		verb,
 		jGet(payload, "review", "html_url"), jGet(payload, "number"),
-		jGet(payload, "pull_request", "html_url"), jGet(payload, "pull_request", "head", "ref"),
+		jGet(payload, "pull_request", "base", "ref"), jGet(payload, "pull_request", "head", "ref"),
 		jGet(payload, "pull_request", "title"),
 		jGet(payload, "review", "html_url"),
 	)
