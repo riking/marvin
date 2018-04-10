@@ -146,12 +146,12 @@ func luaRequest(L *lua.LState) int {
 		return 2
 	}
 	req = req.WithContext(L.Ctx)
-	req.Header.Set("User-Agent", "Marvin, bot for 42schoolusa.slack.com")
 	headers.ForEach(func(key, value lua.LValue) {
 		k := lua.LVAsString(L.ToStringMeta(key))
 		v := luaToStringArray(L, value)
 		req.Header[k] = v
 	})
+	req.Header.Set("User-Agent", "Marvin, bot for 42schoolusa.slack.com")
 	_ = options
 
 	resp, err := http.DefaultClient.Do(req)
