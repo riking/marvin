@@ -1,49 +1,11 @@
 {{define "styles"}}
+{{template "styles-box"}}
 <style>
-.m-channel {
-    margin: 5px 3px;
-    flex-basis: calc(50% - 6px);
-    flex-grow: 1;
-
-    background-color: #fff;
-    border: 1px solid #f0f0f0;
-    border-radius: 0;
-
-    box-shadow: 0 2px 5px rgba(0,0,0,.26);
-}
-.m-channel-wrap {
-    position: relative;
-    padding: 15px;
-}
-.m-channel h3 {
-    margin-top: 0;
-    font-size: 24px;
-}
-.join-btn {
-    position: absolute;
-    top: 1rem;
-    right: 15px;
-    text-transform: lowercase;
-}
-.m-channel .meta {
-    font-style: italic;
-}
-.m-channel .message {
-    font-size: 18px;
-}
-.member-count {
-    font-size: 14px;
-    color: #888888;
-}
 section#channels {
     display: flex;
     flex-flow: row wrap;
     justify-content: space-between;
     margin: 0 -3px 20px;
-}
-.anchor {
-    position: absolute;
-    top: -60px;
 }
 </style>
 {{end}}
@@ -68,30 +30,7 @@ section#channels {
 
 <section id="channels">
     {{ range .Channels }}
-    <div class="m-channel" data-id="{{.ID}}">
-        <div class="m-channel-wrap">
-        <div id="{{.NameAnchor}}" class="anchor"></div>
-        <h3>{{channel_link $.Layout .ID}} <span class="member-count"><i class="fa fa-user"></i> {{.MemberCount}}</span></h3>
-        <span class="join-btn">
-        {{ if $.NotLoggedIn -}}
-            <a class="btn btn-default" data-interact="1">Log In First</a>
-        {{- else -}}
-        {{- if and $.HaveJoinData .Available -}}
-            <a class="btn btn-primary" data-interact="1"><i class="fa fa-slack"></i> Join Channel</a>
-        {{- else -}}
-        {{- if $.HaveJoinData -}}
-            <a class="btn btn-default disabled"><i class="fa fa-slack"></i> Already Joined</a>
-        {{- else -}}
-            <a class="btn btn-warning" data-interact="1">Check Failed - <i class="fa fa-slack"></i> Click to Join</a>
-        {{- end -}}
-        {{- end -}}
-        {{- end }}
-        </span>
-        <p class="meta">{{user_link $.Layout .User}} created invite {{reltime .Timestamp}}</p>
-        <p class="message">{{.Text}}</p>
-        <p class="purpose">{{.Purpose}}</p>
-        </div>
-    </div>
+        {{ template "invite-box" . }}
     {{ end }}
 </section>
 </div>

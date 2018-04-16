@@ -24,8 +24,13 @@ func (mod *AutoInviteModule) registerHTTP() {
 	mod.team.Router().Path("/invites/{channel}").Methods(http.MethodPost).HandlerFunc(mod.HTTPInvite)
 }
 
-var tmplListInvites = template.Must(weblogin.LayoutTemplateCopy().Parse(string(weblogin.MustAsset("templates/invite-list.html"))))
-var tmplSingleInvite = template.Must(weblogin.LayoutTemplateCopy().Parse(string(weblogin.MustAsset("templates/invite-single.html"))))
+var tmplSrcInviteBox = string(weblogin.MustAsset("templates/invite-box.html"))
+var tmplListInvites = template.Must(template.Must(
+	weblogin.LayoutTemplateCopy().Parse(string(weblogin.MustAsset("templates/invite-list.html"))),
+).Parse(tmplSrcInviteBox))
+var tmplSingleInvite = template.Must(template.Must(
+	weblogin.LayoutTemplateCopy().Parse(string(weblogin.MustAsset("templates/invite-single.html"))),
+).Parse(tmplSrcInviteBox))
 
 var rgxInviteURL = regexp.MustCompile(`/invites/([A-Z0-9]+)`)
 
@@ -45,6 +50,8 @@ type singleChannel struct {
 	Text        string
 	MemberCount int
 	Purpose     string
+
+	G interface{}
 }
 
 func (mod *AutoInviteModule) HTTPInvitesPage(w http.ResponseWriter, r *http.Request, channelFilter string) {
@@ -115,6 +122,7 @@ func (mod *AutoInviteModule) HTTPInvitesPage(w http.ResponseWriter, r *http.Requ
 			Text:        inviteText,
 			MemberCount: mod.team.ChannelMemberCount(inviteChannelID),
 			Purpose:     channelInfo.Purpose.Value,
+			G:           &data,
 		})
 	}
 
