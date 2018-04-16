@@ -111,6 +111,10 @@ func (mod *AutoInviteModule) HTTPInvitesPage(w http.ResponseWriter, r *http.Requ
 		channelInfo, _ := mod.team.PrivateChannelInfo(inviteChannelID)
 		inviteChannelAnchor := inviteChannelName[1:]
 
+		if channelInfo.IsArchived {
+			continue
+		}
+
 		data.Channels = append(data.Channels, singleChannel{
 			ID:          inviteChannelID,
 			Name:        inviteChannelName,
