@@ -370,12 +370,19 @@ func (t *Team) OffAllEvents(mod marvin.ModuleID) {
 
 func (t *Team) addCSRFMiddleware() {
 	var csrfArgs []csrf.Option
+	const cookieName = "_gorilla_csrf"
 
+	csrfArgs = append(csrfArgs, csrf.RequestHeader("x-csrf-token"))
+	csrfArgs = append(csrfArgs, csrf.CookieName(cookieName)
 	if !strings.HasPrefix(t.teamConfig.HTTPURL, "https") {
 		csrfArgs = append(csrfArgs, csrf.Secure(false))
 	}
-	csrfArgs = append(csrfArgs, csrf.RequestHeader("x-csrf-token"))
-	csrfArgs = append(csrfArgs, csrf.Path(t.httpStrip))
+	var cookiePath string = t.httpStrip
+	if cookiePath == "" {
+		cookiePath = "/"
+	}
+	// We want site-wide CSRF, not scoped to individual pages (?!?)
+	csrfArgs = append(csrfArgs, csrf.Path(cookiePath))
 
 	var csrfKey [32]byte
 	_, err := t.TeamConfig().GetSecretKey("csrf protection", csrfKey[:])
