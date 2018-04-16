@@ -373,7 +373,7 @@ func (t *Team) addCSRFMiddleware() {
 	const cookieName = "_gorilla_csrf"
 
 	csrfArgs = append(csrfArgs, csrf.RequestHeader("x-csrf-token"))
-	csrfArgs = append(csrfArgs, csrf.CookieName(cookieName)
+	csrfArgs = append(csrfArgs, csrf.CookieName(cookieName))
 	if !strings.HasPrefix(t.teamConfig.HTTPURL, "https") {
 		csrfArgs = append(csrfArgs, csrf.Secure(false))
 	}
