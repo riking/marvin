@@ -45,9 +45,9 @@ func (mod *TimedPinModule) Load(t marvin.Team) {
 	)
 }
 
-const usage = "`@marvin timedpin &lt;duration: 10h30m&gt; &lt;slack archive link | \"last\"&gt;`\n"+
-"Pins the linked message to the current channel, and unpins the message after the given duration expires.\n"+
-"If `last` is given instead of an archive link, the most recently pinned item is scheduled."
+const usage = "`@marvin timedpin &lt;duration: 10h30m&gt; &lt;slack archive link | \"last\"&gt;`\n" +
+	"Pins the linked message to the current channel, and unpins the message after the given duration expires.\n" +
+	"If `last` is given instead of an archive link, the most recently pinned item is scheduled."
 
 func (mod *TimedPinModule) Enable(t marvin.Team) {
 	cmd := t.RegisterCommandFunc("timedpin", mod.CommandTimedPin, usage)
@@ -101,7 +101,7 @@ var regexpArchiveLink = regexp.MustCompile(`https://[^./]+\.slack\.com/archives/
 func (mod *TimedPinModule) CommandTimedPin(t marvin.Team, args *marvin.CommandArguments) marvin.CommandResult {
 
 	if len(args.Arguments) < 1 {
-		return marvin.CmdUsage(args, "Usage: " + usage).WithSimpleUndo()
+		return marvin.CmdUsage(args, "Usage: "+usage).WithSimpleUndo()
 	}
 	durationArg := args.Pop()
 	duration, err := time.ParseDuration(durationArg)

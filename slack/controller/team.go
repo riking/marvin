@@ -322,7 +322,7 @@ func (t *Team) SlackAPIPostJSON(method string, form url.Values, result interface
 		util.LogBadf("Slack API %s error: %s", method, err)
 		util.LogBadf("Form for %s: %v", method, form)
 		if slackResponse.SlackError == "ratelimited" {
-			time.Sleep(1*time.Second)
+			time.Sleep(1 * time.Second)
 		}
 		return errors.Wrapf(err, "Slack API %s", method)
 	}

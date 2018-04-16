@@ -38,7 +38,7 @@ func main() {
 		return
 	}
 
-	teamConfig := marvin.LoadTeamConfig(cfg.Section(*teamName))
+	teamConfig := marvin.LoadTeamConfig(cfg.Section("Test"))
 	team, err := controller.NewTeam(teamConfig)
 	if err != nil {
 		util.LogError(errors.Wrap(err, "NewTeam"))
@@ -49,27 +49,16 @@ func main() {
 
 	ctx := context.Background()
 
-	user, err := team.GetModule(weblogin.Identifier).(weblogin.API).GetUserByIntra("kyork")
-	if err != nil || user.IntraToken == nil {
-		util.LogError(errors.Wrap(err, "getting user"))
-		return
-	}
-
-	client := intra.Client(ctx, intra.OAuthConfig(team), user.IntraToken)
-	kyorkID, err := client.UserIDByLogin(ctx, "kyork")
-	if err != nil {
-		util.LogError(errors.Wrap(err, "get kyork user id"))
-		return
-	}
+	client := intra.Client(ctx, intra.ClientCredentialsTokenSource(ctx, team.TeamConfig().IntraUID, team.TeamConfig().IntraSecret))
 
 	var result interface{}
 
-	_, err = client.DoGetFormJSON(ctx, flag.Arg(0), url.Values{}, &userVal)
+	_, err = client.DoGetFormJSON(ctx, flag.Arg(0), url.Values{}, &result)
 	if err != nil {
 		util.LogError(errors.Wrap(err, "fetch"))
 		return
 	}
-	b, err := json.MarshalIndent(userVal, "", "\t")
+	b, err := json.MarshalIndent(result, "", "\t")
 	if err != nil {
 		util.LogError(err)
 	}
