@@ -124,10 +124,15 @@ func (mod *GithookModule) RenderPush(payload interface{}) slack.OutgoingSlackMes
 		if err != nil {
 			util.LogError(err)
 		}
+		commitMsg := jStr(jGet(commit, "message"))
+		idx := strings.Index(commitMsg, "\n")
+		if idx != -1 {
+			commitMsg = commitMsg[:idx]
+		}
 		fmt.Fprintf(&buf, "<%s|%s> by *%s* [<!date^%d^{time}|%s>] %s\n",
 			jStr(jGet(commit, "url")), objid[:8], atcommand.SanitizeAt(jStr(jGet(commit, "author", "name"))),
 			ts.Unix(), ts.Format(time.Kitchen),
-			atcommand.SanitizeAt(jStr(jGet(commit, "message"))))
+			atcommand.SanitizeAt(commitMsg))
 	}
 
 	atch.Text = buf.String()
