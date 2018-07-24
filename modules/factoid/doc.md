@@ -2,6 +2,31 @@
 
 # Factoids
 
+### Table of Contents
+
+ - [Standard Lua interfaces](#standard-lua-interfaces)
+    - [`base` module](#base-module)
+    - [`table`, `string`, `math` modules](#table-string-math-modules)
+    - [`debug` module](#debug-module)
+ - [Additional Lua interfaces](#additional-lua-interfaces)
+    - [`bit` module](#bit-module)
+    - [`bot` module](#bot-module)
+    - [`corpus` module](#corpus-module)
+    - [`intra` module](#intra-module)
+    - [`json` module](#json-module)
+        - [Conversion between JSON and Lua](#conversion-between-json-and-lua)
+    - [`requests` module](#requests-module)
+    - [`time` module](#time-module)
+ - [Additional userdata types](#slack-object)
+    - [`slack` object](#slack-object)
+    - [`LChannel` type](#lchannel)
+    - [`LUser` type](#luser)
+    - [`LFactoid` type](#lfactoid)
+    - [`LFDataMap` type](#lfdatamap)
+        - [Example usage](#fdatamap-example-usage)
+    - [Context globals](#context-globals)
+    
+
 # Standard Lua interfaces
 
 ## `base` module
@@ -379,7 +404,7 @@ Requesting the length or iterating a fdata object loads **all** content into mem
 The `fdata` object is keyed to the currently executing factoid's name.  
 The `fmap` provides access to various global tables shared across factoids.
 
-### Example Usage
+### FDataMap Example Usage
 
 Note the following:
 
