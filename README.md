@@ -1,6 +1,6 @@
-# Marvin Dev
+# Marvin
 
-Development fork of Slack bot that uses the RTM API to interact with users using normal messages instead of slash commands.
+Slack bot that uses the RTM API to interact with users using normal messages instead of slash commands.
 
 ## Code Structure
 
