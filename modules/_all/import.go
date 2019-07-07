@@ -10,7 +10,6 @@ import (
 	_ "github.com/riking/marvin/modules/debug"
 	_ "github.com/riking/marvin/modules/factoid"
 	_ "github.com/riking/marvin/modules/githook"
-	_ "github.com/riking/marvin/modules/logger"
 	_ "github.com/riking/marvin/modules/on_reaction"
 	_ "github.com/riking/marvin/modules/paste"
 	_ "github.com/riking/marvin/modules/restart"
