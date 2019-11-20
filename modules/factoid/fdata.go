@@ -357,7 +357,7 @@ func (mod *FactoidModule) GetFDataValue(mapName, keyName string) ([]byte, error)
 }
 
 func (mod *FactoidModule) SetFDataValue(mapName, keyName string, val []byte) {
-	if mod.team.TeamConfig().IsReadOnly && args.Source.AccessLevel() < marvin.AccessLevelAdmin {
+	if mod.team.TeamConfig().IsReadOnly {
 		return
 	}
 	ch := make(chan interface{}, 1)

@@ -400,10 +400,6 @@ func (mod *FactoidModule) ListFactoidsWithInfo(match string, channel slack.Chann
 }
 
 func (mod *FactoidModule) ForgetFactoid(dbID int64, isForgotten bool) error {
-	if mod.team.TeamConfig().IsReadOnly && args.Source.AccessLevel() < marvin.AccessLevelAdmin {
-		// Remove factoids from DB manually.
-		return errors.Errorf("Marvin is currently on read only mode.  No factoids can currently be removed.")
-	}
 	stmt, err := mod.team.DB().Prepare(sqlForgetFactoid)
 	if err != nil {
 		return errors.Wrap(err, "Database error")
