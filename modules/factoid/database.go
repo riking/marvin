@@ -295,6 +295,9 @@ func (fi *Factoid) FillInfo(channel slack.ChannelID) error {
 }
 
 func (mod *FactoidModule) SaveFactoid(name string, channel slack.ChannelID, rawSource string, source marvin.ActionSource) error {
+	if mod.team.TeamConfig().IsReadOnly {
+		return errors.Errorf("Marvin is currently on read only.")
+	}
 	if len(name) > FactoidNameMaxLen {
 		return errors.Errorf("Factoid name is too long (%d > %d)", len(name), FactoidNameMaxLen)
 	}
@@ -411,6 +414,9 @@ func (mod *FactoidModule) ForgetFactoid(dbID int64, isForgotten bool) error {
 }
 
 func (mod *FactoidModule) LockFactoid(dbID int64, isLocked bool) error {
+	if mod.team.TeamConfig().IsReadOnly {
+		return errors.Errorf("Marvin is currently on read only.")
+	}
 	stmt, err := mod.team.DB().Prepare(sqlLockFactoid)
 	if err != nil {
 		return errors.Wrap(err, "Database error")

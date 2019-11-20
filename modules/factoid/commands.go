@@ -259,7 +259,10 @@ func (mod *FactoidModule) CmdForget(t marvin.Team, args *marvin.CommandArguments
 	if len(args.Arguments) != 1 {
 		return marvin.CmdUsage(args, helpForget)
 	}
-
+	if mod.team.TeamConfig().IsReadOnly && args.Source.AccessLevel() < marvin.AccessLevelAdmin {
+		// Remove factoids from DB manx2ually.
+		return marvin.CmdFailuref(args, "Marvin is currently on read only.")
+	}
 	factoidName := args.Pop()
 	if len(factoidName) > FactoidNameMaxLen {
 		return marvin.CmdFailuref(args, "Factoid name too long").WithEdit().WithSimpleUndo()

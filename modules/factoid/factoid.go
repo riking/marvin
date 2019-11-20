@@ -77,8 +77,10 @@ func (mod *FactoidModule) Enable(team marvin.Team) {
 	team.RegisterCommand("r", remember)
 	team.RegisterCommand("forget", forget)
 
-	go mod.workerFDataChan()
-	go mod.workerFDataSync()
+	if !mod.team.TeamConfig().IsReadOnly {
+		go mod.workerFDataChan()
+		go mod.workerFDataSync()
+	}
 }
 
 func (mod *FactoidModule) Disable(t marvin.Team) {

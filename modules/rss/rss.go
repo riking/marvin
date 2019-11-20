@@ -154,6 +154,9 @@ func (mod *RSSModule) CommandSubscribe(t marvin.Team, args *marvin.CommandArgume
 	// @marvin rss {add|subscribe} [facebook|rss|twitter] https://www.facebook.com/42Born2CodeUS
 	// @marvin rss list
 	// @marvin rss
+	if mod.team.TeamConfig().IsReadOnly {
+		return marvin.CmdFailuref(args, "Marvin is currently on read only.")
+	}
 	if len(args.Arguments) == 0 {
 		return marvin.CmdUsage(args, usageSubscribe).WithSimpleUndo()
 	}
