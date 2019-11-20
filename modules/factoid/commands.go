@@ -261,7 +261,7 @@ func (mod *FactoidModule) CmdForget(t marvin.Team, args *marvin.CommandArguments
 	}
 	if mod.team.TeamConfig().IsReadOnly && args.Source.AccessLevel() < marvin.AccessLevelAdmin {
 		// Remove factoids from DB manx2ually.
-		return marvin.CmdFailuref(args, "Marvin is currently on read only mode.  No factoids can currently be removed.")
+		return marvin.CmdFailuref(args, "Marvin is currently on read only.")
 	}
 	factoidName := args.Pop()
 	if len(factoidName) > FactoidNameMaxLen {

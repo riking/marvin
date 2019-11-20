@@ -219,7 +219,7 @@ func (mod *WebLoginModule) _getCurrentUser(create bool, w http.ResponseWriter, r
 	u, err := mod.GetUserByID(uid)
 	if err == ErrNoSuchUser {
 		if mod.team.TeamConfig().IsReadOnly {
-			return nil, errors.Errorf("Marvin is currently on read only mode.  No factoids can currently be created.")
+			return nil, errors.Errorf("Marvin is currently on read only.")
 		}
 		if !create {
 			return nil, nil

@@ -96,7 +96,7 @@ func (mod *DebugModule) DebugCommandSuccess(t marvin.Team, args *marvin.CommandA
 
 func (mod *DebugModule) DebugCommandPaste(t marvin.Team, args *marvin.CommandArguments) marvin.CommandResult {
 	if mod.team.TeamConfig().IsReadOnly {
-		return marvin.CmdFailuref(args, "Marvin is currently on read only mode.  No factoids can currently be created.")
+		return marvin.CmdFailuref(args, "Marvin is currently on read only.")
 	}
 	content := strings.Join(args.Arguments, " ")
 	id, err := mod.pasteModule.(paste.API).CreatePaste(content)

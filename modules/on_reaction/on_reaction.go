@@ -165,7 +165,7 @@ func (mod *OnReactionModule) ListenMessage(which slack.MessageID, modID marvin.M
 
 	stmt, err := mod.team.DB().Prepare(sqlListenMessage)
 	if mod.team.TeamConfig().IsReadOnly {
-		return errors.Errorf("Marvin is currently on read only mode.  No new reactions can currently be listened to.")
+		return errors.Errorf("Marvin is currently on read only.")
 	}
 	if err != nil {
 		return errors.Wrap(err, "on_reaction preparing SQL statement")
