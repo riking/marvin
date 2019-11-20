@@ -14,6 +14,9 @@ const usageMass = "*`@marvin mass-invite`* will invite multiple people to a chan
 	"Use the command from the channel you want to invite users to."
 
 func CmdMassInvite(t marvin.Team, args *marvin.CommandArguments) marvin.CommandResult {
+	if args.Source.AccessLevel() < AccessLevelController {
+		return marvin.CmdFailuref(args, "This command has been restricted to bot controller only.")
+	}
 	if len(args.Arguments) == 0 {
 		return marvin.CmdUsage(args, usageMass).WithSimpleUndo()
 	}

@@ -241,6 +241,9 @@ type postInviteResult struct {
 }
 
 func (mod *AutoInviteModule) PostInvite(t marvin.Team, args *marvin.CommandArguments) marvin.CommandResult {
+	if mod.team.TeamConfig().IsReadOnly {
+		return marvin.CmdFailuref(args, "Marvin is currently on read only mode.  No new invites can currently be created.")
+	}
 	util.LogDebug("PostInvite", args.Arguments)
 
 	if len(args.Arguments) < 1 {
@@ -407,6 +410,9 @@ func (mod *AutoInviteModule) SaveInvite(
 }
 
 func (mod *AutoInviteModule) CmdRevokeInvite(t marvin.Team, args *marvin.CommandArguments) marvin.CommandResult {
+	if mod.team.TeamConfig().IsReadOnly && args.Source.AccessLevel() < marvin.AccessLevelAdmin {
+		return marvin.CmdFailuref(args, "Marvin is currently on read only mode.  No invites can currently be revoked.")
+	}
 	stmt, err := mod.team.DB().Prepare(sqlRevokeInvite)
 	if err != nil {
 		return marvin.CmdError(args, err, "database error")

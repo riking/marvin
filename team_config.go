@@ -28,6 +28,7 @@ type TeamConfig struct {
 	HTTPURL         string
 	Controllers     []slack.UserID
 	IsDevelopment   bool
+	IsReadOnly   	bool
 }
 
 func LoadTeamConfig(sec *ini.Section) *TeamConfig {
@@ -44,6 +45,7 @@ func LoadTeamConfig(sec *ini.Section) *TeamConfig {
 	c.HTTPURL = sec.Key("HTTPURL").String()
 	c.LogChannel = slack.ChannelID(sec.Key("LogChannel").String())
 	c.IsDevelopment, _ = sec.Key("IsDevelopment").Bool()
+	c.IsReadOnly, _ = sec.Key("IsReadOnly").Bool()
 
 	var controllerKey = sec.Key("Controller").String()
 	var split = strings.Split(controllerKey, ",")
