@@ -246,6 +246,10 @@ func (mod *AutoInviteModule) PostInvite(t marvin.Team, args *marvin.CommandArgum
 	}
 	util.LogDebug("PostInvite", args.Arguments)
 
+	if args.Source.AccessLevel() < marvin.AccessLevelController {
+		return marvin.CmdFailuref(args, "This command has been restricted to bot controller only.")
+	}
+
 	if len(args.Arguments) < 1 {
 		return marvin.CmdUsage(args, inviteHelp)
 	}
@@ -412,6 +416,10 @@ func (mod *AutoInviteModule) SaveInvite(
 func (mod *AutoInviteModule) CmdRevokeInvite(t marvin.Team, args *marvin.CommandArguments) marvin.CommandResult {
 	if mod.team.TeamConfig().IsReadOnly && args.Source.AccessLevel() < marvin.AccessLevelAdmin {
 		return marvin.CmdFailuref(args, "Marvin is currently on read only.")
+	}
+
+	if args.Source.AccessLevel() < marvin.AccessLevelController {
+		return marvin.CmdFailuref(args, "This command has been restricted to bot controller only.")
 	}
 	stmt, err := mod.team.DB().Prepare(sqlRevokeInvite)
 	if err != nil {
