@@ -4,6 +4,7 @@ import (
 	"regexp"
 
 	"github.com/riking/marvin"
+	"github.com/riking/marvin/modules/antiflood"
 	"github.com/riking/marvin/slack"
 )
 
@@ -59,6 +60,11 @@ var responses = []AutoEmojiResponse{
 func (mod *AutoResponseModule) OnMessage(_rtm slack.RTMRawMessage) {
 	rtm := slack.SlackTextMessage(_rtm)
 	text := rtm.Text()
+	// TODO: This module needs to check user's level with mod.team.UserLevel(_rtm.UserID())
+	//       However since it is not currently in use, the following code will stay here.
+	if !mod.team.GetModule(antiflood.Identifier).(antiflood.API).CheckChannel(rtm.ChannelID()) {
+		return
+	}
 
 	for _, v := range responses {
 		if v.Regexp.FindString(text) != "" {

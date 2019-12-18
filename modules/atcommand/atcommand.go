@@ -14,6 +14,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/riking/marvin"
+	"github.com/riking/marvin/modules/antiflood"
 	"github.com/riking/marvin/slack"
 	"github.com/riking/marvin/util"
 )
@@ -257,6 +258,12 @@ func (mod *AtCommandModule) HandleMessage(_rtm slack.RTMRawMessage) {
 		return
 	}
 
+	userLvl := mod.team.UserLevel(rtm.UserID())
+	if userLvl < marvin.AccessLevelNormal {
+		mod.team.ReactMessage(rtm.MessageID(), "x")
+		return
+	}
+
 	parseResult := mod.ParseMessage(rtm)
 	fciResult.parseResult = parseResult
 
@@ -274,6 +281,10 @@ func (mod *AtCommandModule) HandleMessage(_rtm slack.RTMRawMessage) {
 		mod.team.ReactMessage(rtm.MessageID(), reactEmoji)
 		return
 	} else if parseResult.argSplit != nil || parseResult.splitErr != nil {
+		if userLvl < marvin.AccessLevelAdmin &&
+			!mod.team.GetModule(antiflood.Identifier).(antiflood.API).CheckChannel(rtm.ChannelID()) {
+			return
+		}
 		mod.recentCommandsLock.Lock()
 		mod.recentCommands[_rtm.MessageID()] = fciResult
 		mod.recentCommandsLock.Unlock()
@@ -281,11 +292,6 @@ func (mod *AtCommandModule) HandleMessage(_rtm slack.RTMRawMessage) {
 		fciResult.FoundCommand = true
 		// continue
 	} else {
-		return
-	}
-
-	if mod.team.UserLevel(rtm.UserID()) < marvin.AccessLevelNormal {
-		mod.team.ReactMessage(rtm.MessageID(), "x")
 		return
 	}
 

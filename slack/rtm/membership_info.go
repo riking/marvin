@@ -1,7 +1,11 @@
 package rtm
 
 import (
+	"encoding/csv"
+	"fmt"
+	"io"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -15,6 +19,13 @@ type membershipRequest struct {
 	F func(membershipMap) interface{}
 	C chan interface{}
 }
+
+const (
+	csvSlackMember = "Member"
+	csvSlackAdmin  = "Admin"
+	csvSlackOwner  = "Owner"
+	csvSlackBot    = "Bot"
+)
 
 func (c *Client) membershipWorker() {
 	for req := range c.membershipCh {
@@ -141,7 +152,11 @@ func (c *Client) ListIMs() []*slack.ChannelIM {
 
 func (c *Client) fetchTeamInfo() {
 	go c.fillGroupList()
-	go c.fillUsersList()
+	if c.team.TeamConfig().IsSlackAdmin {
+		go c.fillUsersCsv()
+	} else {
+		go c.fillUsersList()
+	}
 
 	// TODO(kyork): list normal channels too
 	// TODO(kyork): use the listChannels() from logger module
@@ -176,6 +191,74 @@ func (c *Client) fillUsersList() {
 			break
 		}
 	}
+}
+
+// This method currently requires having admin privileges on the workspace.
+// Add IsSlackAdmin=true to config to enable this feature.
+// insufficient_permissions
+// Fields in CSV:
+// username,email,status,billing-active,has-2fa,has-sso,userid,fullname,displayname
+// Example: marvin,exampleemail@example.com,Admin,1,0,0,UXXXXXXXX,Marvin,Marvin
+func (c *Client) fillUsersCsv() {
+	resp, err := c.team.SlackAPIPostRaw("users.admin.fetchTeamUsersCsv", url.Values{})
+	if err != nil {
+		util.LogError(errors.Wrapf(err, "[%s] Could not retrieve users csv file", c.Team.Domain))
+		return
+	}
+	if resp.StatusCode != 200 {
+		util.LogError(errors.New(fmt.Sprintf("[%s] Could not retrieve users csv file [Status code %d]", c.Team.Domain, resp.StatusCode)))
+		return
+	}
+	r := csv.NewReader(resp.Body)
+	for true {
+		record, err := r.Read()
+		if err != nil && err != io.EOF {
+			util.LogError(errors.Wrapf(err, "[%s] Could not parse users csv file", c.Team.Domain))
+			return
+		} else if err == io.EOF {
+			break
+		}
+		// Use preliminary checks to avoid adding too many users into database.
+		if strings.Compare(record[3], "0") == 0 {
+			// Inactive user, do not count.
+			continue
+		}
+		isAdmin := strings.Compare(record[2], csvSlackAdmin) == 0
+		isOwner := strings.Compare(record[2], csvSlackOwner) == 0
+		isMember := strings.Compare(record[2], csvSlackMember) == 0
+		isBot := strings.Compare(record[2], csvSlackBot) == 0
+		if !isAdmin && !isOwner && !isMember && !isBot {
+			continue
+		}
+		realnameSplit := strings.Split(record[7], " ")
+		firstname := record[7]
+		lastname := record[7]
+		if len(realnameSplit) > 1 {
+			firstname = realnameSplit[0]
+			lastname = realnameSplit[1]
+		}
+		//fmt.Printf("%s\n", slack.UserID(record[6]))
+		user := &slack.User{
+			ID:      slack.UserID(record[6]),
+			TeamID:  c.team.TeamID(),
+			Name:    record[8],
+			IsAdmin: isAdmin,
+			IsOwner: isOwner,
+			IsBot:   isBot,
+			Profile: slack.Profile{
+				DisplayName: record[8],
+				RealName:    record[7],
+				Email:       record[1],
+				FirstName:   firstname,
+				LastName:    lastname,
+			},
+		}
+		c.ReplaceUserObject(user)
+		// Force an update on the object but still return cached data
+		// this calls a goroutine.
+		user.CacheTS = time.Unix(0, 0)
+	}
+	fmt.Printf("[%s] Populated database with fetched CSV successfully!\n", c.team.Domain())
 }
 
 func (c *Client) fillGroupList() {

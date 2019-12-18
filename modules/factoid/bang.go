@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/riking/marvin"
+	"github.com/riking/marvin/modules/antiflood"
 	"github.com/riking/marvin/modules/atcommand"
 	"github.com/riking/marvin/slack"
 	"github.com/riking/marvin/util"
@@ -75,7 +76,7 @@ func (mod *BangFactoidModule) OnMessage(_rtm slack.RTMRawMessage) {
 		// TODO thread operation
 		return
 	}
-	result, of := mod.Process(rtm)
+	result, of := mod.Process(rtm, false)
 	if result == "" {
 		return
 	}
@@ -112,7 +113,7 @@ func (mod *BangFactoidModule) OnEdit(_rtm slack.RTMRawMessage) {
 		util.LogIfError(err)
 		return
 	}
-	result, of := mod.Process(rtm)
+	result, of := mod.Process(rtm, true)
 	if result == "" {
 		result = "(removed)"
 	}
@@ -131,7 +132,7 @@ func (mod *BangFactoidModule) OnEdit(_rtm slack.RTMRawMessage) {
 	util.LogIfError(mod.team.SlackAPIPostJSON("chat.update", form, nil))
 }
 
-func (mod *BangFactoidModule) Process(rtm slack.SlackTextMessage) (string, OutputFlags) {
+func (mod *BangFactoidModule) Process(rtm slack.SlackTextMessage, isEditing bool) (string, OutputFlags) {
 	var of OutputFlags
 
 	if len(rtm.Text()) == 0 {
@@ -141,8 +142,14 @@ func (mod *BangFactoidModule) Process(rtm slack.SlackTextMessage) (string, Outpu
 	if !strings.ContainsAny(rtm.Text()[:1], fchars) {
 		return "", of
 	}
-	if mod.team.UserLevel(rtm.UserID()) < marvin.AccessLevelNormal {
+	userLvl := mod.team.UserLevel(rtm.UserID())
+	if userLvl < marvin.AccessLevelNormal {
 		mod.team.ReactMessage(rtm.MessageID(), "x")
+		return "", of
+	}
+	// Check anti flood module.
+	if !isEditing && userLvl < marvin.AccessLevelAdmin &&
+		!mod.team.GetModule(antiflood.Identifier).(antiflood.API).CheckChannel(rtm.ChannelID()) {
 		return "", of
 	}
 	text := slack.UnescapeTextAll(rtm.Text()[1:])

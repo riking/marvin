@@ -3,6 +3,7 @@ package controller
 import (
 	"bytes"
 	"fmt"
+	"github.com/pkg/errors"
 	"net/url"
 	"regexp"
 	"strings"
@@ -195,6 +196,9 @@ func (t *Team) cachedUserInfo(user slack.UserID) *slack.User {
 }
 
 func (t *Team) UserInfo(user slack.UserID) (*slack.User, error) {
+	if len(user) < 1 {
+		return nil, errors.New("User ID blank in UserInfo call!")
+	}
 	info := t.cachedUserInfo(user)
 	if info != nil {
 		return info, nil
@@ -211,6 +215,9 @@ func (t *Team) updateUserInfo(user slack.UserID) (*slack.User, error) {
 	if err != nil {
 		return nil, err
 	}
+	// Replace Name with normalized display name for now.
+	// TODO: Rename all usages of u.Name to u.Profile.DisplayName
+	response.User.Name = response.User.Profile.DisplayName
 	t.client.ReplaceUserObject(response.User)
 	return response.User, nil
 }

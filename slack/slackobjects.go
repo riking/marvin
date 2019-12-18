@@ -85,44 +85,47 @@ type User struct {
 	NotExist bool      `json:"-"`
 	CacheTS  time.Time `json:"-"`
 
-	ID       UserID      `json:"id"`
-	TeamID   TeamID      `json:"team_id"`
-	Name     string      `json:"name"`
-	Deleted  bool        `json:"deleted"`
-	Status   interface{} `json:"status"`
-	Color    string      `json:"color"`
-	RealName string      `json:"real_name"`
-	Tz       string      `json:"tz"`
-	TzLabel  string      `json:"tz_label"`
-	TzOffset int         `json:"tz_offset"`
-	Updated  int64       `json:"updated"`
-	Profile  struct {
-		RealName           string `json:"real_name"`
-		RealNameNormalized string `json:"real_name_normalized"`
-		FirstName          string `json:"first_name"`
-		LastName           string `json:"last_name"`
-		Email              string `json:"email"`
-		Phone              string `json:"phone"`
-		Title              string `json:"title"`
-		Skype              string `json:"skype"`
-		Image24            string `json:"image_24"`
-		Image32            string `json:"image_32"`
-		Image48            string `json:"image_48"`
-		Image72            string `json:"image_72"`
-		Image128           string `json:"image_128"`
-		Image192           string `json:"image_192"`
-		Image512           string `json:"image_512"`
-		Image1024          string `json:"image_1024"`
-		ImageOriginal      string `json:"image_original"`
-	} `json:"profile"`
-	IsAdmin           bool   `json:"is_admin"`
-	IsOwner           bool   `json:"is_owner"`
-	IsPrimaryOwner    bool   `json:"is_primary_owner"`
-	IsRestricted      bool   `json:"is_restricted"`
-	IsUltraRestricted bool   `json:"is_ultra_restricted"`
-	IsBot             bool   `json:"is_bot"`
-	Presence          string `json:"presence"`
-	Has2Fa            bool   `json:"has_2fa,omitempty"`
+	ID                UserID      `json:"id"`
+	TeamID            TeamID      `json:"team_id"`
+	Name              string      `json:"-"`
+	Deleted           bool        `json:"deleted"`
+	Status            interface{} `json:"status"`
+	Color             string      `json:"color"`
+	RealName          string      `json:"real_name"`
+	Tz                string      `json:"tz"`
+	TzLabel           string      `json:"tz_label"`
+	TzOffset          int         `json:"tz_offset"`
+	Updated           int64       `json:"updated"`
+	Profile           Profile     `json:"profile"`
+	IsAdmin           bool        `json:"is_admin"`
+	IsOwner           bool        `json:"is_owner"`
+	IsPrimaryOwner    bool        `json:"is_primary_owner"`
+	IsRestricted      bool        `json:"is_restricted"`
+	IsUltraRestricted bool        `json:"is_ultra_restricted"`
+	IsBot             bool        `json:"is_bot"`
+	Presence          string      `json:"presence"`
+	Has2Fa            bool        `json:"has_2fa,omitempty"`
+}
+
+type Profile struct {
+	DisplayName        string `json:"display_name_normalized"`
+	RealName           string `json:"real_name"`
+	RealNameNormalized string `json:"real_name_normalized"`
+	FirstName          string `json:"first_name"`
+	LastName           string `json:"last_name"`
+	Email              string `json:"email"`
+	Phone              string `json:"phone"`
+	Title              string `json:"title"`
+	Skype              string `json:"skype"`
+	Image24            string `json:"image_24"`
+	Image32            string `json:"image_32"`
+	Image48            string `json:"image_48"`
+	Image72            string `json:"image_72"`
+	Image128           string `json:"image_128"`
+	Image192           string `json:"image_192"`
+	Image512           string `json:"image_512"`
+	Image1024          string `json:"image_1024"`
+	ImageOriginal      string `json:"image_original"`
 }
 
 func (u *User) Avatar(size int) string {
