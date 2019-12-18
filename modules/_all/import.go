@@ -2,9 +2,10 @@
 package _all
 
 import (
+	_ "github.com/riking/marvin/modules/antiflood"
 	_ "github.com/riking/marvin/modules/atcommand"
 	_ "github.com/riking/marvin/modules/autoinvite"
-	_ "github.com/riking/marvin/modules/autoresponse"
+	//_ "github.com/riking/marvin/modules/autoresponse"
 	_ "github.com/riking/marvin/modules/awake"
 	_ "github.com/riking/marvin/modules/core"
 	_ "github.com/riking/marvin/modules/debug"

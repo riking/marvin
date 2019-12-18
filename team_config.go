@@ -27,6 +27,7 @@ type TeamConfig struct {
 	HTTPListen      string
 	HTTPURL         string
 	Controllers     []slack.UserID
+	ChannelPrefix   slack.ChannelID
 	IsDevelopment   bool
 	IsReadOnly   	bool
 }
@@ -44,6 +45,7 @@ func LoadTeamConfig(sec *ini.Section) *TeamConfig {
 	c.HTTPListen = sec.Key("HTTPListen").String()
 	c.HTTPURL = sec.Key("HTTPURL").String()
 	c.LogChannel = slack.ChannelID(sec.Key("LogChannel").String())
+	c.ChannelPrefix = slack.ChannelID(sec.Key("ChannelPrefix").String())
 	c.IsDevelopment, _ = sec.Key("IsDevelopment").Bool()
 	c.IsReadOnly, _ = sec.Key("IsReadOnly").Bool()
 
@@ -76,6 +78,20 @@ func (t *TeamConfig) IsController(user slack.UserID) bool {
 		}
 	}
 	return false
+}
+
+// This checks if the channel where a factoid / command
+// invocation is coming from one of our own channels.
+// It will ignore the message otherwise.
+func (t *TeamConfig) CheckChannelName(chanName string) bool {
+	if len(t.ChannelPrefix) > 0 {
+		if !strings.HasPrefix(chanName, string("#"+t.ChannelPrefix)) {
+			fmt.Printf("Unapproved channel! %s\n", chanName, t.ChannelPrefix)
+			// Unapproved public channel.
+			return false
+		}
+	}
+	return true
 }
 
 // GetSecretKey expands the CookieSecretKey value using the 'purpose' parameter as a salt.
