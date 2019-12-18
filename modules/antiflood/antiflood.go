@@ -2,7 +2,7 @@ package antiflood
 
 import (
 	"fmt"
-	"github.com/riking/marvin-old/util"
+	"github.com/riking/marvin/util"
 	"strings"
 	"sync"
 	"time"
